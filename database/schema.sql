@@ -175,6 +175,9 @@ CREATE TABLE IF NOT EXISTS hourly_stats (
     offline_seconds INT NOT NULL DEFAULT 0,
     degraded_seconds INT NOT NULL DEFAULT 0,
     maintenance_seconds INT NOT NULL DEFAULT 0,
+    unknown_seconds INT NOT NULL DEFAULT 0,
+    sample_count INT NOT NULL DEFAULT 0,
+    response_time_sum DECIMAL(16,3) NOT NULL DEFAULT 0,
     availability_ratio DECIMAL(6,4) NULL,
     health_score DECIMAL(6,4) NULL,
     calc_method VARCHAR(24) NULL,
@@ -196,6 +199,9 @@ CREATE TABLE IF NOT EXISTS daily_stats (
     offline_seconds INT NOT NULL DEFAULT 0,
     degraded_seconds INT NOT NULL DEFAULT 0,
     maintenance_seconds INT NOT NULL DEFAULT 0,
+    unknown_seconds INT NOT NULL DEFAULT 0,
+    sample_count INT NOT NULL DEFAULT 0,
+    response_time_sum DECIMAL(16,3) NOT NULL DEFAULT 0,
     availability_ratio DECIMAL(6,4) NULL,
     health_score DECIMAL(6,4) NULL,
     calc_method VARCHAR(24) NULL,
@@ -313,6 +319,13 @@ CREATE TABLE IF NOT EXISTS monitoring_calc_settings (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (singleton_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS monitoring_aggregation_state (
+    job_name VARCHAR(64) NOT NULL,
+    last_success_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (job_name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS alert (

@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from python_monitoring.monitor import run_manual_check
 
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 
 
 def env_bool(name: str, default: bool = False) -> bool:

@@ -570,6 +570,7 @@ function hourly_handle_stats_mode(array $ctx) {
     $hasHourlyOfflineSeconds = hourly_has_column($conn, 'hourly_stats', 'offline_seconds');
     $hasHourlyDegradedSeconds = hourly_has_column($conn, 'hourly_stats', 'degraded_seconds');
     $hasHourlyMaintenanceSeconds = hourly_has_column($conn, 'hourly_stats', 'maintenance_seconds');
+    $hasHourlyUnknownSeconds = hourly_has_column($conn, 'hourly_stats', 'unknown_seconds');
     $hasHourlyAvailabilityRatio = hourly_has_column($conn, 'hourly_stats', 'availability_ratio');
     $hasHourlyHealthScore = hourly_has_column($conn, 'hourly_stats', 'health_score');
     $hasHourlyCalcMethod = hourly_has_column($conn, 'hourly_stats', 'calc_method');
@@ -577,6 +578,7 @@ function hourly_handle_stats_mode(array $ctx) {
     $hasDailyOfflineSeconds = hourly_has_column($conn, 'daily_stats', 'offline_seconds');
     $hasDailyDegradedSeconds = hourly_has_column($conn, 'daily_stats', 'degraded_seconds');
     $hasDailyMaintenanceSeconds = hourly_has_column($conn, 'daily_stats', 'maintenance_seconds');
+    $hasDailyUnknownSeconds = hourly_has_column($conn, 'daily_stats', 'unknown_seconds');
     $hasDailyAvailabilityRatio = hourly_has_column($conn, 'daily_stats', 'availability_ratio');
     $hasDailyHealthScore = hourly_has_column($conn, 'daily_stats', 'health_score');
     $hasDailyCalcMethod = hourly_has_column($conn, 'daily_stats', 'calc_method');
@@ -588,6 +590,7 @@ function hourly_handle_stats_mode(array $ctx) {
                 " . ($hasHourlyOfflineSeconds ? "h.offline_seconds" : "NULL AS offline_seconds") . ",
                 " . ($hasHourlyDegradedSeconds ? "h.degraded_seconds" : "NULL AS degraded_seconds") . ",
                 " . ($hasHourlyMaintenanceSeconds ? "h.maintenance_seconds" : "NULL AS maintenance_seconds") . ",
+                " . ($hasHourlyUnknownSeconds ? "h.unknown_seconds" : "NULL AS unknown_seconds") . ",
                 " . ($hasHourlyAvailabilityRatio ? "h.availability_ratio" : "NULL AS availability_ratio") . ",
                 " . ($hasHourlyHealthScore ? "h.health_score" : "NULL AS health_score") . ",
                 " . ($hasHourlyCalcMethod ? "h.calc_method" : "NULL AS calc_method") . ",
@@ -771,6 +774,10 @@ function hourly_handle_stats_mode(array $ctx) {
         if ($row['maintenance_seconds'] !== null && $row['maintenance_seconds'] !== '' && is_numeric($row['maintenance_seconds'])) {
             $maintenanceSeconds = (int)$row['maintenance_seconds'];
         }
+        $unknownSeconds = null;
+        if ($row['unknown_seconds'] !== null && $row['unknown_seconds'] !== '' && is_numeric($row['unknown_seconds'])) {
+            $unknownSeconds = (int)$row['unknown_seconds'];
+        }
         $availabilityRatio = null;
         if ($row['availability_ratio'] !== null && $row['availability_ratio'] !== '' && is_numeric($row['availability_ratio'])) {
             $availabilityRatio = (float)$row['availability_ratio'];
@@ -823,6 +830,7 @@ function hourly_handle_stats_mode(array $ctx) {
             'offline_seconds' => $offlineSeconds,
             'degraded_seconds' => $degradedSeconds,
             'maintenance_seconds' => $maintenanceSeconds,
+            'unknown_seconds' => $unknownSeconds,
             'availability_ratio' => $availabilityRatio,
             'health_score' => $healthScore,
             'calc_method' => $entryCalcMethod,
@@ -875,6 +883,7 @@ function hourly_handle_stats_mode(array $ctx) {
                             'offline_seconds' => null,
                             'degraded_seconds' => null,
                             'maintenance_seconds' => null,
+                            'unknown_seconds' => null,
                             'availability_ratio' => null,
                             'health_score' => null,
                             'calc_method' => null,
@@ -907,6 +916,7 @@ function hourly_handle_stats_mode(array $ctx) {
                         'offline_seconds' => null,
                         'degraded_seconds' => null,
                         'maintenance_seconds' => null,
+                        'unknown_seconds' => null,
                         'availability_ratio' => null,
                         'health_score' => null,
                         'calc_method' => null,
@@ -1076,6 +1086,7 @@ function hourly_handle_stats_mode(array $ctx) {
                     , " . ($hasDailyOfflineSeconds ? "ds.offline_seconds" : "NULL AS offline_seconds") . "
                     , " . ($hasDailyDegradedSeconds ? "ds.degraded_seconds" : "NULL AS degraded_seconds") . "
                     , " . ($hasDailyMaintenanceSeconds ? "ds.maintenance_seconds" : "NULL AS maintenance_seconds") . "
+                    , " . ($hasDailyUnknownSeconds ? "ds.unknown_seconds" : "NULL AS unknown_seconds") . "
                     , " . ($hasDailyAvailabilityRatio ? "ds.availability_ratio" : "NULL AS availability_ratio") . "
                     , " . ($hasDailyHealthScore ? "ds.health_score" : "NULL AS health_score") . "
                     , " . ($hasDailyCalcMethod ? "ds.calc_method" : "NULL AS calc_method") . "
@@ -1111,6 +1122,7 @@ function hourly_handle_stats_mode(array $ctx) {
                                 'offline_seconds' => ($drow['offline_seconds'] !== null && $drow['offline_seconds'] !== '' && is_numeric($drow['offline_seconds'])) ? (int)$drow['offline_seconds'] : null,
                                 'degraded_seconds' => ($drow['degraded_seconds'] !== null && $drow['degraded_seconds'] !== '' && is_numeric($drow['degraded_seconds'])) ? (int)$drow['degraded_seconds'] : null,
                                 'maintenance_seconds' => ($drow['maintenance_seconds'] !== null && $drow['maintenance_seconds'] !== '' && is_numeric($drow['maintenance_seconds'])) ? (int)$drow['maintenance_seconds'] : null,
+                                'unknown_seconds' => ($drow['unknown_seconds'] !== null && $drow['unknown_seconds'] !== '' && is_numeric($drow['unknown_seconds'])) ? (int)$drow['unknown_seconds'] : null,
                                 'availability_ratio' => ($drow['availability_ratio'] !== null && $drow['availability_ratio'] !== '' && is_numeric($drow['availability_ratio'])) ? (float)$drow['availability_ratio'] : null,
                                 'health_score' => ($drow['health_score'] !== null && $drow['health_score'] !== '' && is_numeric($drow['health_score'])) ? (float)$drow['health_score'] : null,
                                 'calc_method' => ($drow['calc_method'] !== null && $drow['calc_method'] !== '') ? strtolower(trim((string)$drow['calc_method'])) : null

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+from .aggregation_state import aggregation_cutoff, aggregation_job_name, mark_aggregation_success
 from .db import Database
 from .table_names import table_name, table_sql
 
@@ -82,6 +83,9 @@ def _ensure_hourly_stats_calc_columns(db: Database, hourly_table: str) -> None:
         "offline_seconds": "INT NULL",
         "degraded_seconds": "INT NULL",
         "maintenance_seconds": "INT NULL",
+        "unknown_seconds": "INT NOT NULL DEFAULT 0",
+        "sample_count": "INT NOT NULL DEFAULT 0",
+        "response_time_sum": "DECIMAL(16,3) NOT NULL DEFAULT 0",
         "availability_ratio": "DECIMAL(7,4) NULL",
         "health_score": "DECIMAL(7,4) NULL",
         "calc_method": "VARCHAR(24) NULL",
@@ -190,7 +194,7 @@ def _compute_weighted_hour_metrics(
 
     rows = db.query_all(
         f"""
-        SELECT checked_at, status
+        SELECT checked_at, status, response_time
         FROM {probes_table_sql}
         WHERE site_id = %s
           AND checked_at >= %s
@@ -205,13 +209,26 @@ def _compute_weighted_hour_metrics(
     )
 
     checkpoints: list[tuple[datetime, str]] = []
+    minute_statuses = [0] * 60
+    response_time_sum = 0.0
+    sample_count = 0
     for row in rows:
         checked_at = _parse_dt(row.get("checked_at"))
         if checked_at is None:
             continue
         if checked_at < slot_start or checked_at > slot_end:
             continue
-        checkpoints.append((checked_at, _status_bucket(row.get("status"))))
+        bucket = _status_bucket(row.get("status"))
+        checkpoints.append((checked_at, bucket))
+        if 0 <= checked_at.minute < 60:
+            minute_statuses[checked_at.minute] = 1 if bucket == "online" else 0
+        response_time = row.get("response_time")
+        if response_time is not None:
+            try:
+                response_time_sum += float(response_time)
+                sample_count += 1
+            except (TypeError, ValueError):
+                pass
 
     totals = {
         "online": 0,
@@ -257,6 +274,10 @@ def _compute_weighted_hour_metrics(
         "offline_seconds": offline_seconds,
         "degraded_seconds": degraded_seconds,
         "maintenance_seconds": maintenance_seconds,
+        "unknown_seconds": unknown_seconds,
+        "binary_sequence": _build_binary_sequence(minute_statuses),
+        "sample_count": sample_count,
+        "response_time_sum": round(response_time_sum, 3),
         "availability_ratio": availability_ratio,
         "health_score": health_score,
     }
@@ -272,34 +293,6 @@ def process_hourly(
     probes_table_sql: str,
     hourly_table_sql: str,
 ) -> bool:
-    minute_rows = db.query_all(
-        f"""
-        SELECT MINUTE(checked_at) AS minute, status
-        FROM {probes_table_sql}
-        WHERE site_id = %s AND DATE(checked_at) = %s AND HOUR(checked_at) = %s
-        ORDER BY MINUTE(checked_at) ASC
-        """,
-        (site_id, date_value, hour_value),
-    )
-    minute_statuses = [0] * 60
-    for row in minute_rows:
-        minute = int(row.get("minute") or 0)
-        if 0 <= minute < 60:
-            minute_statuses[minute] = 1 if str(row.get("status")) == "online" else 0
-
-    binary_sequence = _build_binary_sequence(minute_statuses)
-    minutes_offline = binary_sequence.count("0")
-
-    avg_row = db.query_one(
-        f"""
-        SELECT AVG(response_time) AS avg_response_time
-        FROM {probes_table_sql}
-        WHERE site_id = %s AND DATE(checked_at) = %s AND HOUR(checked_at) = %s
-        """,
-        (site_id, date_value, hour_value),
-    )
-    avg_response_time = float(avg_row.get("avg_response_time") or 0.0) if avg_row else 0.0
-
     slot_start = datetime.strptime(
         date_value + " " + str(hour_value).zfill(2) + ":00:00",
         "%Y-%m-%d %H:%M:%S",
@@ -313,6 +306,11 @@ def process_hourly(
         slot_end,
         probes_table_sql=probes_table_sql,
     )
+    binary_sequence = str(weighted["binary_sequence"])
+    minutes_offline = binary_sequence.count("0")
+    sample_count = int(weighted["sample_count"])
+    response_time_sum = float(weighted["response_time_sum"])
+    avg_response_time = response_time_sum / sample_count if sample_count > 0 else 0.0
 
     minutes_offline_legacy = int(minutes_offline)
     minutes_offline_weighted = int(round(float(weighted["offline_seconds"]) / 60.0))
@@ -327,6 +325,7 @@ def process_hourly(
         offline_seconds = int(weighted["offline_seconds"])
         degraded_seconds = int(weighted["degraded_seconds"])
         maintenance_seconds = int(weighted["maintenance_seconds"])
+        unknown_seconds = int(weighted["unknown_seconds"])
         availability_ratio = weighted["availability_ratio"]
         health_score = weighted["health_score"]
     else:
@@ -334,6 +333,7 @@ def process_hourly(
         total_seconds = 3600
         maintenance_seconds = 0
         degraded_seconds = 0
+        unknown_seconds = 0
         offline_seconds = max(0, min(3600, minutes_offline_legacy * 60))
         availability_ratio = round(max(0.0, min(1.0, (3600 - offline_seconds) / 3600)), 4)
         health_score = availability_ratio
@@ -341,8 +341,8 @@ def process_hourly(
     db.execute(
         f"""
         INSERT INTO {hourly_table_sql}
-            (site_id, date, hour, avg_response_time, minutes_offline, binary_sequence, total_seconds, offline_seconds, degraded_seconds, maintenance_seconds, availability_ratio, health_score, calc_method, checked_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            (site_id, date, hour, avg_response_time, minutes_offline, binary_sequence, total_seconds, offline_seconds, degraded_seconds, maintenance_seconds, unknown_seconds, sample_count, response_time_sum, availability_ratio, health_score, calc_method, checked_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
         ON DUPLICATE KEY UPDATE
             avg_response_time = VALUES(avg_response_time),
             minutes_offline = VALUES(minutes_offline),
@@ -351,6 +351,9 @@ def process_hourly(
             offline_seconds = VALUES(offline_seconds),
             degraded_seconds = VALUES(degraded_seconds),
             maintenance_seconds = VALUES(maintenance_seconds),
+            unknown_seconds = VALUES(unknown_seconds),
+            sample_count = VALUES(sample_count),
+            response_time_sum = VALUES(response_time_sum),
             availability_ratio = VALUES(availability_ratio),
             health_score = VALUES(health_score),
             calc_method = VALUES(calc_method),
@@ -367,6 +370,9 @@ def process_hourly(
             offline_seconds,
             degraded_seconds,
             maintenance_seconds,
+            unknown_seconds,
+            sample_count,
+            response_time_sum,
             availability_ratio,
             health_score,
             calc_method,
@@ -386,6 +392,18 @@ def run_hourly_job(db: Database, cfg: dict | None = None) -> dict:
     calc_settings = _ensure_calc_settings_table(db)
     switch_at = calc_settings.get("switch_at")
     default_calc_method = str(calc_settings.get("default_calc_method") or "time_weighted")
+    try:
+        reprocess_hours = int(str(cfg.get("aggregation_reprocess_hours", "2")).strip())
+    except Exception:
+        reprocess_hours = 2
+    reprocess_hours = max(2, min(24 * 30, reprocess_hours))
+    job_name = aggregation_job_name("hourly", cfg)
+    cutoff = aggregation_cutoff(
+        db,
+        job_name,
+        timedelta(hours=reprocess_hours),
+        timedelta(hours=1),
+    )
 
     processed = 0
     bad_data = 0
@@ -397,18 +415,24 @@ def run_hourly_job(db: Database, cfg: dict | None = None) -> dict:
             continue
         site_calc_method = str(site.get("calc_method") or "inherit")
 
+        cutoff_sql = ""
+        params: tuple[object, ...] = (site_id,)
+        if cutoff is not None:
+            cutoff_sql = "AND checked_at >= %s"
+            params = (site_id, cutoff.strftime("%Y-%m-%d %H:%M:%S"))
         rows = db.query_all(
             f"""
             SELECT DISTINCT DATE(checked_at) AS date, HOUR(checked_at) AS hour
             FROM {probes_table_sql}
             WHERE site_id = %s
+              {cutoff_sql}
               AND (
                 DATE(checked_at) < CURDATE()
                 OR (DATE(checked_at) = CURDATE() AND HOUR(checked_at) < HOUR(NOW()))
               )
             ORDER BY DATE(checked_at), HOUR(checked_at)
             """,
-            (site_id,),
+            params,
         )
         for row in rows:
             date_value = str(row.get("date") or "")
@@ -440,12 +464,16 @@ def run_hourly_job(db: Database, cfg: dict | None = None) -> dict:
             except Exception:
                 bad_data += 1
 
+    if bad_data == 0:
+        mark_aggregation_success(db, job_name)
+
     switch_at_value = switch_at.strftime("%Y-%m-%d %H:%M:%S") if isinstance(switch_at, datetime) else None
     return {
         "ok": True,
         "processed": processed,
         "bad_data": bad_data,
         "tables": {"probes": probes_table, "hourly_stats": hourly_table},
+        "reprocess_from": cutoff.strftime("%Y-%m-%d %H:%M:%S") if cutoff is not None else None,
         "calc_settings": {
             "switch_at": switch_at_value,
             "default_calc_method": default_calc_method,

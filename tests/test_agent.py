@@ -148,6 +148,7 @@ class WeightedAvailabilityTests(unittest.TestCase):
             probes_table_sql="`probes`",
         )
         self.assertEqual(0, metrics["offline_seconds"])
+        self.assertEqual(1800, metrics["unknown_seconds"])
         self.assertEqual(1.0, metrics["availability_ratio"])
 
     def test_known_offline_time_stays_downtime(self) -> None:
@@ -162,6 +163,7 @@ class WeightedAvailabilityTests(unittest.TestCase):
             probes_table_sql="`probes`",
         )
         self.assertEqual(1800, metrics["offline_seconds"])
+        self.assertEqual(1800, metrics["unknown_seconds"])
         self.assertEqual(0.0, metrics["availability_ratio"])
 
 

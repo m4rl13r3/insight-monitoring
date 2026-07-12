@@ -179,6 +179,15 @@ def load_monitoring_config(root_dir: Path) -> Dict[str, str]:
         "MONITORING_ESCALATION_MAX_NOTIFICATIONS_PER_RUN",
         cfg.get("monitoring_escalation_max_notifications_per_run", "20"),
     )
+    cfg["aggregation_reprocess_hours"] = os.getenv(
+        "INSIGHT_AGGREGATION_REPROCESS_HOURS",
+        cfg.get("aggregation_reprocess_hours", "2"),
+    )
+    cfg["probe_retention_days"] = os.getenv("INSIGHT_PROBE_RETENTION_DAYS", cfg.get("probe_retention_days", "30"))
+    cfg["hourly_retention_days"] = os.getenv("INSIGHT_HOURLY_RETENTION_DAYS", cfg.get("hourly_retention_days", "365"))
+    cfg["daily_retention_days"] = os.getenv("INSIGHT_DAILY_RETENTION_DAYS", cfg.get("daily_retention_days", "730"))
+    cfg["tls_retention_days"] = os.getenv("INSIGHT_TLS_RETENTION_DAYS", cfg.get("tls_retention_days", "365"))
+    cfg["retention_batch_size"] = os.getenv("INSIGHT_RETENTION_BATCH_SIZE", cfg.get("retention_batch_size", "5000"))
     cfg["email_smtp_host"] = os.getenv("INSIGHT_EMAIL_SMTP_HOST", os.getenv("MONITORING_EMAIL_SMTP_HOST", smtp_cfg.get("smtp_host", "")))
     cfg["email_smtp_port"] = os.getenv("INSIGHT_EMAIL_SMTP_PORT", os.getenv("MONITORING_EMAIL_SMTP_PORT", smtp_cfg.get("smtp_port", "465")))
     cfg["email_smtp_username"] = os.getenv("INSIGHT_EMAIL_SMTP_USERNAME", os.getenv("MONITORING_EMAIL_SMTP_USERNAME", smtp_cfg.get("smtp_username", "")))

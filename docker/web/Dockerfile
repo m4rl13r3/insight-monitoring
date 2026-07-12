@@ -7,6 +7,7 @@ RUN npm ci
 
 COPY components.json tsconfig.json vite.config.ts ./
 COPY src ./src
+COPY public ./public
 COPY scripts/copy-vendor.mjs ./scripts/copy-vendor.mjs
 
 RUN npm run build

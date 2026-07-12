@@ -4,6 +4,19 @@ Toutes les modifications notables d’Insight sont documentées dans ce fichier.
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le projet utilise [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.1.1] - 2026-07-13
+
+### Ajouté
+
+- Watermarks d’agrégation incrémentale et rétention configurable des sondes, statistiques et contrôles TLS.
+- Conservation explicite du temps sans observation dans les agrégats horaires et journaliers.
+- Test MariaDB de précision, purge et suppression en cascade des données de monitoring.
+
+### Modifié
+
+- Les agrégations recalculent une fenêtre récente ou la période écoulée depuis le dernier passage réussi au lieu de rescanner tout l’historique.
+- La purge travaille par lots et reste bloquée si les agrégations sources ne sont pas à jour.
+
 ## [0.1.0] - 2026-07-13
 
 ### Ajouté

@@ -36,6 +36,7 @@ test "$(curl --silent --output /dev/null --write-out '%{http_code}' --request PO
 test "$(curl --silent --output /dev/null --write-out '%{http_code}' "${base_url}/api/hourly_report/helpers.php")" = "403"
 
 "${compose[@]}" exec -T php php tests/mariadb_integration.php
+"${compose[@]}" exec -T worker python3 tests/mariadb_aggregation.py
 "${compose[@]}" exec -T db sh -lc 'mariadb -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" "$MARIADB_DATABASE" -e "DELETE FROM sites WHERE url IN (\"http://web\", \"db\", \"db:3306\")"'
 "${compose[@]}" exec -T worker python3 monitoring/python_monitoring/cli.py actions add --site-url http://web --probe-type http >/dev/null
 "${compose[@]}" exec -T worker python3 monitoring/python_monitoring/cli.py actions add --site-url db --probe-type icmp >/dev/null
@@ -44,7 +45,7 @@ test "$(curl --silent --output /dev/null --write-out '%{http_code}' "${base_url}
 "${compose[@]}" exec -T worker php monitoring/hourly.php >/tmp/insight-hourly-job.txt
 "${compose[@]}" exec -T worker php monitoring/daily.php >/tmp/insight-daily-job.txt
 "${compose[@]}" exec -T worker python3 monitoring/python_monitoring/cli.py actions list >/tmp/insight-sites.json
-"${compose[@]}" exec -T db sh -lc 'mariadb --batch --skip-column-names -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" "$MARIADB_DATABASE" -e "SELECT s.url, p.status FROM sites s JOIN probes p ON p.id = (SELECT MAX(latest.id) FROM probes latest WHERE latest.site_id = s.id) WHERE s.url IN (\"http://web\", \"db\", \"db:3306\") ORDER BY s.url"' >/tmp/insight-probes.tsv
+"${compose[@]}" exec -T db sh -lc 'mariadb --batch --skip-column-names -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" "$MARIADB_DATABASE" -e "SELECT s.url, p.status FROM sites s JOIN probes p ON p.id = (SELECT MAX(latest.id) FROM probes latest WHERE latest.site_id = s.id AND latest.checked_by = \"pyt\") WHERE s.url IN (\"http://web\", \"db\", \"db:3306\") ORDER BY s.url"' >/tmp/insight-probes.tsv
 curl --fail --silent --show-error "${base_url}/api/public_runtime_state.php" >/tmp/insight-runtime.json
 
 python3 - <<'PY'

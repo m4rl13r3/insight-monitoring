@@ -16,6 +16,7 @@ $requiredTables = [
     'ssl_checks',
     'monitoring_public_runtime_state',
     'monitoring_calc_settings',
+    'monitoring_aggregation_state',
     'alert',
     'notification_channels',
     'notification_templates',

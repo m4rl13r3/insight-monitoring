@@ -17,6 +17,7 @@ from python_monitoring.daily import run_daily_job
 from python_monitoring.db import Database, DbConfig
 from python_monitoring.hourly import run_hourly_job
 from python_monitoring.monitor import run_manual_check, run_monitor_job
+from python_monitoring.retention import run_retention_job
 from python_monitoring.shadow_tables import ensure_shadow_tables, seed_shadow_probes
 
 
@@ -60,6 +61,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
 
     subparsers.add_parser("hourly", help="Build hourly stats")
     subparsers.add_parser("daily", help="Build daily stats")
+    subparsers.add_parser("retention", help="Remove expired monitoring data")
     subparsers.add_parser("monitor", help="Run monitoring checks")
     manual_check_parser = subparsers.add_parser("manual-check", help="Run one manual check without DB insert")
     manual_check_parser.add_argument("--site-url", default="")
@@ -135,6 +137,10 @@ def _run_command(args: argparse.Namespace, root: Path, db: Database) -> Dict[str
     if args.command == "daily":
         cfg = load_monitoring_config(root)
         return run_daily_job(db, cfg)
+
+    if args.command == "retention":
+        cfg = load_monitoring_config(root)
+        return run_retention_job(db, cfg)
 
     if args.command == "monitor":
         cfg = load_monitoring_config(root)

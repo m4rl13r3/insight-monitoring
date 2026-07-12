@@ -142,6 +142,11 @@ Variables principales :
 | `INSIGHT_DB_*` | voir `.env.example` | Connexion MariaDB |
 | `INSIGHT_MONITOR_INTERVAL_SEC` | `60` | Fréquence du worker en secondes |
 | `INSIGHT_DISTRIBUTED_MODE` | `standalone` | Sondes locales ou consensus du hub |
+| `INSIGHT_AGGREGATION_REPROCESS_HOURS` | `2` | Fenêtre recalculée à chaque passage, étendue automatiquement après une interruption |
+| `INSIGHT_PROBE_RETENTION_DAYS` | `30` | Conservation des vérifications brutes après agrégation |
+| `INSIGHT_HOURLY_RETENTION_DAYS` | `365` | Conservation des statistiques horaires |
+| `INSIGHT_DAILY_RETENTION_DAYS` | `730` | Conservation des statistiques journalières |
+| `INSIGHT_TLS_RETENTION_DAYS` | `365` | Conservation des contrôles TLS |
 | `INSIGHT_HTTP_BIND` | `0.0.0.0` | Adresse publiée par Docker, `127.0.0.1` derrière un proxy HTTPS local |
 | `INSIGHT_AGENT_MASTER_SECRET` | vide | Secret maître des agents distants |
 | `INSIGHT_AGENT_REQUIRE_HTTPS` | `1` | Refuse les agents distribués hors HTTPS |
@@ -183,7 +188,10 @@ Lorsque la base locale ne contient aucun site, l’interface affiche un aperçu 
 docker compose exec worker php monitoring/monitoring.php
 docker compose exec worker php monitoring/hourly.php
 docker compose exec worker php monitoring/daily.php
+docker compose exec worker php monitoring/retention.php
 ```
+
+Les agrégations mémorisent leur dernier passage réussi et recalculent au minimum les deux dernières heures. La purge quotidienne travaille par lots et refuse de supprimer les sondes brutes ou les heures tant que les agrégations correspondantes ne sont pas à jour. Les périodes sans observation sont conservées comme temps inconnu et ne sont pas comptées comme une disponibilité réussie. Les temps de réponse journaliers sont pondérés par le nombre réel d’échantillons.
 
 Le CLI Python permet aussi d’ajouter, modifier, supprimer ou tester manuellement une sonde :
 
@@ -236,4 +244,4 @@ Consultez `CONTRIBUTING.md` pour proposer une modification et `SECURITY.md` pour
 
 ## Licence
 
-Insight est distribué sous licence MIT. Cette branche prépare la version `0.1.0`.
+Insight est distribué sous licence MIT.

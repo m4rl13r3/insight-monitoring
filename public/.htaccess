@@ -1,0 +1,24 @@
+Options -Indexes
+DirectoryIndex index.php
+
+RewriteEngine On
+RewriteRule ^index\.html$ index.php [L]
+RewriteRule ^\.well-known/openid-configuration$ api/oauth/openid-configuration.php [L]
+RewriteRule ^(?:config|logs)(?:/|$) - [F,L,NC]
+RewriteRule ^api/hourly_report(?:/|$) - [F,L,NC]
+RewriteRule ^admin/_.*\.php$ - [F,L,NC]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [L]
+
+<FilesMatch "(^\.|\.(?:env|ini|log|sql|sqlite|bak)$)">
+    Require all denied
+</FilesMatch>
+
+ErrorDocument 400 /error.php
+ErrorDocument 403 /error.php
+ErrorDocument 404 /error.php
+ErrorDocument 410 /error.php
+ErrorDocument 500 /error.php
+
+SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1

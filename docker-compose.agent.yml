@@ -1,0 +1,59 @@
+name: insight-agent
+
+services:
+  agent:
+    build:
+      context: .
+      dockerfile: docker/agent/Dockerfile
+    restart: unless-stopped
+    cap_add:
+      - NET_RAW
+    environment:
+      INSIGHT_HUB_URL: ${INSIGHT_HUB_URL:?Définissez INSIGHT_HUB_URL}
+      INSIGHT_AGENT_NODE_KEY: ${INSIGHT_AGENT_NODE_KEY:?Définissez INSIGHT_AGENT_NODE_KEY}
+      INSIGHT_AGENT_SECRET: ${INSIGHT_AGENT_SECRET:?Définissez INSIGHT_AGENT_SECRET}
+      INSIGHT_AGENT_DISPLAY_NAME: ${INSIGHT_AGENT_DISPLAY_NAME:-}
+      INSIGHT_AGENT_REGION: ${INSIGHT_AGENT_REGION:-}
+      INSIGHT_AGENT_ZONE: ${INSIGHT_AGENT_ZONE:-}
+      INSIGHT_AGENT_SPOOL_PATH: /var/lib/insight-agent/spool.sqlite
+      INSIGHT_AGENT_SPOOL_MAX_SAMPLES: ${INSIGHT_AGENT_SPOOL_MAX_SAMPLES:-100000}
+      INSIGHT_AGENT_CONFIG_REFRESH_SEC: ${INSIGHT_AGENT_CONFIG_REFRESH_SEC:-60}
+      INSIGHT_AGENT_HEARTBEAT_SEC: ${INSIGHT_AGENT_HEARTBEAT_SEC:-30}
+      INSIGHT_AGENT_CONCURRENCY: ${INSIGHT_AGENT_CONCURRENCY:-8}
+      INSIGHT_AGENT_PROBE_RETRIES: ${INSIGHT_AGENT_PROBE_RETRIES:-1}
+      INSIGHT_AGENT_PROBE_RETRY_DELAY_MS: ${INSIGHT_AGENT_PROBE_RETRY_DELAY_MS:-500}
+      INSIGHT_AGENT_CONNECTIVITY_TARGET: ${INSIGHT_AGENT_CONNECTIVITY_TARGET:-}
+      INSIGHT_AGENT_BLACKBOX_URL: ${INSIGHT_AGENT_BLACKBOX_URL:-}
+      INSIGHT_AGENT_BLACKBOX_HTTP_MODULE: ${INSIGHT_AGENT_BLACKBOX_HTTP_MODULE:-http_2xx}
+      INSIGHT_AGENT_BLACKBOX_ICMP_MODULE: ${INSIGHT_AGENT_BLACKBOX_ICMP_MODULE:-icmp}
+      INSIGHT_AGENT_BLACKBOX_TCP_MODULE: ${INSIGHT_AGENT_BLACKBOX_TCP_MODULE:-tcp_connect}
+      INSIGHT_AGENT_BLACKBOX_DNS_MODULE: ${INSIGHT_AGENT_BLACKBOX_DNS_MODULE:-dns}
+      INSIGHT_AGENT_BLACKBOX_GRPC_MODULE: ${INSIGHT_AGENT_BLACKBOX_GRPC_MODULE:-grpc}
+      INSIGHT_AGENT_BLACKBOX_FALLBACK_NATIVE: ${INSIGHT_AGENT_BLACKBOX_FALLBACK_NATIVE:-1}
+      INSIGHT_AGENT_VERIFY_TLS: ${INSIGHT_AGENT_VERIFY_TLS:-1}
+      TZ: ${INSIGHT_TIMEZONE:-Europe/Paris}
+    volumes:
+      - insight_agent_spool:/var/lib/insight-agent
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import os; os.kill(1, 0)"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+
+  blackbox:
+    image: quay.io/prometheus/blackbox-exporter:v0.28.0
+    restart: unless-stopped
+    profiles: ["blackbox"]
+    command: ["--config.file=/config/blackbox.yml"]
+    cap_add:
+      - NET_RAW
+    volumes:
+      - ./docker/agent/blackbox.yml:/config/blackbox.yml:ro
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  insight_agent_spool:

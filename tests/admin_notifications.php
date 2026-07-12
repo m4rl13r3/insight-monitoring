@@ -32,8 +32,10 @@ if (!($validated['ok'] ?? false)) {
     fwrite(STDERR, "La validation du webhook a échoué.\n");
     exit(1);
 }
-if (!(insight_notifications_validate_webhook_payload($insightAdminConfig, $validated)['ok'] ?? false)) {
-    fwrite(STDERR, "Le modèle JSON du webhook a été refusé.\n");
+$payloadValidation = insight_notifications_validate_webhook_payload($insightAdminConfig, $validated);
+if (!($payloadValidation['ok'] ?? false)) {
+    $details = trim((string)($payloadValidation['details'] ?? $payloadValidation['error'] ?? ''));
+    fwrite(STDERR, "Le modèle JSON du webhook a été refusé" . ($details !== '' ? ": {$details}" : '') . ".\n");
     exit(1);
 }
 $invalidPayload = $validated;

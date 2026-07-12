@@ -13,6 +13,8 @@ Travaillez sur une branche dédiée et gardez les changements centrés sur un pr
 
 ## Vérifications attendues
 
+Le contrôle de release nécessite `rg` (ripgrep).
+
 ```bash
 find . -name '*.php' -print0 | xargs -0 -n1 php -l
 find public -name '*.js' -not -path 'public/assets/*' -print0 | xargs -0 -n1 node --check

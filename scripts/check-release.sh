@@ -9,6 +9,11 @@ if [ -d "$root/monitoring/.pydeps" ]; then
     export PYTHONPATH="$root/monitoring/.pydeps${PYTHONPATH:+:$PYTHONPATH}"
 fi
 
+if ! command -v rg >/dev/null 2>&1; then
+    echo "ripgrep (rg) est requis pour le contrôle de release." >&2
+    exit 1
+fi
+
 for required in LICENSE README.md SECURITY.md CONTRIBUTING.md CHANGELOG.md THIRD_PARTY_NOTICES.md .env.example docker-compose.yml database/schema.sql; do
     test -f "$required"
 done

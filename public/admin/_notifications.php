@@ -605,7 +605,11 @@ function insight_notifications_validate_webhook_payload(array $config, array $ch
         'templates' => ['title' => 'Webhook', 'body' => $payloadTemplate],
     ]);
     if (!($rendered['ok'] ?? false)) {
-        return ['ok' => false, 'error' => 'admin.notifications.errorWebhookPayload'];
+        return [
+            'ok' => false,
+            'error' => 'admin.notifications.errorWebhookPayload',
+            'details' => mb_substr((string)($rendered['error'] ?? $rendered['details'] ?? ''), 0, 255),
+        ];
     }
     json_decode((string)($rendered['body'] ?? ''));
     return json_last_error() === JSON_ERROR_NONE

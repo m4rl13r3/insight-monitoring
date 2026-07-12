@@ -23,6 +23,10 @@ if (!function_exists('run_monitoring_python')) {
         }
 
         $candidates = [
+            'python3.12',
+            'python3.11',
+            'python3.10',
+            'python3',
             '/opt/alt/python312/bin/python3',
             '/opt/alt/python311/bin/python3',
             '/opt/alt/python310/bin/python3',
@@ -32,12 +36,8 @@ if (!function_exists('run_monitoring_python')) {
             '/usr/bin/python3.12',
             '/usr/bin/python3.11',
             '/usr/bin/python3.10',
-            'python3.12',
-            'python3.11',
-            'python3.10',
             '/usr/local/bin/python3',
             '/usr/bin/python3',
-            'python3',
         ];
 
         foreach ($candidates as $candidate) {

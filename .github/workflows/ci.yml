@@ -10,6 +10,8 @@ permissions:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    env:
+      PYTHON_BIN: python3
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,7 +24,7 @@ jobs:
           cache: pip
           cache-dependency-path: monitoring/python_monitoring/requirements.txt
       - name: Installer PHP
-        run: sudo apt-get update && sudo apt-get install -y php-cli php-curl php-mbstring php-mysql php-sqlite3 php-xml
+        run: sudo apt-get update && sudo apt-get install -y php-cli php-curl php-mbstring php-mysql php-sqlite3 php-xml ripgrep
       - name: Installer les dépendances
         run: |
           php -r 'exit(extension_loaded("sodium") ? 0 : 1);'

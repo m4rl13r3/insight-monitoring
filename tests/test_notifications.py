@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import os
@@ -84,9 +85,12 @@ class NotificationTests(unittest.TestCase):
 
     def test_tampered_configuration_is_rejected(self) -> None:
         ciphertext = encrypt_config({"token": "secret"})
-        replacement = "A" if ciphertext[-1] != "A" else "B"
+        encoded = ciphertext[3:]
+        encrypted = bytearray(base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4)))
+        encrypted[0] ^= 1
+        tampered = "v1:" + base64.urlsafe_b64encode(bytes(encrypted)).decode("ascii").rstrip("=")
         with self.assertRaises(Exception):
-            decrypt_config(ciphertext[:-1] + replacement)
+            decrypt_config(tampered)
 
     @unittest.skipUnless(shutil.which("php"), "PHP est requis pour vérifier la compatibilité du chiffrement")
     def test_php_and_python_share_the_same_ciphertext_format(self) -> None:

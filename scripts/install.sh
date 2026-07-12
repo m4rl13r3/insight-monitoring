@@ -40,3 +40,4 @@ docker compose up -d --build
 docker compose ps
 
 echo "Insight est démarré."
+echo "Avant l’ouverture publique, suivez docs/production.md puis lancez ./scripts/production-check.sh --strict."

@@ -37,7 +37,6 @@ SELECT
     monitor_last_ok,
     monitor_last_message,
     monitor_python_error,
-    monitor_fallback_message,
     monitor_checked_by,
     sites_checked,
     errors_count,

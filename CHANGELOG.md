@@ -4,7 +4,7 @@ Toutes les modifications notables d’Insight sont documentées dans ce fichier.
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le projet utilise [Semantic Versioning](https://semver.org/lang/fr/).
 
-## [0.1.0] - Non publiée
+## [0.1.0] - 2026-07-13
 
 ### Ajouté
 
@@ -22,6 +22,17 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 - Fournisseur OpenID Connect pour authentifier des dashboards tiers.
 - Connexion du dashboard par SSO OIDC externe avec politiques par e-mails et groupes.
 - Écran Accès et guide d’intégration API, OAuth 2.0 et SSO.
+- Contrôle strict de mise en production et sauvegardes planifiées avec rétention et copie rclone optionnelle.
+
+### Modifié
+
+- Le moteur Python est désormais l’unique moteur de supervision local.
+- Le consensus distribué publie directement son état dans l’API publique.
+- Les tâches monitor, horaire et journalière conservent indépendamment leur dernier état.
+
+### Supprimé
+
+- Ancien moteur de secours PHP et ses variables de configuration.
 
 ### Sécurité
 

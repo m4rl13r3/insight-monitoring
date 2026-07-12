@@ -48,7 +48,9 @@ function formatStatusCheckedByLabel(value) {
     const raw = String(value || "").trim().toLowerCase();
     const labels = {
         pyt: "Python",
-        php: "PHP",
+        python: "Python",
+        agents: insightT("status.checkedBy.agents"),
+        consensus: insightT("status.checkedBy.agents"),
         system: insightT("status.checkedBy.system")
     };
     return labels[raw] || raw;

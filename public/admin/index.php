@@ -513,7 +513,7 @@ if ($distributedMode === 'hub') {
 }
 $runtimeDegraded = (int)($runtime['is_degraded'] ?? 0) === 1;
 $runtimeOperational = (int)($runtime['monitor_last_ok'] ?? 0) === 1
-    || in_array(strtolower($runtimeEngine), ['python', 'php'], true);
+    || in_array(strtolower($runtimeEngine), ['python', 'consensus'], true);
 $runtimeStatusClass = $runtimeDegraded ? 'degraded' : ($runtimeOperational ? 'operational' : 'unknown');
 $runtimeStatusKey = $runtimeDegraded ? 'state.degraded' : ($runtimeOperational ? 'state.operational' : 'state.unknown');
 

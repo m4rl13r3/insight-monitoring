@@ -23,13 +23,13 @@ if (!function_exists('public_state_db_connect')) {
 
         $cfgFile = __DIR__ . '/config/config.php';
         if (!is_file($cfgFile)) {
-            public_state_log('Config absente: config/config.php');
+            public_state_log('Configuration absente : config/config.php');
             return null;
         }
 
         $cfg = require $cfgFile;
         if (!is_array($cfg)) {
-            public_state_log('Config invalide: format non tableau');
+            public_state_log('Configuration invalide : tableau attendu');
             return null;
         }
 
@@ -41,13 +41,13 @@ if (!function_exists('public_state_db_connect')) {
                 (string)($cfg['dbname'] ?? ''),
                 isset($cfg['port']) && is_numeric((string)$cfg['port']) ? (int)$cfg['port'] : 3306
             );
-        } catch (Throwable $e) {
-            public_state_log('Connexion DB échouée: ' . $e->getMessage());
+        } catch (Throwable $exception) {
+            public_state_log('Connexion à la base échouée : ' . $exception->getMessage());
             return null;
         }
 
         if ($conn->connect_errno) {
-            public_state_log('Connexion DB échouée: ' . $conn->connect_error);
+            public_state_log('Connexion à la base échouée : ' . $conn->connect_error);
             return null;
         }
 
@@ -66,12 +66,11 @@ CREATE TABLE IF NOT EXISTS monitoring_public_runtime_state (
     service_timezone VARCHAR(64) NOT NULL DEFAULT 'Europe/Paris',
     app_env VARCHAR(32) NOT NULL DEFAULT 'production',
     is_degraded TINYINT(1) NOT NULL DEFAULT 0,
-    active_engine VARCHAR(16) NOT NULL DEFAULT 'php',
+    active_engine VARCHAR(16) NOT NULL DEFAULT 'unknown',
     monitor_last_ok TINYINT(1) NOT NULL DEFAULT 0,
     monitor_last_message VARCHAR(255) NULL,
     monitor_python_error TEXT NULL,
-    monitor_fallback_message TEXT NULL,
-    monitor_checked_by VARCHAR(8) NOT NULL DEFAULT 'php',
+    monitor_checked_by VARCHAR(8) NOT NULL DEFAULT 'unknown',
     sites_checked INT NOT NULL DEFAULT 0,
     errors_count INT NOT NULL DEFAULT 0,
     incidents_opened INT NOT NULL DEFAULT 0,
@@ -79,11 +78,11 @@ CREATE TABLE IF NOT EXISTS monitoring_public_runtime_state (
     hourly_last_ok TINYINT(1) NOT NULL DEFAULT 0,
     hourly_processed INT NOT NULL DEFAULT 0,
     hourly_bad_data INT NOT NULL DEFAULT 0,
-    hourly_engine VARCHAR(16) NOT NULL DEFAULT 'php',
+    hourly_engine VARCHAR(16) NOT NULL DEFAULT 'unknown',
     daily_last_ok TINYINT(1) NOT NULL DEFAULT 0,
     daily_processed INT NOT NULL DEFAULT 0,
     daily_bad_data INT NOT NULL DEFAULT 0,
-    daily_engine VARCHAR(16) NOT NULL DEFAULT 'php',
+    daily_engine VARCHAR(16) NOT NULL DEFAULT 'unknown',
     last_monitor_at DATETIME NULL,
     last_hourly_at DATETIME NULL,
     last_daily_at DATETIME NULL,
@@ -91,8 +90,20 @@ CREATE TABLE IF NOT EXISTS monitoring_public_runtime_state (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SQL;
         if (!$conn->query($sql)) {
-            public_state_log('CREATE TABLE échoué: ' . $conn->error);
+            public_state_log('Création de la table échouée : ' . $conn->error);
         }
+    }
+}
+
+if (!function_exists('public_state_bind')) {
+    function public_state_bind(mysqli_stmt $stmt, string $types, array &$values): bool
+    {
+        $arguments = [$types];
+        foreach ($values as $index => &$value) {
+            $arguments[] = &$values[$index];
+        }
+        unset($value);
+        return (bool)call_user_func_array([$stmt, 'bind_param'], $arguments);
     }
 }
 
@@ -101,157 +112,83 @@ if (!function_exists('public_state_upsert')) {
     {
         $conn = public_state_db_connect();
         if (!$conn) {
-            public_state_log('Upsert ignoré: DB indisponible.');
+            public_state_log('Mise à jour ignorée : base indisponible.');
             return false;
         }
 
         public_state_ensure_table($conn);
+        $conn->query("INSERT IGNORE INTO monitoring_public_runtime_state (singleton_id) VALUES (1)");
 
-        $defaults = [
-            'service_name' => 'insight',
-            'service_timezone' => 'Europe/Paris',
-            'app_env' => 'production',
-            'is_degraded' => 0,
-            'active_engine' => 'php',
-            'monitor_last_ok' => 0,
-            'monitor_last_message' => null,
-            'monitor_python_error' => null,
-            'monitor_fallback_message' => null,
-            'monitor_checked_by' => 'php',
-            'sites_checked' => 0,
-            'errors_count' => 0,
-            'incidents_opened' => 0,
-            'incidents_closed' => 0,
-            'hourly_last_ok' => 0,
-            'hourly_processed' => 0,
-            'hourly_bad_data' => 0,
-            'hourly_engine' => 'php',
-            'daily_last_ok' => 0,
-            'daily_processed' => 0,
-            'daily_bad_data' => 0,
-            'daily_engine' => 'php',
-            'last_monitor_at' => null,
-            'last_hourly_at' => null,
-            'last_daily_at' => null,
+        $allowed = [
+            'service_name' => 's',
+            'service_timezone' => 's',
+            'app_env' => 's',
+            'active_engine' => 's',
+            'monitor_last_ok' => 'i',
+            'monitor_last_message' => 's',
+            'monitor_python_error' => 's',
+            'monitor_checked_by' => 's',
+            'sites_checked' => 'i',
+            'errors_count' => 'i',
+            'incidents_opened' => 'i',
+            'incidents_closed' => 'i',
+            'hourly_last_ok' => 'i',
+            'hourly_processed' => 'i',
+            'hourly_bad_data' => 'i',
+            'hourly_engine' => 's',
+            'daily_last_ok' => 'i',
+            'daily_processed' => 'i',
+            'daily_bad_data' => 'i',
+            'daily_engine' => 's',
+            'last_monitor_at' => 's',
+            'last_hourly_at' => 's',
+            'last_daily_at' => 's',
         ];
 
-        $state = array_merge($defaults, $payload);
+        $assignments = [];
+        $types = '';
+        $values = [];
+        foreach ($payload as $field => $value) {
+            if (!isset($allowed[$field])) {
+                continue;
+            }
+            $assignments[] = $field . ' = ?';
+            $types .= $allowed[$field];
+            $values[] = $allowed[$field] === 'i' ? (int)$value : $value;
+        }
 
-        $sql = <<<SQL
-INSERT INTO monitoring_public_runtime_state (
-    singleton_id,
-    service_name,
-    service_timezone,
-    app_env,
-    is_degraded,
-    active_engine,
-    monitor_last_ok,
-    monitor_last_message,
-    monitor_python_error,
-    monitor_fallback_message,
-    monitor_checked_by,
-    sites_checked,
-    errors_count,
-    incidents_opened,
-    incidents_closed,
-    hourly_last_ok,
-    hourly_processed,
-    hourly_bad_data,
-    hourly_engine,
-    daily_last_ok,
-    daily_processed,
-    daily_bad_data,
-    daily_engine,
-    last_monitor_at,
-    last_hourly_at,
-    last_daily_at
-) VALUES (
-    1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-)
-ON DUPLICATE KEY UPDATE
-    service_name = VALUES(service_name),
-    service_timezone = VALUES(service_timezone),
-    app_env = VALUES(app_env),
-    is_degraded = VALUES(is_degraded),
-    active_engine = VALUES(active_engine),
-    monitor_last_ok = VALUES(monitor_last_ok),
-    monitor_last_message = VALUES(monitor_last_message),
-    monitor_python_error = VALUES(monitor_python_error),
-    monitor_fallback_message = VALUES(monitor_fallback_message),
-    monitor_checked_by = VALUES(monitor_checked_by),
-    sites_checked = VALUES(sites_checked),
-    errors_count = VALUES(errors_count),
-    incidents_opened = VALUES(incidents_opened),
-    incidents_closed = VALUES(incidents_closed),
-    hourly_last_ok = VALUES(hourly_last_ok),
-    hourly_processed = VALUES(hourly_processed),
-    hourly_bad_data = VALUES(hourly_bad_data),
-    hourly_engine = VALUES(hourly_engine),
-    daily_last_ok = VALUES(daily_last_ok),
-    daily_processed = VALUES(daily_processed),
-    daily_bad_data = VALUES(daily_bad_data),
-    daily_engine = VALUES(daily_engine),
-    last_monitor_at = VALUES(last_monitor_at),
-    last_hourly_at = VALUES(last_hourly_at),
-    last_daily_at = VALUES(last_daily_at),
-    updated_at = CURRENT_TIMESTAMP
+        $ok = true;
+        if ($assignments !== []) {
+            $sql = 'UPDATE monitoring_public_runtime_state SET ' . implode(', ', $assignments) . ', updated_at = CURRENT_TIMESTAMP WHERE singleton_id = 1';
+            $stmt = $conn->prepare($sql);
+            if (!$stmt) {
+                public_state_log('Préparation de la mise à jour échouée : ' . $conn->error);
+                $conn->close();
+                return false;
+            }
+            public_state_bind($stmt, $types, $values);
+            $ok = $stmt->execute();
+            if (!$ok) {
+                public_state_log('Mise à jour de l’état échouée : ' . $stmt->error);
+            }
+            $stmt->close();
+        }
+
+        $degradedSql = <<<SQL
+UPDATE monitoring_public_runtime_state
+SET is_degraded = CASE
+    WHEN last_monitor_at IS NULL OR monitor_last_ok = 0 THEN 1
+    WHEN last_hourly_at IS NOT NULL AND hourly_last_ok = 0 THEN 1
+    WHEN last_daily_at IS NOT NULL AND daily_last_ok = 0 THEN 1
+    ELSE 0
+END
+WHERE singleton_id = 1
 SQL;
-
-        $stmt = $conn->prepare($sql);
-        if (!$stmt) {
-            public_state_log('Préparation upsert échouée: ' . $conn->error);
-            $conn->close();
-            return false;
+        if (!$conn->query($degradedSql)) {
+            public_state_log('Calcul de l’état dégradé échoué : ' . $conn->error);
+            $ok = false;
         }
 
-        $isDegraded = (int)$state['is_degraded'];
-        $monitorLastOk = (int)$state['monitor_last_ok'];
-        $sitesChecked = (int)$state['sites_checked'];
-        $errorsCount = (int)$state['errors_count'];
-        $incidentsOpened = (int)$state['incidents_opened'];
-        $incidentsClosed = (int)$state['incidents_closed'];
-        $hourlyLastOk = (int)$state['hourly_last_ok'];
-        $hourlyProcessed = (int)$state['hourly_processed'];
-        $hourlyBadData = (int)$state['hourly_bad_data'];
-        $dailyLastOk = (int)$state['daily_last_ok'];
-        $dailyProcessed = (int)$state['daily_processed'];
-        $dailyBadData = (int)$state['daily_bad_data'];
-
-        $stmt->bind_param(
-            'sssississsiiiiiisiiisisss',
-            $state['service_name'],
-            $state['service_timezone'],
-            $state['app_env'],
-            $isDegraded,
-            $state['active_engine'],
-            $monitorLastOk,
-            $state['monitor_last_message'],
-            $state['monitor_python_error'],
-            $state['monitor_fallback_message'],
-            $state['monitor_checked_by'],
-            $sitesChecked,
-            $errorsCount,
-            $incidentsOpened,
-            $incidentsClosed,
-            $hourlyLastOk,
-            $hourlyProcessed,
-            $hourlyBadData,
-            $state['hourly_engine'],
-            $dailyLastOk,
-            $dailyProcessed,
-            $dailyBadData,
-            $state['daily_engine'],
-            $state['last_monitor_at'],
-            $state['last_hourly_at'],
-            $state['last_daily_at']
-        );
-
-        $ok = $stmt->execute();
-        if (!$ok) {
-            public_state_log('Exécution upsert échouée: ' . $stmt->error);
-        }
-
-        $stmt->close();
         $conn->close();
         return $ok;
     }

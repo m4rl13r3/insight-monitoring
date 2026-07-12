@@ -1,6 +1,6 @@
 # Insight
 
-Insight est une page de statut open source auto-hébergée avec supervision HTTP, ICMP et TCP, historique de disponibilité, incidents, maintenances planifiées, suivi TLS et dashboard protégé. Le moteur principal est écrit en Python. Un moteur PHP peut prendre le relais automatiquement en mode dégradé. Insight peut aussi agréger des sondes provenant d’un, deux, trois ou autant de serveurs distants que nécessaire.
+Insight est une page de statut open source auto-hébergée avec supervision HTTP, ICMP et TCP, historique de disponibilité, incidents, maintenances planifiées, suivi TLS et dashboard protégé. Le moteur de supervision est écrit en Python. Insight peut aussi agréger des sondes provenant d’un, deux, trois ou autant de serveurs distants que nécessaire.
 
 L’interface publique est disponible en français et en anglais, détecte la langue du navigateur et ne nécessite aucun service privé. Le déploiement de référence utilise Docker Compose avec Nginx, PHP-FPM, un worker et MariaDB.
 
@@ -21,6 +21,8 @@ Le script crée `.env`, génère les mots de passe MariaDB et le secret maître 
 Pour une configuration manuelle, copiez `.env.example`, renseignez `INSIGHT_DB_PASSWORD`, `INSIGHT_DB_ROOT_PASSWORD` et `INSIGHT_NOTIFICATION_ENCRYPTION_KEY` avec le résultat de `openssl rand -hex 32`, puis exécutez `docker compose up -d --build`.
 
 Insight est ensuite disponible sur `http://localhost:8080`.
+
+Pour une instance publique, ne conservez pas les valeurs locales. Le guide [Mise en production](docs/production.md) couvre HTTPS, le premier compte, les vraies sondes, le test des alertes, les agents distants et le contrôle final avec `./scripts/production-check.sh --strict`.
 
 Ouvrez `http://localhost:8080/admin/` pour créer le premier compte administrateur. Comme Uptime Kuma, Insight utilise un compte propre à l’instance : aucun fournisseur d’identité ni serveur externe n’est requis. Un fournisseur OpenID Connect externe peut ensuite être activé sans supprimer cet accès local de secours. Les comptes, sessions, jetons et clés d’identité sont conservés dans le volume privé `insight_auth`, séparé des données de supervision MariaDB.
 
@@ -83,6 +85,8 @@ INSIGHT_RESTORE_CONFIRM=1 ./scripts/restore.sh backups/insight-AAAAmmjjTHHMMSSZ.
 
 Le script vérifie l’empreinte lorsqu’elle est disponible, crée une sauvegarde de sécurité, suspend le worker et le web, restaure les deux bases, contrôle leur intégrité puis redémarre la pile. Les sessions de dashboard sont invalidées après restauration. Pour un fichier Compose ou un nom de projet particulier, utilisez `INSIGHT_COMPOSE_ENV_FILE` et `INSIGHT_COMPOSE_PROJECT_NAME`.
 
+Pour automatiser la sauvegarde, utilisez `scripts/backup-scheduled.sh`. La durée de conservation locale se règle avec `INSIGHT_BACKUP_RETENTION_DAYS` et une copie distante optionnelle avec `INSIGHT_BACKUP_RCLONE_DEST`.
+
 ## Monitoring distribué
 
 Le mode `standalone` par défaut exécute les sondes depuis le worker. Le mode `hub` reçoit les observations d’agents indépendants, calcule un quorum par cible et publie uniquement le consensus. Chaque agent possède une file SQLite persistante et peut utiliser les sondes natives ou Prometheus Blackbox Exporter.
@@ -138,11 +142,10 @@ Variables principales :
 | `INSIGHT_DB_*` | voir `.env.example` | Connexion MariaDB |
 | `INSIGHT_MONITOR_INTERVAL_SEC` | `60` | Fréquence du worker en secondes |
 | `INSIGHT_DISTRIBUTED_MODE` | `standalone` | Sondes locales ou consensus du hub |
+| `INSIGHT_HTTP_BIND` | `0.0.0.0` | Adresse publiée par Docker, `127.0.0.1` derrière un proxy HTTPS local |
 | `INSIGHT_AGENT_MASTER_SECRET` | vide | Secret maître des agents distants |
 | `INSIGHT_AGENT_REQUIRE_HTTPS` | `1` | Refuse les agents distribués hors HTTPS |
 | `INSIGHT_AGENT_DEFAULT_REPLICAS` | `3` | Nombre d’agents affectés par cible, `0` pour tous |
-| `INSIGHT_FORCE_PHP_FALLBACK` | `0` | Force le moteur PHP |
-| `INSIGHT_DISABLE_PHP_FALLBACK` | `0` | Interdit le repli PHP |
 | `INSIGHT_DISABLE_NOTIFICATIONS` | `1` | Coupe les envois automatiques, mais pas les tests manuels |
 | `INSIGHT_NOTIFICATION_ENCRYPTION_KEY` | générée à l’installation | Chiffre les secrets des canaux avec SecretBox |
 | `INSIGHT_ALLOWED_ORIGINS` | URL locale | Origines CORS séparées par des virgules |

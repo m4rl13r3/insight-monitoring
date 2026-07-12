@@ -285,7 +285,6 @@ CREATE TABLE IF NOT EXISTS monitoring_public_runtime_state (
     monitor_last_ok TINYINT(1) NOT NULL DEFAULT 0,
     monitor_last_message VARCHAR(255) NULL,
     monitor_python_error TEXT NULL,
-    monitor_fallback_message TEXT NULL,
     monitor_checked_by VARCHAR(8) NOT NULL DEFAULT 'unknown',
     sites_checked INT NOT NULL DEFAULT 0,
     errors_count INT NOT NULL DEFAULT 0,

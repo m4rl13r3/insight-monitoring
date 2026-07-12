@@ -14,9 +14,18 @@ if ! command -v rg >/dev/null 2>&1; then
     exit 1
 fi
 
-for required in LICENSE README.md SECURITY.md CONTRIBUTING.md CHANGELOG.md THIRD_PARTY_NOTICES.md .env.example docker-compose.yml database/schema.sql; do
+for required in LICENSE README.md SECURITY.md CONTRIBUTING.md CHANGELOG.md THIRD_PARTY_NOTICES.md .env.example docker-compose.yml database/schema.sql docs/production.md scripts/production-check.sh scripts/backup-scheduled.sh; do
     test -f "$required"
 done
+
+removed_engine_file="$(printf '%s%s' 'monitoring/php_' 'fallback.php')"
+removed_engine_symbol="$(printf '%s%s' 'php_' 'fallback')"
+removed_engine_variable="$(printf '%s%s' 'PHP_' 'FALLBACK')"
+removed_engine_column="$(printf '%s%s' 'monitor_' 'fallback_message')"
+test ! -e "$removed_engine_file"
+if rg -n "${removed_engine_symbol}|${removed_engine_variable}|${removed_engine_column}" . --glob '!node_modules/**' --glob '!public/assets/**'; then
+    exit 1
+fi
 
 package_version="$(node -p 'require("./package.json").version')"
 agent_version="$(sed -n 's/^VERSION = "\([^"]*\)"/\1/p' monitoring/agent/agent.py)"

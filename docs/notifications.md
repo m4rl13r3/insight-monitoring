@@ -1,6 +1,6 @@
 # Alertes et notifications
 
-Insight envoie les changements d’état du moteur principal Python et du fallback PHP vers les mêmes canaux. Les canaux, abonnements, modèles et livraisons sont conservés dans MariaDB. Les secrets sont chiffrés avant écriture avec libsodium SecretBox.
+Insight envoie les changements d’état du moteur Python ou du consensus distribué vers les canaux configurés. Les canaux, abonnements, modèles et livraisons sont conservés dans MariaDB. Les secrets sont chiffrés avant écriture avec libsodium SecretBox.
 
 ## Mise en service
 

@@ -4,6 +4,14 @@ Toutes les modifications notables d’Insight sont documentées dans ce fichier.
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le projet utilise [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.1.2] - 2026-07-13
+
+### Ajouté
+
+- Mise à jour manuelle ou planifiée depuis les tags Git stables, sans recréer la configuration ni les volumes.
+- Sauvegarde préalable, migrations SQL idempotentes, contrôle de santé et retour automatique au code précédent.
+- Timer systemd utilisateur optionnel et guide d’exploitation dédié.
+
 ## [0.1.1] - 2026-07-13
 
 ### Ajouté

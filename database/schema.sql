@@ -328,6 +328,13 @@ CREATE TABLE IF NOT EXISTS monitoring_aggregation_state (
     PRIMARY KEY (job_name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS insight_schema_migrations (
+    version VARCHAR(128) NOT NULL,
+    checksum CHAR(64) NOT NULL,
+    applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (version)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS alert (
     id INT NOT NULL,
     site_url VARCHAR(255) NOT NULL,

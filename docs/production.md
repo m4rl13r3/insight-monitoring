@@ -78,10 +78,8 @@ Testez régulièrement la restauration sur une instance isolée. La présence d�
 ## Mises à jour
 
 ```bash
-git pull --ff-only
-docker compose build --pull
-docker compose up -d
-./scripts/production-check.sh --strict
+./scripts/update.sh --check
+./scripts/update.sh --apply
 ```
 
-Créez une sauvegarde avant chaque mise à jour et consultez `CHANGELOG.md` pour les changements de schéma ou de configuration.
+Le script crée la sauvegarde, exécute les migrations une seule fois, contrôle la remise en service et restaure le code précédent en cas d’échec. Les volumes et `.env` sont conservés. Consultez `CHANGELOG.md` avant l’opération et le guide [Mises à jour](updates.md) pour activer le timer systemd optionnel.

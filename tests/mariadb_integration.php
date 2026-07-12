@@ -17,6 +17,7 @@ $requiredTables = [
     'monitoring_public_runtime_state',
     'monitoring_calc_settings',
     'monitoring_aggregation_state',
+    'insight_schema_migrations',
     'alert',
     'notification_channels',
     'notification_templates',

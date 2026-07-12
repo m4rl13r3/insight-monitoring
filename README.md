@@ -87,6 +87,17 @@ Le script vérifie l’empreinte lorsqu’elle est disponible, crée une sauvega
 
 Pour automatiser la sauvegarde, utilisez `scripts/backup-scheduled.sh`. La durée de conservation locale se règle avec `INSIGHT_BACKUP_RETENTION_DAYS` et une copie distante optionnelle avec `INSIGHT_BACKUP_RCLONE_DEST`.
 
+## Mises à jour sans réinstallation
+
+Insight peut rechercher puis installer une version stable sans recréer la configuration ni les volumes :
+
+```bash
+./scripts/update.sh --check
+./scripts/update.sh --apply
+```
+
+Le déploiement crée une sauvegarde, applique uniquement les nouvelles migrations, reconstruit les images et contrôle la pile. En cas d’échec, il revient automatiquement au code précédent sans écraser les données. Sur Linux avec systemd, `./scripts/install-auto-update.sh` active le contrôle quotidien. Le guide [Mises à jour](docs/updates.md) décrit le canal stable, les tags signés, le timer et le retour arrière.
+
 ## Monitoring distribué
 
 Le mode `standalone` par défaut exécute les sondes depuis le worker. Le mode `hub` reçoit les observations d’agents indépendants, calcule un quorum par cible et publie uniquement le consensus. Chaque agent possède une file SQLite persistante et peut utiliser les sondes natives ou Prometheus Blackbox Exporter.

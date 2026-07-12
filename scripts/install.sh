@@ -36,7 +36,8 @@ fi
 
 chmod 600 .env
 
-docker compose up -d --build
+docker compose up -d --build --wait --wait-timeout 180
+./scripts/migrate.sh
 docker compose ps
 
 echo "Insight est démarré."

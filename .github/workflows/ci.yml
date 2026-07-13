@@ -13,7 +13,7 @@ jobs:
     env:
       PYTHON_BIN: python3
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -45,7 +45,7 @@ jobs:
       INSIGHT_AGENT_MASTER_SECRET: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
       INSIGHT_NOTIFICATION_ENCRYPTION_KEY: abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build and load the agent
         run: |
           docker build -f docker/agent/Dockerfile -t insight-agent:ci .

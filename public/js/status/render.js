@@ -435,7 +435,7 @@ function createCopyStatusLinkButton() {
                 }
             }
             if (!copied) {
-                throw new Error("Copie refusée");
+                throw new Error("Copy refused");
             }
             if (resetCopyButtonTimer) {
                 window.clearTimeout(resetCopyButtonTimer);

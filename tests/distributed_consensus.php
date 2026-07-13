@@ -21,51 +21,51 @@ function insight_test_observation(string $status, float $response = 0): array
 }
 
 $singleOnline = insight_dist_consensus_from_observations([insight_test_observation('online', 25)], 1);
-insight_test_assert($singleOnline['status'] === 'online', 'Un nœud en ligne doit produire un consensus en ligne.');
-insight_test_assert($singleOnline['confidence'] === 1.0, 'Le consensus d’un nœud doit avoir une confiance de 100 %.');
+insight_test_assert($singleOnline['status'] === 'online', 'One online node must produce an online consensus.');
+insight_test_assert($singleOnline['confidence'] === 1.0, 'A one-node consensus must have 100% confidence.');
 
 $singleOffline = insight_dist_consensus_from_observations([insight_test_observation('offline')], 1);
-insight_test_assert($singleOffline['status'] === 'offline', 'Un nœud hors ligne doit produire un consensus hors ligne.');
+insight_test_assert($singleOffline['status'] === 'offline', 'One offline node must produce an offline consensus.');
 
 $splitPair = insight_dist_consensus_from_observations([
     insight_test_observation('online', 20),
     insight_test_observation('offline'),
 ], 2);
-insight_test_assert($splitPair['status'] === 'degraded', 'Un désaccord sur deux nœuds doit rester visible.');
+insight_test_assert($splitPair['status'] === 'degraded', 'Disagreement between two nodes must remain visible.');
 
 $healthyPair = insight_dist_consensus_from_observations([
     insight_test_observation('online', 20),
     insight_test_observation('online', 30),
 ], 2);
-insight_test_assert($healthyPair['status'] === 'online', 'Deux réponses positives doivent produire un consensus en ligne.');
+insight_test_assert($healthyPair['status'] === 'online', 'Two positive responses must produce an online consensus.');
 
 $regionalDisagreement = insight_dist_consensus_from_observations([
     insight_test_observation('online', 10),
     insight_test_observation('online', 20),
     insight_test_observation('offline'),
 ], 3);
-insight_test_assert($regionalDisagreement['status'] === 'degraded', 'Une panne régionale minoritaire ne doit pas être masquée.');
+insight_test_assert($regionalDisagreement['status'] === 'degraded', 'A minority regional failure must not be hidden.');
 
 $majorityFailure = insight_dist_consensus_from_observations([
     insight_test_observation('online', 10),
     insight_test_observation('offline'),
     insight_test_observation('offline'),
 ], 3);
-insight_test_assert($majorityFailure['status'] === 'offline', 'Deux échecs sur trois doivent confirmer une panne.');
+insight_test_assert($majorityFailure['status'] === 'offline', 'Two failures out of three must confirm an outage.');
 
 $insufficient = insight_dist_consensus_from_observations([
     insight_test_observation('online', 10),
 ], 3);
-insight_test_assert($insufficient['status'] === 'unknown', 'Une seule réponse sur trois ne doit pas inventer un état.');
-insight_test_assert($insufficient['nodes_missing'] === 2, 'Les réponses manquantes doivent être comptées.');
+insight_test_assert($insufficient['status'] === 'unknown', 'One response out of three must not invent a state.');
+insight_test_assert($insufficient['nodes_missing'] === 2, 'Missing responses must be counted.');
 
 $latency = insight_dist_consensus_from_observations([
     insight_test_observation('online', 10),
     insight_test_observation('online', 20),
     insight_test_observation('online', 100),
 ], 3);
-insight_test_assert($latency['response_median_ms'] === 20.0, 'La médiane doit être calculée sur les réponses saines.');
-insight_test_assert($latency['response_p95_ms'] === 100.0, 'Le percentile 95 doit conserver la valeur haute.');
+insight_test_assert($latency['response_median_ms'] === 20.0, 'The median must be calculated from healthy responses.');
+insight_test_assert($latency['response_p95_ms'] === 100.0, 'The 95th percentile must preserve the high value.');
 
 $nodes = [
     ['node_key' => 'paris-1'],
@@ -75,27 +75,27 @@ $nodes = [
 ];
 $firstAssignment = insight_dist_rendezvous_nodes(42, $nodes, 3);
 $secondAssignment = insight_dist_rendezvous_nodes(42, array_reverse($nodes), 3);
-insight_test_assert(count($firstAssignment) === 3, 'Le facteur de réplication doit être respecté.');
+insight_test_assert(count($firstAssignment) === 3, 'The replication factor must be respected.');
 insight_test_assert(
     array_column($firstAssignment, 'node_key') === array_column($secondAssignment, 'node_key'),
-    'L’affectation rendezvous doit rester stable quel que soit l’ordre des nœuds.'
+    'Rendezvous assignment must remain stable regardless of node order.'
 );
 
 $master = str_repeat('a', 64);
 $derived = insight_dist_derive_node_secret('paris-1', $master);
 insight_test_assert(
     $derived === hash_hmac('sha256', 'insight-agent-v1:paris-1', $master),
-    'La dérivation de clé agent doit rester déterministe.'
+    'Agent key derivation must remain deterministic.'
 );
 $payload = insight_dist_signature_payload('paris-1', '1234567890', '1234567890abcdef', '{"ok":true}');
 insight_test_assert(
     $payload === "v1\nparis-1\n1234567890\n1234567890abcdef\n" . hash('sha256', '{"ok":true}'),
-    'Le format de signature doit être stable entre le hub et l’agent.'
+    'The signature format must remain stable between the hub and agent.'
 );
 $formattedTimestamp = insight_dist_format_unix_milliseconds(1710000000.123456);
 insight_test_assert(
     str_ends_with($formattedTimestamp, '.123'),
-    'La fenêtre de fraîcheur doit accepter un horodatage Unix avec des millisecondes.'
+    'The freshness window must accept a Unix timestamp with milliseconds.'
 );
 
-echo "Consensus distribué: 13 scénarios validés.\n";
+echo "Distributed consensus: 13 scenarios validated.\n";

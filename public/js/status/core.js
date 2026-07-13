@@ -10,7 +10,7 @@ const STATUS_SOURCE_TIME_ZONE = "Europe/Paris";
 const STATUS_TIMEZONE_STORAGE_KEY = "insight.status.timezone";
 const STATUS_TIME_ZONE_CHOICES = [
     { value: "Europe/Paris", label: "Paris" },
-    { value: "Indian/Reunion", label: "Réunion", labelKey: "timezone.reunion" },
+    { value: "Indian/Reunion", label: "Reunion", labelKey: "timezone.reunion" },
     { value: "UTC", label: "UTC" },
     { value: "America/New_York", label: "New York" },
     { value: "America/Los_Angeles", label: "Los Angeles" },
@@ -402,7 +402,7 @@ function buildStatusTimeZoneCombobox(select) {
             <i class="fa-solid fa-chevron-down status-timezone-combobox-chevron" aria-hidden="true"></i>
         </button>
         <div class="status-timezone-combobox-panel hidden">
-            <input class="status-timezone-search" type="search" autocomplete="off" placeholder="${escapeHtml(insightT("timezone.searchPlaceholder"))}" aria-label="${escapeHtml(insightT("timezone.searchAria"))}" data-i18n-placeholder="timezone.searchPlaceholder" data-i18n-aria-label="timezone.searchAria">
+            <input class="status-timezone-search" type="search" autocomplete="off" placeholder="Search for a city or time zone"timezone.searchPlaceholder"))}" aria-label="Search for a time zone"timezone.searchAria"))}" data-i18n-placeholder="timezone.searchPlaceholder" data-i18n-aria-label="timezone.searchAria">
             <div class="status-timezone-combobox-list" role="listbox"></div>
         </div>
     `;

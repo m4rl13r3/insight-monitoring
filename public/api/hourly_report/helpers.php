@@ -60,7 +60,7 @@ function hourly_query_int($key, $default, $min, $max) {
 
 function hourly_incident_duration_label(?int $durationSeconds): string {
     if ($durationSeconds === null || $durationSeconds < 0) {
-        return 'durée inconnue';
+        return 'unknown duration';
     }
     if ($durationSeconds < 60) {
         return $durationSeconds . ' s';
@@ -84,13 +84,13 @@ function hourly_incident_confidence_fields(array $incident): array {
     $facts = [];
     if ($sourceMode === 'manual') {
         $score += 30;
-        $facts[] = 'source manuelle';
+        $facts[] = 'manual source';
     } elseif ($sourceMode === 'system') {
         $score += 25;
-        $facts[] = 'source système';
+        $facts[] = 'system source';
     } else {
         $score += 15;
-        $facts[] = 'source IA';
+        $facts[] = 'AI source';
     }
 
     $httpCode = isset($incident['http_code']) && is_numeric($incident['http_code']) ? (int)$incident['http_code'] : null;
@@ -105,7 +105,7 @@ function hourly_incident_confidence_fields(array $incident): array {
         $facts[] = 'code HTTP ' . $httpCode;
     } else {
         $score -= 5;
-        $facts[] = 'code HTTP absent';
+        $facts[] = 'missing HTTP code';
     }
 
     $startedTs = null;
@@ -135,13 +135,13 @@ function hourly_incident_confidence_fields(array $incident): array {
         } elseif ($durationSeconds >= 60) {
             $score += 5;
         }
-        $facts[] = 'durée ' . hourly_incident_duration_label($durationSeconds);
+        $facts[] = 'duration ' . hourly_incident_duration_label($durationSeconds);
     }
 
     $hasPostmortem = !empty($incident['has_postmortem']) || trim((string)($incident['postmortem'] ?? '')) !== '';
     if ($hasPostmortem) {
         $score += 10;
-        $facts[] = 'postmortem rédigé';
+        $facts[] = 'postmortem available';
     }
 
     $score = max(0, min(100, $score));
@@ -232,7 +232,7 @@ function hourly_send_incidents_rss_response(array $ctx, array $incidents) {
     echo "  <channel>\n";
     echo "    <title>Incidents " . hourly_xml_escape($appName) . "</title>\n";
     echo "    <link>" . hourly_xml_escape($channelLink) . "</link>\n";
-    echo "    <description>Flux public des incidents des services surveillés.</description>\n";
+    echo "    <description>Public incident feed for monitored services.</description>\n";
     echo "    <lastBuildDate>" . date(DATE_RSS) . "</lastBuildDate>\n";
     foreach ($incidents as $incident) {
         $id = isset($incident['id']) ? (int)$incident['id'] : 0;
@@ -240,11 +240,11 @@ function hourly_send_incidents_rss_response(array $ctx, array $incidents) {
         $url = trim((string)($incident['url'] ?? 'Service'));
         $startedAt = (string)($incident['started_at'] ?? '');
         $endedAt = trim((string)($incident['ended_at'] ?? ''));
-        $state = $endedAt !== '' ? 'Résolu' : 'En cours';
+        $state = $endedAt !== '' ? 'Resolved' : 'Ongoing';
         $title = trim($code . ' - ' . $state . ' - ' . preg_replace('#^https?://#', '', $url));
         $description = trim((string)($incident['postmortem'] ?? ''));
         if ($description === '') {
-            $description = $state === 'Résolu' ? 'Incident résolu.' : 'Incident en cours de suivi.';
+            $description = $state === 'Resolved' ? 'Incident resolved.' : 'Incident under investigation.';
         }
         $guid = $publicUrl . '/incidents/' . ($id > 0 ? $id : sha1($title . $startedAt));
         echo "    <item>\n";

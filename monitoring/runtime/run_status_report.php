@@ -11,7 +11,7 @@ $scriptPath = isset($argv[1]) ? trim((string)$argv[1]) : '';
 $queryBlob = isset($argv[2]) ? trim((string)$argv[2]) : '';
 
 if ($scriptPath === '' || !is_file($scriptPath)) {
-    fwrite(STDERR, "Script introuvable.\n");
+    fwrite(STDERR, "Script not found.\n");
     exit(1);
 }
 

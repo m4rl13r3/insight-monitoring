@@ -38,7 +38,7 @@ async function fetchStatusData() {
         dispatchWindowEvent("lastCheckedTimeUpdated", { formattedData });
         dispatchDocumentEvent("dataLoaded");
     } catch (error) {
-        console.error("Erreur de connexion: ", error);
+        console.error("Connection error: ", error);
         dispatchWindowEvent("dataFetchError", { error });
     } finally {
         await runtimeStatePromise;
@@ -291,7 +291,7 @@ async function fetchApiData(options = {}) {
             try {
                 return JSON.parse(raw);
             } catch (_parseError) {
-                const error = new Error(`JSON invalide (${raw.slice(0, 120)})`);
+                const error = new Error(`Invalid JSON (${raw.slice(0, 120)})`);
                 error.code = "INVALID_JSON";
                 throw error;
             }
@@ -305,7 +305,7 @@ async function fetchApiData(options = {}) {
         }
     }
 
-    throw lastError || new Error("Erreur réseau inconnue");
+    throw lastError || new Error("Unknown network error");
 }
 
 function unwrapV2ContractPayload(payload, expectedMode) {
@@ -314,11 +314,11 @@ function unwrapV2ContractPayload(payload, expectedMode) {
     }
 
     if (payload.mode && payload.mode !== expectedMode) {
-        throw new Error(`Réponse API inattendue: mode=${payload.mode}`);
+        throw new Error(`Unexpected API response: mode=${payload.mode}`);
     }
     if (payload.success === false) {
         const errCode = payload.error && payload.error.code ? payload.error.code : "api_error";
-        const errMessage = payload.error && payload.error.message ? payload.error.message : "Erreur API";
+        const errMessage = payload.error && payload.error.message ? payload.error.message : "API error";
         const error = new Error(`${errCode}: ${errMessage}`);
         error.code = errCode;
         throw error;
@@ -344,7 +344,7 @@ async function fetchStatsData({
         return Array.isArray(payload) ? payload : [];
     } catch (error) {
         if (!isLocalStatusPreview()) {
-            console.warn("Erreur fetch stats:", error);
+            console.warn("Failed to fetch statistics:", error);
         }
         return [];
     }
@@ -377,7 +377,7 @@ async function fetchIncidentsData(siteUrls, incidentsOffset = 0, incidentsLimit 
         };
     } catch (error) {
         if (!isLocalStatusPreview()) {
-            console.warn("Erreur fetch incidents:", error);
+            console.warn("Failed to fetch incidents:", error);
         }
         return { items: [], has_more: false, next_offset: incidentsOffset, error: true };
     }
@@ -395,8 +395,8 @@ function formatDataByHours(data) {
 
             let relative = Number(hourEntry.relative_hour);
             if (!Number.isInteger(relative) || relative < 0 || relative > 23) {
-                // Fallback defensif: si l'API renvoie une entrée partielle,
-                // on garde quand même la position séquentielle dans la fenêtre 24h.
+                // Defensive fallback: preserve the sequential position in the 24-hour window
+                // when the API returns a partial entry.
                 relative = index;
             }
             if (!Number.isInteger(relative) || relative < 0 || relative > 23) {

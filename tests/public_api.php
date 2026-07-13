@@ -19,8 +19,8 @@ $expectations = [
 ];
 
 if (in_array(false, $expectations, true)) {
-    fwrite(STDERR, "Validation de l’API publique échouée.\n");
+    fwrite(STDERR, "Public API validation failed.\n");
     exit(1);
 }
 
-echo "API publique validée.\n";
+echo "Public API validated.\n";

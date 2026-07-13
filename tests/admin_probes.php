@@ -21,11 +21,11 @@ $cases = [
 foreach ($cases as [$input, $expectedOk, $expectedTarget]) {
     $result = insight_probes_validate($input);
     if (($result['ok'] ?? false) !== $expectedOk) {
-        fwrite(STDERR, 'Validation inattendue pour ' . json_encode($input) . PHP_EOL);
+        fwrite(STDERR, 'Unexpected validation for ' . json_encode($input) . PHP_EOL);
         exit(1);
     }
     if ($expectedOk && ($result['target'] ?? null) !== $expectedTarget) {
-        fwrite(STDERR, 'Normalisation inattendue pour ' . json_encode($input) . PHP_EOL);
+        fwrite(STDERR, 'Unexpected normalization for ' . json_encode($input) . PHP_EOL);
         exit(1);
     }
 }
@@ -36,7 +36,7 @@ $created = insight_probes_create_preview([
     'interval_sec' => 60,
 ]);
 if (!($created['ok'] ?? false)) {
-    fwrite(STDERR, "Création locale impossible.\n");
+    fwrite(STDERR, "Local creation failed.\n");
     exit(1);
 }
 $probeId = (int)($created['probe']['id'] ?? 0);
@@ -46,16 +46,16 @@ $updated = insight_probes_update_preview($probeId, [
     'interval_sec' => 120,
 ]);
 if (!($updated['ok'] ?? false) || ($updated['probe']['probe_type'] ?? '') !== 'tcp') {
-    fwrite(STDERR, "Modification locale impossible.\n");
+    fwrite(STDERR, "Local update failed.\n");
     exit(1);
 }
 $deleted = insight_probes_delete_preview($probeId);
 if (!($deleted['ok'] ?? false) || insight_probes_preview_rows() !== []) {
-    fwrite(STDERR, "Suppression locale impossible.\n");
+    fwrite(STDERR, "Local deletion failed.\n");
     exit(1);
 }
 @unlink(insight_probes_preview_path());
 @rmdir($testDirectory . '/sessions');
 @rmdir($testDirectory);
 
-echo "Validation des sondes réussie.\n";
+echo "Monitor validation passed.\n";

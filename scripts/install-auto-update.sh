@@ -10,11 +10,11 @@ service_file="${unit_dir}/insight-update.service"
 timer_file="${unit_dir}/insight-update.timer"
 
 if [ ! -f "$env_file" ]; then
-    echo "Le fichier d’environnement ${env_file} est introuvable." >&2
+    echo "Environment file ${env_file} was not found." >&2
     exit 1
 fi
 if ! command -v systemctl >/dev/null 2>&1; then
-    echo "systemd est requis pour installer le timer de mise à jour." >&2
+    echo "systemd is required to install the update timer." >&2
     exit 1
 fi
 
@@ -41,11 +41,11 @@ if [ "$action" = "--remove" ] || [ "$action" = "remove" ]; then
     rm -f "$service_file" "$timer_file"
     set_env_value INSIGHT_AUTO_UPDATE 0
     systemctl --user daemon-reload
-    echo "Les mises à jour automatiques Insight sont désactivées."
+    echo "Automatic Insight updates are disabled."
     exit 0
 fi
 if [ "$action" != "install" ]; then
-    echo "Utilisation : ./scripts/install-auto-update.sh [--remove]" >&2
+    echo "Usage: ./scripts/install-auto-update.sh [--remove]" >&2
     exit 1
 fi
 
@@ -61,7 +61,7 @@ set_env_value INSIGHT_AUTO_UPDATE 1
 
 cat >"$service_file" <<EOF
 [Unit]
-Description=Mise à jour stable d’Insight
+Description=Stable Insight update
 After=docker.service network-online.target
 Wants=network-online.target
 
@@ -75,7 +75,7 @@ EOF
 
 cat >"$timer_file" <<'EOF'
 [Unit]
-Description=Recherche quotidienne des mises à jour Insight
+Description=Daily Insight update check
 
 [Timer]
 OnCalendar=*-*-* 04:17:00
@@ -90,6 +90,6 @@ EOF
 systemctl --user daemon-reload
 systemctl --user enable --now insight-update.timer
 
-echo "Les mises à jour stables sont activées."
-echo "Prochaine exécution :"
+echo "Stable updates are enabled."
+echo "Next run:"
 systemctl --user list-timers insight-update.timer --no-pager

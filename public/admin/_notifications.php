@@ -18,24 +18,24 @@ function insight_notifications_templates(): array
 {
     return [
         'test' => [
-            'title' => '[{{ app_name }}] Test de {{ channel_name }}',
-            'body' => 'Ceci est un message de test envoyé par {{ app_name }} à {{ timestamp }}.',
+            'title' => '[{{ app_name }}] Test from {{ channel_name }}',
+            'body' => 'This is a test message sent by {{ app_name }} at {{ timestamp }}.',
         ],
         'monitor_down' => [
-            'title' => '[{{ app_name }}] {{ domain }} est hors ligne',
-            'body' => '{{ count }} service{% if count > 1 %}s sont{% else %} est{% endif %} indisponible{% if count > 1 %}s{% endif %} : {{ sites }}. {{ message }}',
+            'title' => '[{{ app_name }}] {{ domain }} is offline',
+            'body' => '{{ count }} service{% if count > 1 %}s are{% else %} is{% endif %} unavailable: {{ sites }}. {{ message }}',
         ],
         'monitor_up' => [
-            'title' => '[{{ app_name }}] {{ domain }} est rétabli',
-            'body' => '{{ count }} service{% if count > 1 %}s sont{% else %} est{% endif %} de retour en ligne : {{ sites }}. {{ message }}',
+            'title' => '[{{ app_name }}] {{ domain }} is back online',
+            'body' => '{{ count }} service{% if count > 1 %}s are{% else %} is{% endif %} back online: {{ sites }}. {{ message }}',
         ],
         'incident_open' => [
-            'title' => '[{{ app_name }}] Incident ouvert · {{ domain }}',
-            'body' => 'Un incident est ouvert pour {{ sites }}. {{ message }}',
+            'title' => '[{{ app_name }}] Incident opened - {{ domain }}',
+            'body' => 'An incident is open for {{ sites }}. {{ message }}',
         ],
         'incident_resolved' => [
-            'title' => '[{{ app_name }}] Incident résolu · {{ domain }}',
-            'body' => 'L’incident concernant {{ sites }} est résolu. {{ message }}',
+            'title' => '[{{ app_name }}] Incident resolved - {{ domain }}',
+            'body' => 'The incident affecting {{ sites }} is resolved. {{ message }}',
         ],
     ];
 }
@@ -567,7 +567,7 @@ function insight_notifications_template_context(array $config): array
         'site_url' => 'https://api.example.com',
         'count' => 2,
         'status' => 'offline',
-        'message' => 'Le seuil de disponibilité a été dépassé.',
+        'message' => 'The availability threshold was exceeded.',
     ];
 }
 
@@ -623,7 +623,7 @@ function insight_notifications_database_state(array $config): array
     $channelsResult = $database->query('SELECT * FROM notification_channels ORDER BY enabled DESC, name ASC, id ASC');
     $templatesResult = $database->query('SELECT event_key, title_template, body_template, updated_at FROM notification_templates ORDER BY event_key');
     $deliveriesResult = $database->query(
-        'SELECT d.id, d.channel_id, COALESCE(c.name, "Canal supprimé") AS channel_name, d.event_key, d.status, d.title_rendered, d.error_message, d.attempted_at
+        'SELECT d.id, d.channel_id, COALESCE(c.name, "Deleted channel") AS channel_name, d.event_key, d.status, d.title_rendered, d.error_message, d.attempted_at
          FROM notification_deliveries d LEFT JOIN notification_channels c ON c.id = d.channel_id ORDER BY d.id DESC LIMIT 20'
     );
     if (!$channelsResult instanceof mysqli_result || !$templatesResult instanceof mysqli_result || !$deliveriesResult instanceof mysqli_result) {

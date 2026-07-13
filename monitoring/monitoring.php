@@ -20,12 +20,12 @@ if (!$ok) {
     if (PHP_SAPI !== 'cli') {
         http_response_code((int)($result['status_code'] ?? 500));
     }
-    $message = (string)($result['message'] ?? 'Le worker Python a échoué.');
+    $message = (string)($result['message'] ?? 'The Python worker failed.');
     public_state_write_monitor([
         'service_name' => 'insight',
         'active_engine' => 'python',
         'monitor_last_ok' => 0,
-        'monitor_last_message' => 'Échec du monitor Python.',
+        'monitor_last_message' => 'Python monitor failed.',
         'monitor_python_error' => $message,
         'monitor_checked_by' => 'python',
     ]);
@@ -42,7 +42,7 @@ public_state_write_monitor([
     'service_name' => 'insight',
     'active_engine' => 'python',
     'monitor_last_ok' => 1,
-    'monitor_last_message' => 'Monitor Python opérationnel.',
+    'monitor_last_message' => 'Python monitor is healthy.',
     'monitor_python_error' => null,
     'monitor_checked_by' => 'python',
     'sites_checked' => (int)($result['sites_checked'] ?? 0),

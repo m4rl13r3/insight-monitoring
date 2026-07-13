@@ -43,35 +43,35 @@ $_SERVER['SCRIPT_FILENAME'] = __FILE__;
 require dirname(__DIR__) . '/public/admin/_bootstrap.php';
 
 try {
-    insight_test_auth_assert(!insight_auth_is_configured(), 'L’authentification devrait être vierge.');
+    insight_test_auth_assert(!insight_auth_is_configured(), 'Authentication should be unconfigured.');
 
     $invalid = insight_auth_create_first_admin('admin', 'trop-court', 'trop-court', false);
-    insight_test_auth_assert(!($invalid['ok'] ?? false), 'Un mot de passe court a été accepté.');
+    insight_test_auth_assert(!($invalid['ok'] ?? false), 'A short password was accepted.');
 
     $password = 'Insight-test-2026!';
     $created = insight_auth_create_first_admin('admin', $password, $password, false);
-    insight_test_auth_assert(($created['ok'] ?? false) === true, 'La création du compte a échoué.');
+    insight_test_auth_assert(($created['ok'] ?? false) === true, 'Account creation failed.');
     insight_test_auth_assert(insight_auth_user_count() === 1, 'Le compte administrateur est absent.');
 
     $storedHash = (string)insight_auth_db()->query('SELECT password_hash FROM auth_users LIMIT 1')->fetchColumn();
-    insight_test_auth_assert($storedHash !== $password, 'Le mot de passe a été stocké en clair.');
-    insight_test_auth_assert(password_verify($password, $storedHash), 'Le hachage du mot de passe est invalide.');
+    insight_test_auth_assert($storedHash !== $password, 'The password was stored in plain text.');
+    insight_test_auth_assert(password_verify($password, $storedHash), 'The password hash is invalid.');
 
     $csrfToken = insight_auth_csrf_token();
-    insight_test_auth_assert(insight_auth_csrf_valid($csrfToken), 'Le jeton CSRF valide a été refusé.');
-    insight_test_auth_assert(!insight_auth_csrf_valid('jeton-invalide'), 'Un jeton CSRF invalide a été accepté.');
+    insight_test_auth_assert(insight_auth_csrf_valid($csrfToken), 'A valid CSRF token was rejected.');
+    insight_test_auth_assert(!insight_auth_csrf_valid('invalid-token'), 'An invalid CSRF token was accepted.');
 
     $duplicate = insight_auth_create_first_admin('second-admin', $password, $password, false);
-    insight_test_auth_assert(!($duplicate['ok'] ?? false), 'Un second premier administrateur a été créé.');
+    insight_test_auth_assert(!($duplicate['ok'] ?? false), 'A second initial administrator was created.');
 
     insight_auth_destroy_session();
     insight_admin_start_session($insightAuthSessionsPath);
 
-    $failedLogin = insight_auth_login('admin', 'mot-de-passe-invalide', false);
-    insight_test_auth_assert(!($failedLogin['ok'] ?? false), 'Une connexion invalide a réussi.');
+    $failedLogin = insight_auth_login('admin', 'invalid-password', false);
+    insight_test_auth_assert(!($failedLogin['ok'] ?? false), 'An invalid login succeeded.');
 
     $login = insight_auth_login('ADMIN', $password, false);
-    insight_test_auth_assert(($login['ok'] ?? false) === true, 'La connexion valide a échoué.');
+    insight_test_auth_assert(($login['ok'] ?? false) === true, 'A valid login failed.');
     insight_test_auth_assert((insight_auth_current_user()['username'] ?? '') === 'admin', 'La session ne contient pas le bon compte.');
 
     for ($attempt = 0; $attempt < 5; $attempt++) {
@@ -81,10 +81,10 @@ try {
     insight_test_auth_assert(($rateLimit['blocked'] ?? false) === true, 'La limitation des tentatives ne s’active pas.');
 
     $auditCount = (int)insight_auth_db()->query('SELECT COUNT(*) FROM auth_audit_log')->fetchColumn();
-    insight_test_auth_assert($auditCount >= 3, 'Le journal d’audit ne contient pas les événements attendus.');
+    insight_test_auth_assert($auditCount >= 3, 'The audit log does not contain the expected events.');
 
     insight_auth_destroy_session();
-    echo "Authentification locale validée.\n";
+    echo "Local authentication validated.\n";
 } finally {
     if (session_status() === PHP_SESSION_ACTIVE) {
         session_write_close();

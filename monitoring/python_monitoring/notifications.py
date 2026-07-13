@@ -51,24 +51,24 @@ APPRISE_PROVIDERS = {
 }
 DEFAULT_TEMPLATES = {
     "test": {
-        "title": "[{{ app_name }}] Test de {{ channel_name }}",
-        "body": "Ceci est un message de test envoyé par {{ app_name }} à {{ timestamp }}.",
+        "title": "[{{ app_name }}] Test from {{ channel_name }}",
+        "body": "This is a test message sent by {{ app_name }} at {{ timestamp }}.",
     },
     "monitor_down": {
-        "title": "[{{ app_name }}] {{ domain }} est hors ligne",
-        "body": "{{ count }} service{% if count > 1 %}s sont{% else %} est{% endif %} indisponible{% if count > 1 %}s{% endif %} : {{ sites }}. {{ message }}",
+        "title": "[{{ app_name }}] {{ domain }} is offline",
+        "body": "{{ count }} service{% if count > 1 %}s are{% else %} is{% endif %} unavailable: {{ sites }}. {{ message }}",
     },
     "monitor_up": {
-        "title": "[{{ app_name }}] {{ domain }} est rétabli",
-        "body": "{{ count }} service{% if count > 1 %}s sont{% else %} est{% endif %} de retour en ligne : {{ sites }}. {{ message }}",
+        "title": "[{{ app_name }}] {{ domain }} is back online",
+        "body": "{{ count }} service{% if count > 1 %}s are{% else %} is{% endif %} back online: {{ sites }}. {{ message }}",
     },
     "incident_open": {
-        "title": "[{{ app_name }}] Incident ouvert · {{ domain }}",
-        "body": "Un incident est ouvert pour {{ sites }}. {{ message }}",
+        "title": "[{{ app_name }}] Incident opened - {{ domain }}",
+        "body": "An incident is open for {{ sites }}. {{ message }}",
     },
     "incident_resolved": {
-        "title": "[{{ app_name }}] Incident résolu · {{ domain }}",
-        "body": "L’incident concernant {{ sites }} est résolu. {{ message }}",
+        "title": "[{{ app_name }}] Incident resolved - {{ domain }}",
+        "body": "The incident affecting {{ sites }} is resolved. {{ message }}",
     },
 }
 
@@ -76,7 +76,7 @@ DEFAULT_TEMPLATES = {
 def _encryption_key() -> bytes:
     raw = str(os.getenv("INSIGHT_NOTIFICATION_ENCRYPTION_KEY") or "").strip()
     if len(raw) < 32:
-        raise RuntimeError("INSIGHT_NOTIFICATION_ENCRYPTION_KEY doit contenir au moins 32 caractères.")
+        raise RuntimeError("INSIGHT_NOTIFICATION_ENCRYPTION_KEY must contain at least 32 characters.")
     if len(raw) == 64:
         try:
             decoded = bytes.fromhex(raw)
@@ -102,13 +102,13 @@ def encrypt_config(config: Dict[str, Any]) -> str:
 def decrypt_config(token: str) -> Dict[str, Any]:
     raw = str(token or "").strip()
     if not raw.startswith("v1:"):
-        raise ValueError("Configuration chiffrée inconnue.")
+        raise ValueError("Unknown encrypted configuration.")
     encoded = raw[3:]
     encrypted = base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4))
     decoded = SecretBox(_encryption_key()).decrypt(encrypted)
     config = json.loads(decoded.decode("utf-8"))
     if not isinstance(config, dict):
-        raise ValueError("Configuration de canal invalide.")
+        raise ValueError("Invalid channel configuration.")
     return config
 
 
@@ -218,7 +218,7 @@ def _send_smtp(config: Dict[str, Any], title: str, body: str) -> tuple[bool, str
     from_name = str(config.get("from_name") or "Insight").strip()
     recipients = _split_recipients(config.get("to"))
     if not host or not from_email or not recipients:
-        return False, "Serveur SMTP, expéditeur ou destinataire manquant."
+        return False, "Missing SMTP server, sender, or recipient."
     try:
         port = int(config.get("port") or 465)
     except (TypeError, ValueError):
@@ -245,7 +245,7 @@ def _send_smtp(config: Dict[str, Any], title: str, body: str) -> tuple[bool, str
                 if username:
                     smtp.login(username, password)
                 smtp.send_message(message)
-        return True, "Message SMTP envoyé."
+        return True, "SMTP message sent."
     except Exception as exc:
         return False, str(exc)[:255]
 
@@ -253,7 +253,7 @@ def _send_smtp(config: Dict[str, Any], title: str, body: str) -> tuple[bool, str
 def _send_webhook(config: Dict[str, Any], event_key: str, title: str, body: str, context: Dict[str, Any]) -> tuple[bool, str]:
     url = str(config.get("url") or "").strip()
     if not url.startswith(("http://", "https://")):
-        return False, "URL webhook invalide."
+        return False, "Invalid webhook URL."
     method = str(config.get("method") or "POST").strip().upper()
     if method not in {"POST", "PUT", "PATCH"}:
         method = "POST"
@@ -286,13 +286,13 @@ def _send_webhook(config: Dict[str, Any], event_key: str, title: str, body: str,
 def _send_apprise(config: Dict[str, Any], title: str, body: str, event_key: str) -> tuple[bool, str]:
     urls = _split_values(config.get("urls"))
     if not urls:
-        return False, "Aucune URL Apprise configurée."
+        return False, "No Apprise URL configured."
     notifier = apprise.Apprise()
     accepted = sum(1 for url in urls if notifier.add(url))
     if accepted == 0:
-        return False, "Aucune URL Apprise valide."
+        return False, "No valid Apprise URL."
     sent = bool(notifier.notify(title=title, body=body, notify_type=_event_type(event_key)))
-    return (sent, f"Apprise a traité {accepted} destination(s)." if sent else "Échec d’envoi Apprise.")
+    return (sent, f"Apprise processed {accepted} destination(s)." if sent else "Apprise delivery failed.")
 
 
 def render_templates(event_key: str, context: Dict[str, Any], templates: Dict[str, str], channel_name: str = "Insight") -> Dict[str, str]:
@@ -331,11 +331,11 @@ def send_channel(channel: Dict[str, Any], event_key: str, context: Dict[str, Any
             sent, details = _send_webhook(config, event_key, title, body, webhook_context)
         elif provider == "free_mobile":
             sent = send_sms(str(config.get("user") or ""), str(config.get("password") or ""), body[:480])
-            details = "SMS Free Mobile envoyé." if sent else "Échec du SMS Free Mobile."
+            details = "Free Mobile SMS sent." if sent else "Free Mobile SMS failed."
         elif provider in APPRISE_PROVIDERS:
             sent, details = _send_apprise(config, title, body, event_key)
         else:
-            return {"ok": False, "title": title, "error": "Fournisseur de notification inconnu."}
+            return {"ok": False, "title": title, "error": "Unknown notification provider."}
         return {"ok": bool(sent), "title": title, "details": details, "error": "" if sent else details}
     except Exception as exc:
         return {"ok": False, "title": "", "error": str(exc)[:255]}
@@ -374,7 +374,7 @@ def dispatch_event(
     channel_ids: Iterable[int] | None = None,
 ) -> Dict[str, Any]:
     if event_key not in EVENT_KEYS:
-        return {"ok": False, "configured": 0, "sent": 0, "failed": 0, "error": "Événement inconnu."}
+        return {"ok": False, "configured": 0, "sent": 0, "failed": 0, "error": "Unknown event."}
     ensure_notification_schema(db)
     params: List[Any] = []
     where = "enabled = 1"
@@ -405,7 +405,7 @@ def dispatch_event(
         except Exception as exc:
             result = {"ok": False, "title": "", "error": str(exc)[:255]}
         status = "sent" if result.get("ok") else "failed"
-        error = "" if result.get("ok") else str(result.get("error") or "Échec d’envoi.")[:255]
+        error = "" if result.get("ok") else str(result.get("error") or "Delivery failed.")[:255]
         db.execute(
             "INSERT INTO notification_deliveries (channel_id, event_key, status, title_rendered, error_message) VALUES (%s, %s, %s, %s, %s)",
             (channel_id, event_key, status, str(result.get("title") or "")[:500], error or None),

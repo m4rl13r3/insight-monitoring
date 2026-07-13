@@ -1,1 +1,1 @@
-"""Moteur de supervision Python d’Insight."""
+"""Insight Python monitoring engine."""

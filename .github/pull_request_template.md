@@ -1,14 +1,14 @@
-## Problème
+## Problem
 
-Décrivez le comportement corrigé ou ajouté.
+Describe the behavior being fixed or added.
 
 ## Solution
 
-Expliquez les choix importants et les éventuelles limites.
+Explain the important decisions and any known limitations.
 
-## Vérifications
+## Validation
 
-- [ ] Build et contrôles statiques
-- [ ] Tests PHP et Python
-- [ ] Vérification desktop et mobile si l’interface change
-- [ ] Smoke test Docker si le déploiement change
+- [ ] Build and static checks
+- [ ] PHP and Python tests
+- [ ] Desktop and mobile validation when the interface changes
+- [ ] Docker smoke test when deployment changes

@@ -7,12 +7,12 @@ cd "$root_dir"
 
 archive="${1:-}"
 if [ -z "$archive" ] || [ ! -f "$archive" ]; then
-    echo "Utilisation : INSIGHT_RESTORE_CONFIRM=1 ./scripts/restore.sh chemin/backup.tar.gz" >&2
+    echo "Usage: INSIGHT_RESTORE_CONFIRM=1 ./scripts/restore.sh path/backup.tar.gz" >&2
     exit 1
 fi
 
 if [ "${INSIGHT_RESTORE_CONFIRM:-0}" != "1" ]; then
-    echo "La restauration remplace les données actuelles. Relancez avec INSIGHT_RESTORE_CONFIRM=1." >&2
+    echo "Restoration replaces current data. Run again with INSIGHT_RESTORE_CONFIRM=1." >&2
     exit 1
 fi
 
@@ -23,7 +23,7 @@ compose=(docker compose)
 
 if [ -n "$env_file" ]; then
     if [ ! -f "$env_file" ]; then
-        echo "Le fichier d’environnement ${env_file} est introuvable." >&2
+        echo "Environment file ${env_file} was not found." >&2
         exit 1
     fi
     compose+=(--env-file "$env_file")
@@ -42,7 +42,7 @@ if [ -f "$checksum_file" ]; then
         actual="$(sha256sum "$archive" | awk '{print $1}')"
     fi
     if [ "$actual" != "$expected" ]; then
-        echo "L’empreinte SHA-256 de la sauvegarde est invalide." >&2
+        echo "The backup SHA-256 checksum is invalid." >&2
         exit 1
     fi
 fi
@@ -60,7 +60,7 @@ trap cleanup EXIT
 tar -C "$temporary_dir" -xzf "$archive"
 for required_file in database.sql auth.tar metadata.json; do
     if [ ! -s "${temporary_dir}/${required_file}" ]; then
-        echo "La sauvegarde ne contient pas ${required_file}." >&2
+        echo "The backup does not contain ${required_file}." >&2
         exit 1
     fi
 done
@@ -68,7 +68,7 @@ done
 if [ "${INSIGHT_RESTORE_SKIP_SAFETY_BACKUP:-0}" != "1" ]; then
     safety_path="${root_dir}/backups/avant-restauration-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"
     INSIGHT_COMPOSE_ENV_FILE="$env_file" INSIGHT_COMPOSE_PROJECT_NAME="$project_name" "${root_dir}/scripts/backup.sh" "$safety_path" >/dev/null
-    echo "Sauvegarde de sécurité créée : ${safety_path}"
+    echo "Safety backup created: ${safety_path}"
 fi
 
 "${compose[@]}" stop worker web >/dev/null
@@ -87,7 +87,7 @@ if [ -f "$import_dir/auth.sqlite" ]; then
     php -r '\''
 $database = new SQLite3($argv[1], SQLITE3_OPEN_READONLY);
 if ($database->querySingle("PRAGMA integrity_check") !== "ok") {
-    fwrite(STDERR, "La base d’identité restaurée est invalide.\n");
+    fwrite(STDERR, "The restored identity database is invalid.\n");
     exit(1);
 }
 '\'' "$import_dir/auth.sqlite"
@@ -111,4 +111,4 @@ services_stopped=0
 "${compose[@]}" exec -T db sh -lc 'mariadb --batch --skip-column-names -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" "$MARIADB_DATABASE" -e "SELECT 1"' | grep -qx 1
 "${compose[@]}" exec -T php php -r '$path = getenv("INSIGHT_AUTH_DB_PATH") ?: "/var/lib/insight-auth/auth.sqlite"; if (is_file($path)) { $database = new SQLite3($path, SQLITE3_OPEN_READONLY); exit($database->querySingle("PRAGMA integrity_check") === "ok" ? 0 : 1); }'
 
-echo "Restauration terminée et contrôlée. Les sessions précédentes ont été invalidées."
+echo "Restore completed and validated. Previous sessions were invalidated."

@@ -401,7 +401,7 @@ def ensure_escalation_tables(db: Database) -> None:
             """
             INSERT INTO monitoring_escalation_policy
                 (step_key, label, channel, delay_minutes, enabled, is_placeholder, sort_order, updated_by_name, updated_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, 'Système', NOW())
+            VALUES (%s, %s, %s, %s, %s, %s, %s, 'System', NOW())
             ON DUPLICATE KEY UPDATE step_key = step_key
             """,
             (
@@ -506,30 +506,30 @@ def _escalation_incident_ref(incident_id: int, site_url: str) -> str:
 
 
 def _escalation_subject(label: str, incident_ref: str) -> str:
-    safe_label = " ".join(str(label or "").split()).strip() or "Escalade"
+    safe_label = " ".join(str(label or "").split()).strip() or "Escalation"
     safe_ref = " ".join(str(incident_ref or "").split()).strip()
-    subject = f"Escalade monitoring · {safe_label}"
+    subject = f"Monitoring escalation - {safe_label}"
     if safe_ref:
         subject += f" · {safe_ref}"
     return subject[:160]
 
 
 def _escalation_message(label: str, incident_ref: str, elapsed_seconds: int, compact: bool) -> str:
-    safe_label = " ".join(str(label or "").split()).strip() or "Escalade"
+    safe_label = " ".join(str(label or "").split()).strip() or "Escalation"
     safe_ref = " ".join(str(incident_ref or "").split()).strip()
     duration = _format_escalation_duration(elapsed_seconds)
     if compact:
-        parts = [f"Escalade {safe_label}.", f"T+{duration}."]
+        parts = [f"Escalation {safe_label}.", f"T+{duration}."]
         if safe_ref:
             parts.insert(1, f"Incident: {safe_ref}.")
-        parts.append("Moteur monitoring.")
+        parts.append("Monitoring engine.")
         return " ".join(parts)[:480]
-    lines = [f"Le palier d’escalade {safe_label} vient d’être déclenché."]
+    lines = [f"Escalation tier {safe_label} was triggered."]
     if safe_ref:
-        lines.append(f"Contexte incident : {safe_ref}.")
-    lines.append(f"Temps écoulé depuis l’ouverture : {duration}.")
+        lines.append(f"Incident context: {safe_ref}.")
+    lines.append(f"Elapsed time since opening: {duration}.")
     lines.append(f"Horodatage : {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}.")
-    lines.append("Source : moteur monitoring automatique.")
+    lines.append("Source: automatic monitoring engine.")
     return "\n".join(lines)
 
 def get_active_maintenance_scope(db: Database, site_ids: List[int]) -> tuple[bool, Set[int]]:
@@ -1065,9 +1065,9 @@ def _generate_postmortem(
         duration = f"{minutes} min {seconds} s"
     else:
         duration = f"{seconds} s"
-    details = f"Incident résolu après une indisponibilité de {duration}."
+    details = f"Incident resolved after {duration} of downtime."
     if http_code is not None and http_code > 0:
-        details += f" Dernier code HTTP observé : {http_code}."
+        details += f" Last observed HTTP code: {http_code}."
     return (details, False)
 
 
@@ -1111,7 +1111,7 @@ def _domain_group_key(site_url: str) -> str:
 def _format_sites_for_sms(sites: Set[str], max_hosts: int = 2) -> str:
     hosts = sorted({(_extract_host(url) or url).strip() for url in sites if (url or "").strip()})
     if not hosts:
-        return "site inconnu"
+        return "unknown site"
     if len(hosts) <= max_hosts:
         return ", ".join(hosts)
     return f"{', '.join(hosts[:max_hosts])} +{len(hosts) - max_hosts}"
@@ -1142,7 +1142,7 @@ def _load_notification_targets(db: Database, cfg: Dict[str, str], logger: loggin
         key = email.lower()
         if key in email_seen:
             continue
-        targets["emails"].append({"email": email, "name": "Équipe Insight"})
+        targets["emails"].append({"email": email, "name": "Insight Team"})
         email_seen.add(key)
 
     if sms_user and sms_password:
@@ -1189,7 +1189,7 @@ def _send_grouped_email(
             continue
         seen.add(key)
         stats["targeted"] += 1
-        name = str(recipient.get("name") or "").strip() or "Membre équipe"
+        name = str(recipient.get("name") or "").strip() or "Team member"
         sent = send_email_smtp(
             smtp_host,
             smtp_port,
@@ -1295,14 +1295,14 @@ class NotificationBatch:
         for domain, sites in sorted(self.incident_open.items(), key=lambda x: x[0]):
             count = len(sites)
             msg = (
-                f"Dossier d'incident ouvert ({domain}) : {count} site{'s' if count > 1 else ''} indisponible"
+                f"Incident opened ({domain}): {count} unavailable site{'s' if count > 1 else ''}"
                 f"{'s' if count > 1 else ''} ({_format_sites_for_sms(sites)})."
             )
             _dispatch_grouped_updates(
                 db,
                 targets,
                 "incident_open",
-                f"Incident ouvert · {domain}",
+                f"Incident opened - {domain}",
                 msg,
                 {
                     "app_name": cfg.get("app_name", "Insight"),
@@ -1312,7 +1312,7 @@ class NotificationBatch:
                     "site_url": sorted(sites)[0],
                     "count": count,
                     "status": "offline",
-                    "message": "Détection confirmée par le moteur de supervision.",
+                    "message": "Detection confirmed by the monitoring engine.",
                 },
                 cfg,
                 logger,
@@ -1324,18 +1324,18 @@ class NotificationBatch:
             domain = payload["domain"]
             if payload["timeout"]:
                 msg = (
-                    f"Dossier d'incident clos ({domain}) : {count} site{'s' if count > 1 else ''} retabli"
+                    f"Incident resolved ({domain}): {count} restored site{'s' if count > 1 else ''}"
                     f"{'s' if count > 1 else ''} ({_format_sites_for_sms(sites)}). "
-                    "Rapport indisponible, consultez la page publique Insight."
+                    "Report unavailable; see the public Insight page."
                 )
             else:
                 msg = (
-                    f"Dossier d'incident clos ({domain}) : {count} site{'s' if count > 1 else ''} retabli"
+                    f"Incident resolved ({domain}): {count} restored site{'s' if count > 1 else ''}"
                     f"{'s' if count > 1 else ''} ({_format_sites_for_sms(sites)}). "
                     f"Cause probable : {payload['pm_text']}"
                 )
             resolution_message = (
-                "Le service répond de nouveau, mais le rapport de résolution est indisponible."
+                "The service is responding again, but the resolution report is unavailable."
                 if payload["timeout"]
                 else f"Cause probable : {payload['pm_text']}"
             )
@@ -1343,7 +1343,7 @@ class NotificationBatch:
                 db,
                 targets,
                 "incident_resolved",
-                f"Incident résolu · {domain}",
+                f"Incident resolved - {domain}",
                 msg,
                 {
                     "app_name": cfg.get("app_name", "Insight"),
@@ -1362,14 +1362,14 @@ class NotificationBatch:
         for domain, sites in sorted(self.status_offline.items(), key=lambda x: x[0]):
             count = len(sites)
             msg = (
-                f"Alerte ({domain}) : {count} site{'s' if count > 1 else ''} hors-ligne"
+                f"Alert ({domain}): {count} offline site{'s' if count > 1 else ''}"
                 f" ({_format_sites_for_sms(sites)})."
             )
             _dispatch_grouped_updates(
                 db,
                 targets,
                 "monitor_down",
-                f"Alerte hors-ligne · {domain}",
+                f"Offline alert - {domain}",
                 msg,
                 {
                     "app_name": cfg.get("app_name", "Insight"),
@@ -1379,7 +1379,7 @@ class NotificationBatch:
                     "site_url": sorted(sites)[0],
                     "count": count,
                     "status": "offline",
-                    "message": "La dernière vérification n’a reçu aucune réponse valide.",
+                    "message": "The latest check received no valid response.",
                 },
                 cfg,
                 logger,
@@ -1388,14 +1388,14 @@ class NotificationBatch:
         for domain, sites in sorted(self.status_online.items(), key=lambda x: x[0]):
             count = len(sites)
             msg = (
-                f"Alerte ({domain}) : {count} site{'s' if count > 1 else ''} de retour en ligne"
+                f"Alert ({domain}): {count} site{'s are' if count > 1 else ' is'} back online"
                 f" ({_format_sites_for_sms(sites)})."
             )
             _dispatch_grouped_updates(
                 db,
                 targets,
                 "monitor_up",
-                f"Service rétabli · {domain}",
+                f"Service restored - {domain}",
                 msg,
                 {
                     "app_name": cfg.get("app_name", "Insight"),
@@ -1405,7 +1405,7 @@ class NotificationBatch:
                     "site_url": sorted(sites)[0],
                     "count": count,
                     "status": "online",
-                    "message": "La vérification de reprise a réussi.",
+                    "message": "The recovery check succeeded.",
                 },
                 cfg,
                 logger,
@@ -1474,7 +1474,7 @@ def _dispatch_escalation_step(
     if channel == "email":
         recipients = targets.get("emails") if isinstance(targets, dict) else []
         if not isinstance(recipients, list) or len(recipients) == 0:
-            return ("skipped", "Aucun destinataire email actif")
+            return ("skipped", "No active email recipient")
         subject = _escalation_subject(label, incident_ref)
         message = _escalation_message(label, incident_ref, elapsed_seconds, compact=False)
         stats = _send_grouped_email(recipients, subject, message, cfg, logger)
@@ -1482,17 +1482,17 @@ def _dispatch_escalation_step(
         sent = int(stats.get("sent") or 0)
         failed = int(stats.get("failed") or 0)
         if targeted <= 0:
-            return ("skipped", "Aucun destinataire email actif")
+            return ("skipped", "No active email recipient")
         if sent <= 0:
-            return ("failed", f"Email 0/{targeted} envoyé")
+            return ("failed", f"Email 0/{targeted} sent")
         if failed > 0:
-            return ("sent", f"Email {sent}/{targeted} envoyés, {failed} en échec")
-        return ("sent", f"Email {sent}/{targeted} envoyés")
+            return ("sent", f"Email {sent}/{targeted} sent, {failed} failed")
+        return ("sent", f"Email {sent}/{targeted} sent")
 
     if channel == "sms":
         sms_targets = targets.get("sms") if isinstance(targets, dict) else []
         if not isinstance(sms_targets, list) or len(sms_targets) == 0:
-            return ("skipped", "Aucun destinataire SMS actif")
+            return ("skipped", "No active SMS recipient")
         message = _escalation_message(label, incident_ref, elapsed_seconds, compact=True)
         seen: Set[str] = set()
         targeted = 0
@@ -1512,15 +1512,15 @@ def _dispatch_escalation_step(
             if _send_grouped_sms(user, password, message, logger):
                 sent += 1
         if targeted <= 0:
-            return ("skipped", "Aucun destinataire SMS actif")
+            return ("skipped", "No active SMS recipient")
         failed = max(0, targeted - sent)
         if sent <= 0:
-            return ("failed", f"SMS 0/{targeted} envoyé")
+            return ("failed", f"SMS 0/{targeted} sent")
         if failed > 0:
-            return ("sent", f"SMS {sent}/{targeted} envoyés, {failed} en échec")
-        return ("sent", f"SMS {sent}/{targeted} envoyés")
+            return ("sent", f"SMS {sent}/{targeted} sent, {failed} failed")
+        return ("sent", f"SMS {sent}/{targeted} sent")
 
-    return ("skipped", "Canal d’escalade non supporté")
+    return ("skipped", "Unsupported escalation channel")
 
 
 def apply_escalation_policy(
@@ -1584,7 +1584,7 @@ def apply_escalation_policy(
                     delay_minutes,
                 )
             except Exception as exc:
-                logger.warning("Escalade insert failed for incident %s step %s: %s", incident_id, step_key, exc)
+                logger.warning("Escalation insert failed for incident %s step %s: %s", incident_id, step_key, exc)
                 continue
             if not inserted:
                 continue
@@ -1592,35 +1592,35 @@ def apply_escalation_policy(
             if is_stale:
                 status = "skipped"
                 details = (
-                    "Incident ignoré: ancienneté "
+                    "Incident skipped: age "
                     + _format_escalation_duration(elapsed_seconds)
                     + f" (>{max_age_minutes} min)."
                 )
             elif not has_site:
                 status = "skipped"
-                details = "Incident ignoré: site introuvable."
+                details = "Incident skipped: site not found."
             elif dispatched_count >= max_dispatch_per_run:
                 status = "skipped"
-                details = f"Escalade limitée: quota par exécution ({max_dispatch_per_run}) atteint."
+                details = f"Escalation limited: per-run quota ({max_dispatch_per_run}) reached."
             else:
                 dispatched_count += 1
                 try:
                     status, details = _dispatch_escalation_step(step, incident_id, site_url, elapsed_seconds, targets, cfg, logger)
                 except Exception as exc:
                     status = "failed"
-                    details = f"Erreur d’envoi: {exc}"
-                    logger.warning("Escalade dispatch failed for incident %s step %s: %s", incident_id, step_key, exc)
+                    details = f"Delivery error: {exc}"
+                    logger.warning("Escalation dispatch failed for incident %s step %s: %s", incident_id, step_key, exc)
 
             try:
                 _update_escalation_event_status(db, incident_id, step_key, status, details)
             except Exception as exc:
-                logger.warning("Escalade update failed for incident %s step %s: %s", incident_id, step_key, exc)
+                logger.warning("Escalation update failed for incident %s step %s: %s", incident_id, step_key, exc)
 
             stats["triggered"] += 1
             if status in stats:
                 stats[status] += 1
             logger.info(
-                "Escalade incident=%s step=%s channel=%s status=%s details=%s",
+                "Escalation incident=%s step=%s channel=%s status=%s details=%s",
                 incident_id,
                 step_key,
                 _normalize_escalation_channel(step.get("channel")),
@@ -1669,7 +1669,7 @@ def _open_incident_if_needed(
             sent = send_sms(
                 cfg.get("sms_user", ""),
                 cfg.get("sms_password", ""),
-                f"Dossier d'incident ouvert. {site_url} n'a pas répondu après plusieurs essais.",
+                f"Incident opened. {site_url} did not respond after several attempts.",
             )
             if not sent:
                 logger.warning("Incident open notification failed for site %s", site_url)
@@ -1743,13 +1743,13 @@ def _close_incident_if_needed(
         else:
             if timed_out or not safe_pm_text:
                 msg = (
-                    f"Dossier d'incident clos car {site_url} semble être à nouveau disponible. "
-                    "Le rapport d'incident est indisponible, consultez la page publique Insight."
+                    f"Incident resolved because {site_url} appears to be available again. "
+                    "The incident report is unavailable; see the public Insight page."
                 )
             else:
                 msg = (
-                    f"Dossier d'incident clos car {site_url} semble être à nouveau disponible. "
-                    f"Résumé de l'incident : {safe_pm_text}"
+                    f"Incident resolved because {site_url} appears to be available again. "
+                    f"Incident summary: {safe_pm_text}"
                 )
             sent = send_sms(cfg.get("sms_user", ""), cfg.get("sms_password", ""), msg)
             if not sent:
@@ -1791,7 +1791,7 @@ def _alert_site(
                     sent = send_sms(
                         cfg.get("sms_user", ""),
                         cfg.get("sms_password", ""),
-                        f"Alerte : {site_url} est hors-ligne",
+                        f"Alert: {site_url} is offline",
                     )
                     if not sent:
                         logger.warning("Offline SMS notification failed for site %s", site_url)
@@ -1805,7 +1805,7 @@ def _alert_site(
                     sent = send_sms(
                         cfg.get("sms_user", ""),
                         cfg.get("sms_password", ""),
-                        f"Alerte : {site_url} est de retour en ligne",
+                        f"Alert: {site_url} is back online",
                     )
                     if not sent:
                         logger.warning("Back-online SMS notification failed for site %s", site_url)
@@ -1926,13 +1926,13 @@ def run_manual_check(site_url: str, probe_type: str, cfg: Dict[str, str]) -> Dic
         return {
             "ok": False,
             "status_code": 422,
-            "message": f"La sonde {probe} nécessite un agent Blackbox Exporter.",
+            "message": f"The {probe} probe requires a Blackbox Exporter agent.",
         }
 
     if probe in {"ping", "icmp"}:
         host = _extract_host(url)
         if not host:
-            return {"ok": False, "status_code": 422, "message": "Hôte invalide pour ICMP."}
+            return {"ok": False, "status_code": 422, "message": "Invalid ICMP host."}
         result = check_icmp_status(host)
         return {
             "ok": True,
@@ -1944,7 +1944,7 @@ def run_manual_check(site_url: str, probe_type: str, cfg: Dict[str, str]) -> Dic
     if probe == "tcp":
         host, port = _extract_tcp_target(url)
         if not host or port <= 0:
-            return {"ok": False, "status_code": 422, "message": "Cible TCP invalide. Utilisez hôte:port."}
+            return {"ok": False, "status_code": 422, "message": "Invalid TCP target. Use host:port."}
         result = check_tcp_status(host, port)
         return {
             "ok": True,
@@ -2126,10 +2126,10 @@ def run_monitor_job(db: Database, cfg: Dict[str, str], monitoring_root: Path) ->
             insert_probe_result(db, site_id, probe_type_raw, result, probes_table_sql, local_source_node)
             status_log = str(result.get("status"))
             if probe_family == "http":
-                redirect_label = "suivie" if bool(result.get("follow_redirects")) else "bloquée"
+                redirect_label = "followed" if bool(result.get("follow_redirects")) else "blocked"
                 status_log = (
-                    f"{status_log}; méthode={result.get('http_method')}; redirection={redirect_label}; "
-                    f"redirigé={1 if bool(result.get('redirected')) else 0}; "
+                    f"{status_log}; method={result.get('http_method')}; redirect={redirect_label}; "
+                    f"redirected={1 if bool(result.get('redirected')) else 0}; "
                     f"matrice={int(result.get('matrix_online') or 0)}/{int(result.get('matrix_total') or 0)}"
                 )
             log_probe_check(monitoring_root / "logs", site_id, site_url, probe_type_raw, status_log)
@@ -2228,7 +2228,7 @@ def run_monitor_job(db: Database, cfg: Dict[str, str], monitoring_root: Path) ->
                 logger,
             )
         except Exception as exc:
-            logger.warning("Escalade policy execution failed: %s", exc)
+            logger.warning("Escalation policy execution failed: %s", exc)
 
     return {
         "ok": True,

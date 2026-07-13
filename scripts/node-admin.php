@@ -16,7 +16,7 @@ function insight_node_admin_connect(): mysqli
     mysqli_report(MYSQLI_REPORT_OFF);
     $connection = mysqli_init();
     if (!$connection instanceof mysqli) {
-        throw new RuntimeException('Initialisation MariaDB impossible.');
+        throw new RuntimeException('Unable to initialize MariaDB.');
     }
     $connection->options(MYSQLI_OPT_CONNECT_TIMEOUT, 5);
     $connected = @$connection->real_connect(
@@ -27,7 +27,7 @@ function insight_node_admin_connect(): mysqli
         (int)($config['port'] ?? 3306)
     );
     if (!$connected) {
-        throw new RuntimeException('Connexion MariaDB impossible.');
+        throw new RuntimeException('Unable to connect to MariaDB.');
     }
     $connection->set_charset('utf8mb4');
     return $connection;
@@ -57,10 +57,10 @@ try {
             ORDER BY n.node_key
         ");
         if ($rows === []) {
-            echo "Aucun nœud enregistré.\n";
+            echo "No registered nodes.\n";
             exit(0);
         }
-        printf("%-24s %-20s %-12s %-12s %-9s %-10s %-6s %s\n", 'CLÉ', 'NOM', 'RÉGION', 'ZONE', 'STATUT', 'RÉSEAU', 'CIBLES', 'DERNIER SIGNAL');
+        printf("%-24s %-20s %-12s %-12s %-9s %-10s %-6s %s\n", 'KEY', 'NAME', 'REGION', 'ZONE', 'STATUS', 'NETWORK', 'TARGETS', 'LAST SEEN');
         foreach ($rows as $row) {
             printf(
                 "%-24s %-20s %-12s %-12s %-9s %-10s %-6d %s\n",
@@ -90,10 +90,10 @@ try {
     $changed = $statement->affected_rows;
     $statement->close();
     if ($changed < 1) {
-        throw new RuntimeException('Nœud introuvable ou déjà dans cet état.');
+        throw new RuntimeException('Node not found or already in this state.');
     }
     insight_dist_refresh_assignments($connection);
-    echo "Nœud {$nodeKey}: statut {$status}.\n";
+    echo "Node {$nodeKey}: status {$status}.\n";
 } catch (Throwable $exception) {
     fwrite(STDERR, $exception->getMessage() . "\n");
     exit(1);

@@ -8,7 +8,7 @@ retention_days="${INSIGHT_BACKUP_RETENTION_DAYS:-30}"
 remote_destination="${INSIGHT_BACKUP_RCLONE_DEST:-}"
 
 printf '%s' "$retention_days" | grep -Eq '^[1-9][0-9]*$' || {
-    echo "INSIGHT_BACKUP_RETENTION_DAYS doit être un entier positif." >&2
+    echo "INSIGHT_BACKUP_RETENTION_DAYS must be a positive integer." >&2
     exit 1
 }
 
@@ -18,7 +18,7 @@ archive="${backup_dir}/insight-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"
 
 if [ -n "$remote_destination" ]; then
     command -v rclone >/dev/null 2>&1 || {
-        echo "rclone est requis pour la copie distante." >&2
+        echo "rclone is required for remote copies." >&2
         exit 1
     }
     rclone copyto "$archive" "${remote_destination%/}/$(basename "$archive")"
@@ -27,4 +27,4 @@ fi
 
 find "$backup_dir" -type f \( -name 'insight-*.tar.gz' -o -name 'insight-*.tar.gz.sha256' \) -mtime "+${retention_days}" -delete
 
-echo "Sauvegarde planifiée terminée : ${archive}"
+echo "Scheduled backup complete: ${archive}"

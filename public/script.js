@@ -21,7 +21,7 @@
             loadNext();
         };
         script.onerror = () => {
-            console.error(`Impossible de charger ${files[cursor]}`);
+            console.error(`Unable to load ${files[cursor]}`);
         };
         document.head.appendChild(script);
     }

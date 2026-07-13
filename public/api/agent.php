@@ -32,7 +32,7 @@ function insight_agent_connect(): mysqli
     mysqli_report(MYSQLI_REPORT_OFF);
     $connection = mysqli_init();
     if (!$connection instanceof mysqli) {
-        throw new RuntimeException('Initialisation MariaDB impossible.');
+        throw new RuntimeException('Unable to initialize MariaDB.');
     }
     $connection->options(MYSQLI_OPT_CONNECT_TIMEOUT, 5);
     $connected = @$connection->real_connect(
@@ -43,7 +43,7 @@ function insight_agent_connect(): mysqli
         (int)($config['port'] ?? 3306)
     );
     if (!$connected) {
-        throw new RuntimeException('Connexion MariaDB impossible.');
+        throw new RuntimeException('Unable to connect to MariaDB.');
     }
     $connection->set_charset('utf8mb4');
     return $connection;
@@ -63,27 +63,27 @@ if ($method === 'OPTIONS') {
 }
 if ($method !== 'POST') {
     header('Allow: POST');
-    insight_agent_response(405, ['status' => 'error', 'message' => 'Méthode non autorisée.']);
+    insight_agent_response(405, ['status' => 'error', 'message' => 'Method not allowed.']);
 }
 if (insight_dist_env_bool('INSIGHT_AGENT_REQUIRE_HTTPS') && !insight_agent_is_https()) {
-    insight_agent_response(426, ['status' => 'error', 'message' => 'HTTPS est requis pour les agents.']);
+    insight_agent_response(426, ['status' => 'error', 'message' => 'HTTPS is required for agents.']);
 }
 $maximumBody = insight_dist_env_int('INSIGHT_AGENT_MAX_BODY_BYTES', 1048576, 16384, 10485760);
 $contentLength = filter_var($_SERVER['CONTENT_LENGTH'] ?? null, FILTER_VALIDATE_INT);
 if ($contentLength !== false && $contentLength !== null && $contentLength > $maximumBody) {
-    insight_agent_response(413, ['status' => 'error', 'message' => 'Requête agent trop volumineuse.']);
+    insight_agent_response(413, ['status' => 'error', 'message' => 'Agent request is too large.']);
 }
 $rawBody = file_get_contents('php://input');
 if (!is_string($rawBody) || $rawBody === '' || strlen($rawBody) > $maximumBody) {
-    insight_agent_response(400, ['status' => 'error', 'message' => 'Corps de requête agent invalide.']);
+    insight_agent_response(400, ['status' => 'error', 'message' => 'Invalid agent request body.']);
 }
 $body = json_decode($rawBody, true);
 if (!is_array($body)) {
-    insight_agent_response(400, ['status' => 'error', 'message' => 'JSON agent invalide.']);
+    insight_agent_response(400, ['status' => 'error', 'message' => 'Invalid agent JSON.']);
 }
 $action = strtolower(trim((string)($body['action'] ?? '')));
 if (!in_array($action, ['heartbeat', 'config', 'ingest'], true)) {
-    insight_agent_response(400, ['status' => 'error', 'message' => 'Action agent invalide.']);
+    insight_agent_response(400, ['status' => 'error', 'message' => 'Invalid agent action.']);
 }
 $nodeKey = trim((string)($_SERVER['HTTP_X_INSIGHT_NODE'] ?? ''));
 $timestamp = trim((string)($_SERVER['HTTP_X_INSIGHT_TIMESTAMP'] ?? ''));
@@ -100,7 +100,7 @@ try {
     if ($action === 'heartbeat') {
         insight_agent_response(200, [
             'status' => 'success',
-            'message' => 'Heartbeat reçu.',
+            'message' => 'Heartbeat received.',
             'node' => [
                 'node_key' => (string)$node['node_key'],
                 'status' => (string)$node['status'],
@@ -111,7 +111,7 @@ try {
     if ($action === 'config') {
         insight_agent_response(200, [
             'status' => 'success',
-            'message' => 'Configuration distribuée générée.',
+            'message' => 'Distributed configuration generated.',
             'node' => [
                 'node_key' => (string)$node['node_key'],
                 'status' => (string)$node['status'],
@@ -122,7 +122,7 @@ try {
     $result = insight_dist_ingest_batch($connection, $node, $body, hash('sha256', $rawBody));
     insight_agent_response(200, [
         'status' => 'success',
-        'message' => 'Lot agent traité.',
+        'message' => 'Agent batch processed.',
         'result' => $result,
     ]);
 } catch (InsightDistributedException $exception) {
@@ -135,7 +135,7 @@ try {
     error_log('Insight agent API [' . $errorId . ']: ' . $exception->getMessage());
     insight_agent_response(500, [
         'status' => 'error',
-        'message' => 'Erreur interne de l’ingestion distribuée.',
+        'message' => 'Internal distributed ingestion error.',
         'error_id' => $errorId,
     ]);
 } finally {

@@ -77,10 +77,10 @@ class NotificationTests(unittest.TestCase):
         return f"http://127.0.0.1:{self.server.server_port}/alert"
 
     def test_encrypted_configuration_round_trip(self) -> None:
-        source = {"token": "très-secret", "targets": ["ops", "astreinte"]}
+        source = {"token": "sëcret-token", "targets": ["ops", "on-call"]}
         ciphertext = encrypt_config(source)
         self.assertTrue(ciphertext.startswith("v1:"))
-        self.assertNotIn("très-secret", ciphertext)
+        self.assertNotIn("sëcret-token", ciphertext)
         self.assertEqual(source, decrypt_config(ciphertext))
 
     def test_tampered_configuration_is_rejected(self) -> None:
@@ -92,7 +92,7 @@ class NotificationTests(unittest.TestCase):
         with self.assertRaises(Exception):
             decrypt_config(tampered)
 
-    @unittest.skipUnless(shutil.which("php"), "PHP est requis pour vérifier la compatibilité du chiffrement")
+    @unittest.skipUnless(shutil.which("php"), "PHP is required to verify encryption compatibility")
     def test_php_and_python_share_the_same_ciphertext_format(self) -> None:
         root = Path(__file__).resolve().parents[1]
         with tempfile.TemporaryDirectory() as temporary:
@@ -108,7 +108,7 @@ class NotificationTests(unittest.TestCase):
                 [
                     "php",
                     "-r",
-                    'require $argv[1]; echo insight_notifications_encrypt(["token" => "secret partagé"]);',
+                    'require $argv[1]; echo insight_notifications_encrypt(["token" => "shared-sëcret"]);',
                     str(root / "public" / "admin" / "_notifications.php"),
                 ],
                 capture_output=True,
@@ -116,8 +116,8 @@ class NotificationTests(unittest.TestCase):
                 check=True,
                 env=environment,
             ).stdout
-            self.assertEqual("secret partagé", decrypt_config(php_encrypt)["token"])
-            python_encrypt = encrypt_config({"token": "secret partagé"})
+            self.assertEqual("shared-sëcret", decrypt_config(php_encrypt)["token"])
+            python_encrypt = encrypt_config({"token": "shared-sëcret"})
             php_decrypt = subprocess.run(
                 [
                     "php",
@@ -131,35 +131,35 @@ class NotificationTests(unittest.TestCase):
                 check=True,
                 env=environment,
             ).stdout
-            self.assertEqual("secret partagé", php_decrypt)
+            self.assertEqual("shared-sëcret", php_decrypt)
 
-    def test_liquid_templates_render_conditions_and_accents(self) -> None:
+    def test_liquid_templates_render_conditions(self) -> None:
         rendered = render_templates(
             "monitor_down",
             {"app_name": "Insight", "count": 2, "domain": "api.example.com"},
             {
                 "title": "[{{ app_name }}] {{ domain }}",
-                "body": "{{ count }} service{% if count > 1 %}s sont indisponibles{% endif %}.",
+                "body": "{{ count }} service{% if count > 1 %}s are unavailable{% endif %}.",
             },
         )
         self.assertEqual("[Insight] api.example.com", rendered["title"])
-        self.assertEqual("2 services sont indisponibles.", rendered["body"])
+        self.assertEqual("2 services are unavailable.", rendered["body"])
 
     def test_webhook_channel_receives_structured_payload(self) -> None:
         result = send_channel(
-            {"name": "Webhook local", "provider": "webhook", "config": {"url": self.webhook_url()}},
+            {"name": "Local webhook", "provider": "webhook", "config": {"url": self.webhook_url()}},
             "monitor_down",
             {"app_name": "Insight", "domain": "api.example.com", "sites": "api.example.com", "count": 1},
-            {"title": "{{ domain }} hors ligne", "body": "{{ sites }} ne répond plus."},
+            {"title": "{{ domain }} is offline", "body": "{{ sites }} no longer responds."},
         )
         self.assertTrue(result["ok"])
         self.assertEqual("monitor_down", WebhookHandler.payloads[0]["event"])
-        self.assertEqual("api.example.com hors ligne", WebhookHandler.payloads[0]["title"])
+        self.assertEqual("api.example.com is offline", WebhookHandler.payloads[0]["title"])
 
     def test_dispatch_records_delivery_and_honors_subscription(self) -> None:
         channel = {
             "id": 7,
-            "name": "Webhook local",
+            "name": "Local webhook",
             "provider": "webhook",
             "enabled": 1,
             "config_ciphertext": encrypt_config({"url": self.webhook_url()}),
@@ -181,7 +181,7 @@ class NotificationTests(unittest.TestCase):
         batch.queue_incident_open("https://api.example.com")
         batch.queue_incident_close(
             "https://status.example.com",
-            "Le service a retrouvé une disponibilité stable après le redémarrage.",
+            "The service returned to stable availability after the restart.",
             False,
         )
         batch.queue_status_offline("https://edge.example.com")

@@ -43,7 +43,7 @@ function hourly_bootstrap_context() {
     if ($requestMethod !== 'GET') {
         header('Allow: GET, OPTIONS');
         http_response_code(405);
-        echo json_encode(['status' => 'error', 'message' => 'Méthode non autorisée.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['status' => 'error', 'message' => 'Method not allowed.'], JSON_UNESCAPED_UNICODE);
         exit;
     }
 

@@ -19,7 +19,7 @@ if (empty($result['ok'])) {
         'daily_last_ok' => 0,
         'daily_engine' => 'python',
     ]);
-    $message = (string)($result['message'] ?? 'Le calcul journalier Python a échoué.');
+    $message = (string)($result['message'] ?? 'Python daily calculation failed.');
     if (!empty($result['raw'])) {
         $message .= PHP_EOL . $result['raw'];
     }
@@ -35,8 +35,8 @@ public_state_write_daily([
     'daily_engine' => 'python',
 ]);
 
-echo 'Total traité : ' . (int)($result['processed'] ?? 0) . PHP_EOL;
-echo 'Données invalides : ' . (int)($result['bad_data'] ?? 0) . PHP_EOL;
-echo 'Moteur : python' . PHP_EOL;
+echo 'Total processed: ' . (int)($result['processed'] ?? 0) . PHP_EOL;
+echo 'Invalid data: ' . (int)($result['bad_data'] ?? 0) . PHP_EOL;
+echo 'Engine: python' . PHP_EOL;
 
 exit(0);

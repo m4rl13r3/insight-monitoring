@@ -53,7 +53,7 @@ function alert_updates_build_targets($conn, $fallbackSmsUser, $fallbackSmsPasswo
             if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL) && !isset($emailSeen[$emailKey])) {
                 $targets['emails'][] = [
                     'email' => $email,
-                    'name' => 'Équipe Insight',
+                    'name' => 'Insight Team',
                 ];
                 $emailSeen[$emailKey] = true;
             }
@@ -109,9 +109,9 @@ function alert_batch_send_grouped_email($targets, $subject, $message) {
         if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             continue;
         }
-        $name = trim((string)($recipient['name'] ?? 'Membre équipe'));
+        $name = trim((string)($recipient['name'] ?? 'Team member'));
         if ($name === '') {
-            $name = 'Membre équipe';
+            $name = 'Team member';
         }
         $htmlBody = function_exists('auth_get_email_template')
             ? auth_get_email_template(
@@ -136,7 +136,7 @@ function alert_batch_dispatch_modern($event, $context) {
     $python = function_exists('resolve_python_bin') ? resolve_python_bin() : 'python3';
     $script = $monitoringRoot . '/python_monitoring/notification_cli.py';
     if (!is_file($script)) {
-        return ['ok' => false, 'configured' => 0, 'error' => 'Moteur de notification introuvable'];
+        return ['ok' => false, 'configured' => 0, 'error' => 'Notification engine not found'];
     }
     $command = [$python, $script, 'dispatch', '--root', $monitoringRoot];
     $descriptors = [
@@ -146,7 +146,7 @@ function alert_batch_dispatch_modern($event, $context) {
     ];
     $process = @proc_open($command, $descriptors, $pipes, $monitoringRoot);
     if (!is_resource($process)) {
-        return ['ok' => false, 'configured' => 0, 'error' => 'Moteur de notification indisponible'];
+        return ['ok' => false, 'configured' => 0, 'error' => 'Notification engine unavailable'];
     }
     $payload = json_encode(
         ['event' => (string)$event, 'context' => is_array($context) ? $context : []],
@@ -185,7 +185,7 @@ function alert_batch_dispatch_modern($event, $context) {
     fclose($pipes[2]);
     proc_close($process);
     if ($timedOut) {
-        return ['ok' => false, 'configured' => 0, 'error' => 'Délai de notification dépassé'];
+        return ['ok' => false, 'configured' => 0, 'error' => 'Notification timed out'];
     }
     $lines = preg_split('/\R+/', trim((string)$stdout)) ?: [];
     foreach (array_reverse($lines) as $line) {
@@ -203,7 +203,7 @@ function alert_batch_dispatch_grouped_updates($targets, $event, $subject, $messa
     $modern = alert_batch_dispatch_modern((string)$event, is_array($context) ? $context : []);
     if ((int)($modern['configured'] ?? 0) > 0) {
         if ((int)($modern['failed'] ?? 0) > 0) {
-            error_log('Échec de ' . (int)$modern['failed'] . ' canal(aux) pour ' . (string)$event);
+            error_log((int)$modern['failed'] . ' channel(s) failed for ' . (string)$event);
         }
         return;
     }
@@ -231,12 +231,12 @@ function alert_batch_dispatch_grouped_updates($targets, $event, $subject, $messa
 }
 
 /**
- * Fonction d'envoi SMS via l'API Free Mobile
+ * Send SMS through the Free Mobile API
  *
- * @param string $user Identifiant Free Mobile
- * @param string $password Mot de passe Free Mobile
- * @param string $message Message à envoyer
- * @return bool Retourne true si l'envoi a réussi, false sinon
+ * @param string $user Free Mobile identifier
+ * @param string $password Free Mobile password
+ * @param string $message Message to send
+ * @return bool True when delivery succeeds, false otherwise
  */
 function send_sms($user, $password, $message) {
     if (alert_sms_is_disabled()) {
@@ -246,7 +246,7 @@ function send_sms($user, $password, $message) {
     $sms_url = "https://smsapi.free-mobile.fr/sendmsg?user=" . urlencode($user) . "&pass=" . urlencode($password) . "&msg=" . urlencode($message);
     $response = @file_get_contents($sms_url);
 
-    // Vérification du code retour HTTP
+    // Validate the HTTP response code
     if (isset($http_response_header[0]) && strpos($http_response_header[0], "200") !== false) {
         return true;
     } else {
@@ -293,16 +293,16 @@ function sanitize_postmortem_text($raw) {
 
 function send_incident_alert($user, $password, $site_url, $state, $http_code = null, $pmText = '', $timeout = false) {
     if ($state === 'open') {
-        $message = "Incident détecté. $site_url n'as pas répondu après plus de 3 tentatives.";
+        $message = "Incident detected. $site_url did not respond after more than 3 attempts.";
     } elseif ($state === 'close') {
         if ($timeout) {
-            $message = "Incident résolu. $site_url est à nouveau disponible. Consultez la page publique Insight pour suivre l'incident.";
+            $message = "Incident resolved. $site_url is available again. See the public Insight page for details.";
         } else {
             $safePm = sanitize_postmortem_text($pmText);
             if ($safePm === '') {
-                $message = "Incident résolu. $site_url est à nouveau disponible. Consultez la page publique Insight pour suivre l'incident.";
+                $message = "Incident resolved. $site_url is available again. See the public Insight page for details.";
             } else {
-                $message = "Incident résolu. $site_url est à nouveau disponible. Résumé : $safePm";
+                $message = "Incident resolved. $site_url is available again. Summary: $safePm";
             }
         }
     } else {
@@ -366,7 +366,7 @@ function alert_group_domain_from_url($site_url) {
 
 function alert_group_format_sites_for_sms($sites, $maxHosts = 2) {
     if (!is_array($sites) || empty($sites)) {
-        return 'site inconnu';
+        return 'unknown site';
     }
 
     $hosts = [];
@@ -497,10 +497,10 @@ function alert_batch_flush(&$batch, $user, $password, $conn = null) {
         if ($count <= 0) {
             continue;
         }
-        $message = "Dossier d'incident ouvert ($domain) : $count site" . ($count > 1 ? 's' : '') .
-            " indisponible" . ($count > 1 ? 's' : '') . " (" . alert_group_format_sites_for_sms($sites) . ").";
+        $message = "Incident opened ($domain): $count unavailable site" . ($count > 1 ? 's' : '') .
+            " (" . alert_group_format_sites_for_sms($sites) . ").";
         $siteValues = array_values(array_map('strval', $sites));
-        alert_batch_dispatch_grouped_updates($targets, 'incident_open', "Incident ouvert · $domain", $message, [
+        alert_batch_dispatch_grouped_updates($targets, 'incident_open', "Incident opened - $domain", $message, [
             'app_name' => $appName,
             'public_url' => $publicUrl,
             'domain' => (string)$domain,
@@ -508,7 +508,7 @@ function alert_batch_flush(&$batch, $user, $password, $conn = null) {
             'site_url' => (string)($siteValues[0] ?? ''),
             'count' => $count,
             'status' => 'offline',
-            'message' => 'Détection confirmée par le moteur de supervision.',
+            'message' => 'Detection confirmed by the monitoring engine.',
         ]);
     }
 
@@ -518,25 +518,25 @@ function alert_batch_flush(&$batch, $user, $password, $conn = null) {
         if (!is_array($payload)) {
             continue;
         }
-        $domain = (string)($payload['domain'] ?? 'groupe');
+        $domain = (string)($payload['domain'] ?? 'group');
         $sites = is_array($payload['sites'] ?? null) ? $payload['sites'] : [];
         $count = count($sites);
         if ($count <= 0) {
             continue;
         }
-        $base = "Dossier d'incident clos ($domain) : $count site" . ($count > 1 ? 's' : '') .
-            " rétabli" . ($count > 1 ? 's' : '') . " (" . alert_group_format_sites_for_sms($sites) . "). ";
+        $base = "Incident resolved ($domain): $count restored site" . ($count > 1 ? 's' : '') .
+            " (" . alert_group_format_sites_for_sms($sites) . "). ";
         if (!empty($payload['timeout'])) {
-            $message = $base . "Rapport indisponible, consultez la page publique Insight.";
+            $message = $base . "Report unavailable; see the public Insight page.";
         } else {
             $pm = (string)($payload['pm_text'] ?? '');
-            $message = $base . "Cause probable : " . $pm;
+            $message = $base . "Probable cause: " . $pm;
         }
         $siteValues = array_values(array_map('strval', $sites));
         $resolutionMessage = !empty($payload['timeout'])
-            ? 'Le service répond de nouveau, mais le rapport de résolution est indisponible.'
-            : 'Cause probable : ' . (string)($payload['pm_text'] ?? '');
-        alert_batch_dispatch_grouped_updates($targets, 'incident_resolved', "Incident résolu · $domain", $message, [
+            ? 'The service is responding again, but the resolution report is unavailable.'
+            : 'Probable cause: ' . (string)($payload['pm_text'] ?? '');
+        alert_batch_dispatch_grouped_updates($targets, 'incident_resolved', "Incident resolved - $domain", $message, [
             'app_name' => $appName,
             'public_url' => $publicUrl,
             'domain' => $domain,
@@ -555,10 +555,10 @@ function alert_batch_flush(&$batch, $user, $password, $conn = null) {
         if ($count <= 0) {
             continue;
         }
-        $message = "Alerte ($domain) : $count site" . ($count > 1 ? 's' : '') .
-            " hors-ligne (" . alert_group_format_sites_for_sms($sites) . ").";
+        $message = "Alert ($domain): $count offline site" . ($count > 1 ? 's' : '') .
+            " (" . alert_group_format_sites_for_sms($sites) . ").";
         $siteValues = array_values(array_map('strval', $sites));
-        alert_batch_dispatch_grouped_updates($targets, 'monitor_down', "Alerte hors-ligne · $domain", $message, [
+        alert_batch_dispatch_grouped_updates($targets, 'monitor_down', "Offline alert - $domain", $message, [
             'app_name' => $appName,
             'public_url' => $publicUrl,
             'domain' => (string)$domain,
@@ -566,7 +566,7 @@ function alert_batch_flush(&$batch, $user, $password, $conn = null) {
             'site_url' => (string)($siteValues[0] ?? ''),
             'count' => $count,
             'status' => 'offline',
-            'message' => 'La dernière vérification n’a reçu aucune réponse valide.',
+            'message' => 'The latest check received no valid response.',
         ]);
     }
 
@@ -577,10 +577,10 @@ function alert_batch_flush(&$batch, $user, $password, $conn = null) {
         if ($count <= 0) {
             continue;
         }
-        $message = "Alerte ($domain) : $count site" . ($count > 1 ? 's' : '') .
-            " de retour en ligne (" . alert_group_format_sites_for_sms($sites) . ").";
+        $message = "Alert ($domain): $count site" . ($count > 1 ? 's are' : ' is') .
+            " back online (" . alert_group_format_sites_for_sms($sites) . ").";
         $siteValues = array_values(array_map('strval', $sites));
-        alert_batch_dispatch_grouped_updates($targets, 'monitor_up', "Service rétabli · $domain", $message, [
+        alert_batch_dispatch_grouped_updates($targets, 'monitor_up', "Service restored - $domain", $message, [
             'app_name' => $appName,
             'public_url' => $publicUrl,
             'domain' => (string)$domain,
@@ -588,23 +588,23 @@ function alert_batch_flush(&$batch, $user, $password, $conn = null) {
             'site_url' => (string)($siteValues[0] ?? ''),
             'count' => $count,
             'status' => 'online',
-            'message' => 'La vérification de reprise a réussi.',
+            'message' => 'The recovery check succeeded.',
         ]);
     }
 }
 
 /**
- * Fonction principale : gère les alertes pour un site
+ * Main function for handling alerts for one site
  *
- * @param mysqli $conn Connexion MySQLi
- * @param string $user Identifiant Free Mobile
- * @param string $password Mot de passe Free Mobile
- * @param int $site_id ID du site
- * @param string $site_url URL du site
- * @param string $status Statut actuel du site ("online" ou "offline")
+ * @param mysqli $conn MySQLi connection
+ * @param string $user Free Mobile identifier
+ * @param string $password Free Mobile password
+ * @param int $site_id Site identifier
+ * @param string $site_url Site URL
+ * @param string $status Current site status ("online" or "offline")
  */
 function alertSite($conn, $user, $password, $site_id, $site_url, $status, $suppressRecoveryAlert = false, &$notificationBatch = null) {
-    // Récupérer les informations précédentes sur le site
+    // Retrieve the previous site state
     $stmt = $conn->prepare("SELECT status, alert_sent FROM alert WHERE id = ?");
     $stmt->bind_param("i", $site_id);
     $stmt->execute();
@@ -620,7 +620,7 @@ function alertSite($conn, $user, $password, $site_id, $site_url, $status, $suppr
         $alert_sent_previously = (bool)$previous_data['alert_sent'];
     }
 
-    $alert_sent = $alert_sent_previously; // Par défaut, on garde la même valeur
+    $alert_sent = $alert_sent_previously; // Preserve the current value by default
 
     $stmt_recent = $conn->prepare("SELECT status FROM probes WHERE site_id = ? ORDER BY checked_at DESC LIMIT 2");
     $stmt_recent->bind_param("i", $site_id);
@@ -643,11 +643,11 @@ function alertSite($conn, $user, $password, $site_id, $site_url, $status, $suppr
             if (is_array($notificationBatch)) {
                 alert_batch_queue_status($notificationBatch, $site_url, 'offline');
             } else {
-                $alert_message = "Alerte : $site_url est hors-ligne 🔴";
+                $alert_message = "Alert: $site_url is offline";
                 if (send_sms($user, $password, $alert_message)) {
-                    error_log("Alerte envoyée pour : $site_url");
+                    error_log("Alert sent for: $site_url");
                 } else {
-                    error_log("Erreur lors de l'envoi de l'alerte SMS pour $site_url");
+                    error_log("Failed to send SMS alert for $site_url");
                 }
             }
             $alert_sent = true;
@@ -658,11 +658,11 @@ function alertSite($conn, $user, $password, $site_id, $site_url, $status, $suppr
                 if (is_array($notificationBatch)) {
                     alert_batch_queue_status($notificationBatch, $site_url, 'online');
                 } else {
-                    $back_online_message = "Alerte : $site_url est de retour en ligne 🟢";
+                    $back_online_message = "Alert: $site_url is back online";
                     if (send_sms($user, $password, $back_online_message)) {
-                        error_log("$site_url est de nouveau en ligne, message envoyé.");
+                        error_log("$site_url is back online; message sent.");
                     } else {
-                        error_log("Erreur lors de l'envoi du SMS retour en ligne pour $site_url");
+                        error_log("Failed to send recovery SMS for $site_url");
                     }
                 }
             }
@@ -672,21 +672,21 @@ function alertSite($conn, $user, $password, $site_id, $site_url, $status, $suppr
 
     $timestamp = date('Y-m-d H:i:s');
 
-    // Mettre à jour ou insérer l'état en base de données
+    // Update or insert the state in the database
     if ($previous_data) {
-        // Mise à jour
+        // Update
         $stmt = $conn->prepare("UPDATE alert SET site_url = ?, status = ?, alert_sent = ?, timestamp = ? WHERE id = ?");
         $alert_sent_int = $alert_sent ? 1 : 0;
         $stmt->bind_param("ssisi", $site_url, $status, $alert_sent_int, $timestamp, $site_id);
     } else {
-        // Insertion
+        // Insert
         $stmt = $conn->prepare("INSERT INTO alert (id, site_url, status, alert_sent, timestamp) VALUES (?, ?, ?, ?, ?)");
         $alert_sent_int = $alert_sent ? 1 : 0;
         $stmt->bind_param("issis", $site_id, $site_url, $status, $alert_sent_int, $timestamp);
     }
 
     if (!$stmt->execute()) {
-        error_log("Erreur lors de la mise à jour de la table alert : " . $stmt->error);
+        error_log("Failed to update the alert table: " . $stmt->error);
     }
     $stmt->close();
 }

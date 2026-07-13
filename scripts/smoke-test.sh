@@ -22,7 +22,7 @@ base_url="http://127.0.0.1:${port}"
 curl --fail --silent --show-error --retry 30 --retry-all-errors --retry-delay 2 "${base_url}/" >/dev/null
 INSIGHT_COMPOSE_ENV_FILE="$env_file" INSIGHT_COMPOSE_PROJECT_NAME="$project_name" ./scripts/migrate.sh >/tmp/insight-migrate-first.txt
 INSIGHT_COMPOSE_ENV_FILE="$env_file" INSIGHT_COMPOSE_PROJECT_NAME="$project_name" ./scripts/migrate.sh >/tmp/insight-migrate-second.txt
-grep -q '0 appliquée(s)' /tmp/insight-migrate-second.txt
+grep -q '0 applied' /tmp/insight-migrate-second.txt
 curl --fail --silent --show-error "${base_url}/hourly_stats_report.php?contract=v2" >/tmp/insight-hourly.json
 
 access_json="$("${compose[@]}" exec -T php php -r '$_SERVER["SCRIPT_FILENAME"]="cli"; $_SERVER["REMOTE_ADDR"]="127.0.0.1"; require "public/admin/_access.php"; insight_access_set_feature("headless_api_enabled", true); echo json_encode(insight_access_create_token(["name"=>"Smoke test","scopes"=>["status:read"],"expires_in_days"=>1], insight_auth_dev_user()));')"
@@ -94,4 +94,4 @@ PY
 curl --fail --silent --show-error "${base_url}/hourly_stats_report.php?contract=v2&mode=incidents" >/dev/null
 curl --fail --silent --show-error "${base_url}/hourly_stats_report.php?contract=v2&mode=incidents&format=rss" >/dev/null
 
-echo "Smoke test Insight réussi."
+echo "Insight smoke test passed."

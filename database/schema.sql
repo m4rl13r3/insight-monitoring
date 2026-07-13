@@ -387,11 +387,11 @@ CREATE TABLE IF NOT EXISTS notification_deliveries (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO notification_templates (event_key, title_template, body_template) VALUES
-    ('test', '[{{ app_name }}] Test de {{ channel_name }}', 'Ceci est un message de test envoyé par {{ app_name }} à {{ timestamp }}.'),
-    ('monitor_down', '[{{ app_name }}] {{ domain }} est hors ligne', '{{ count }} service{% if count > 1 %}s sont{% else %} est{% endif %} indisponible{% if count > 1 %}s{% endif %} : {{ sites }}. {{ message }}'),
-    ('monitor_up', '[{{ app_name }}] {{ domain }} est rétabli', '{{ count }} service{% if count > 1 %}s sont{% else %} est{% endif %} de retour en ligne : {{ sites }}. {{ message }}'),
-    ('incident_open', '[{{ app_name }}] Incident ouvert · {{ domain }}', 'Un incident est ouvert pour {{ sites }}. {{ message }}'),
-    ('incident_resolved', '[{{ app_name }}] Incident résolu · {{ domain }}', 'L’incident concernant {{ sites }} est résolu. {{ message }}')
+    ('test', '[{{ app_name }}] Test from {{ channel_name }}', 'This is a test message sent by {{ app_name }} at {{ timestamp }}.'),
+    ('monitor_down', '[{{ app_name }}] {{ domain }} is offline', '{{ count }} service{% if count > 1 %}s are{% else %} is{% endif %} unavailable: {{ sites }}. {{ message }}'),
+    ('monitor_up', '[{{ app_name }}] {{ domain }} is back online', '{{ count }} service{% if count > 1 %}s are{% else %} is{% endif %} back online: {{ sites }}. {{ message }}'),
+    ('incident_open', '[{{ app_name }}] Incident opened - {{ domain }}', 'An incident is open for {{ sites }}. {{ message }}'),
+    ('incident_resolved', '[{{ app_name }}] Incident resolved - {{ domain }}', 'The incident affecting {{ sites }} is resolved. {{ message }}')
 ON DUPLICATE KEY UPDATE event_key = VALUES(event_key);
 
 INSERT INTO monitoring_public_runtime_state (singleton_id, service_name, active_engine)

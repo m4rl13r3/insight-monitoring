@@ -17,7 +17,7 @@ if (empty($result['ok'])) {
     if (PHP_SAPI !== 'cli') {
         http_response_code((int)($result['status_code'] ?? 500));
     }
-    echo (string)($result['message'] ?? 'La purge des données de monitoring a échoué.') . PHP_EOL;
+    echo (string)($result['message'] ?? 'Monitoring data cleanup failed.') . PHP_EOL;
     exit(1);
 }
 

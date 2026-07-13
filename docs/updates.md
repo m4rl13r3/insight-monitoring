@@ -1,98 +1,98 @@
-# Mises à jour
+# Updates
 
-Insight se met à jour depuis les versions stables `vX.Y.Z` du dépôt Git configuré. Le script s’exécute sur l’hôte avec le même utilisateur que l’installation Docker. Aucun conteneur ne reçoit le socket Docker et aucun service tiers n’est requis.
+Insight updates from stable `vX.Y.Z` releases in the configured Git repository. The script runs on the host under the same user as the Docker installation. No container receives the Docker socket, and no third-party service is required.
 
-Le gestionnaire est disponible à partir d’Insight 0.1.2. Une instance plus ancienne doit être amenée une première fois sur cette version avec la procédure manuelle de sa release ; les versions suivantes utiliseront ensuite `update.sh`.
+The update manager is available starting with Insight 0.1.2. An older instance must first be moved to this version using that release's manual procedure; subsequent versions can use `update.sh`.
 
-Une mise à jour conserve `.env`, les volumes MariaDB et d’identité, ainsi que les sauvegardes. Elle vérifie le tag distant, refuse un historique divergent, crée une sauvegarde, construit les nouvelles images, arrête brièvement le worker, applique chaque migration une seule fois, redémarre la pile et contrôle MariaDB ainsi que les endpoints web.
+An update preserves `.env`, MariaDB and identity volumes, and backups. It validates the remote tag, rejects divergent history, creates a backup, builds the new images, briefly stops the worker, applies each migration once, restarts the stack, and validates MariaDB and the web endpoints.
 
-## Mise à jour manuelle
+## Manual update
 
-Rechercher une version sans rien modifier :
+Check for a release without changing anything:
 
 ```bash
 ./scripts/update.sh --check
 ```
 
-Installer la dernière version stable :
+Install the latest stable release:
 
 ```bash
 ./scripts/update.sh --apply
 ```
 
-Installer une version stable précise :
+Install a specific stable release:
 
 ```bash
 ./scripts/update.sh --apply --target v0.2.0
 ```
 
-Le dépôt passe volontairement sur le commit détaché du tag publié. Les fichiers suivis doivent être propres. Les adaptations locales doivent vivre dans `.env`, les volumes ou un fork, pas dans les fichiers versionnés de l’instance.
+The repository intentionally switches to the detached commit of the published tag. Tracked files must be clean. Local customization belongs in `.env`, volumes, or a fork, not in the instance's versioned files.
 
-## Activation automatique
+## Automatic updates
 
-Sur un serveur Linux avec systemd, exécutez une fois :
+On a Linux server with systemd, run once:
 
 ```bash
 ./scripts/install-auto-update.sh
 ```
 
-L’installateur active `INSIGHT_AUTO_UPDATE=1` dans `.env` et crée un timer utilisateur quotidien avec un décalage aléatoire. Le service utilise l’utilisateur courant, qui doit déjà pouvoir exécuter Docker.
+The installer sets `INSIGHT_AUTO_UPDATE=1` in `.env` and creates a daily user timer with a randomized delay. The service runs under the current user, who must already be allowed to use Docker.
 
-Contrôler le timer et son dernier journal :
+Inspect the timer and its latest log:
 
 ```bash
 systemctl --user list-timers insight-update.timer
 journalctl --user -u insight-update.service -n 100 --no-pager
 ```
 
-Pour que le timer utilisateur continue après la déconnexion, l’administrateur du serveur peut activer le maintien de session :
+To keep the user timer running after logout, the server administrator can enable lingering:
 
 ```bash
 sudo loginctl enable-linger "$USER"
 ```
 
-Désactiver proprement l’automatisation :
+Disable automation cleanly:
 
 ```bash
 ./scripts/install-auto-update.sh --remove
 ```
 
-Sans systemd, utilisez la commande suivante dans le planificateur de l’hôte après avoir réglé `INSIGHT_AUTO_UPDATE=1` :
+Without systemd, use the following command in the host scheduler after setting `INSIGHT_AUTO_UPDATE=1`:
 
 ```cron
 17 4 * * * cd /opt/insight && ./scripts/update.sh --auto >> /var/log/insight-update.log 2>&1
 ```
 
-## Sécurité des versions
+## Release security
 
-Le canal stable ignore les préversions et n’accepte que les tags annotés dont le numéro correspond à `package.json`. Le remote par défaut est `origin` et se règle avec `INSIGHT_UPDATE_REMOTE`.
+The stable channel ignores prereleases and accepts only annotated tags whose version matches `package.json`. The default remote is `origin` and can be changed with `INSIGHT_UPDATE_REMOTE`.
 
-Pour exiger en plus une signature Git vérifiable localement :
+To additionally require a locally verifiable Git signature:
 
 ```dotenv
 INSIGHT_UPDATE_REQUIRE_SIGNED_TAGS=1
 ```
 
-Cette option nécessite que les clés de signature des mainteneurs soient déjà approuvées sur le serveur. Elle ne doit être activée qu’après publication de tags signés.
+This option requires the maintainers' signing keys to already be trusted on the server. Enable it only after signed tags are published.
 
-## Échec et retour arrière
+## Failure and rollback
 
-Si la construction, une migration, le démarrage ou le contrôle de santé échoue, le script reconstruit automatiquement le commit précédent. Il ne restaure jamais automatiquement la base : une restauration pourrait supprimer les observations reçues entre-temps. L’archive créée avant l’opération reste dans `backups/` pour une intervention manuelle.
+If the build, a migration, startup, or a health check fails, the script automatically rebuilds the previous commit. It never restores the database automatically because doing so could discard observations received in the meantime. The archive created before the operation remains in `backups/` for manual recovery.
 
-Pour revenir volontairement au code précédant la dernière mise à jour :
+To intentionally return to the code preceding the latest update:
 
 ```bash
 ./scripts/update.sh --rollback
 ```
 
-Les migrations publiées doivent rester additives et compatibles avec la version précédente. Un fichier de migration déjà appliqué ne doit jamais être modifié : son empreinte est contrôlée dans `insight_schema_migrations`.
+Published migrations must remain additive and compatible with the previous version. Never edit an applied migration file: its checksum is validated in `insight_schema_migrations`.
 
-Les réglages associés sont :
+Related settings:
 
-| Variable | Défaut | Rôle |
+| Variable | Default | Purpose |
 | --- | --- | --- |
-| `INSIGHT_AUTO_UPDATE` | `0` | Autorise l’exécution planifiée avec `--auto` |
-| `INSIGHT_UPDATE_REMOTE` | `origin` | Remote Git contenant les versions officielles |
-| `INSIGHT_UPDATE_BACKUP` | `1` | Crée une archive avant le déploiement |
-| `INSIGHT_UPDATE_REQUIRE_SIGNED_TAGS` | `0` | Exige une signature Git valide sur le tag |
-| `INSIGHT_UPDATE_HEALTH_TIMEOUT_SEC` | `180` | Délai maximal de remise en service Docker |
+| `INSIGHT_AUTO_UPDATE` | `0` | Allows scheduled execution with `--auto` |
+| `INSIGHT_UPDATE_REMOTE` | `origin` | Git remote containing official releases |
+| `INSIGHT_UPDATE_BACKUP` | `1` | Creates an archive before deployment |
+| `INSIGHT_UPDATE_REQUIRE_SIGNED_TAGS` | `0` | Requires a valid Git signature on the tag |
+| `INSIGHT_UPDATE_HEALTH_TIMEOUT_SEC` | `180` | Maximum Docker service recovery time |

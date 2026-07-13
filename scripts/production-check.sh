@@ -9,7 +9,7 @@ strict=0
 if [ "${1:-}" = "--strict" ]; then
     strict=1
 elif [ -n "${1:-}" ]; then
-    echo "Usage : $0 [--strict]" >&2
+    echo "Usage: $0 [--strict]" >&2
     exit 2
 fi
 
@@ -19,17 +19,17 @@ errors=0
 warnings=0
 
 fail() {
-    echo "ERREUR : $1" >&2
+    echo "ERROR: $1" >&2
     errors=$((errors + 1))
 }
 
 warn() {
-    echo "ATTENTION : $1" >&2
+    echo "WARNING: $1" >&2
     warnings=$((warnings + 1))
 }
 
 pass() {
-    echo "OK : $1"
+    echo "OK: $1"
 }
 
 env_value() {
@@ -52,7 +52,7 @@ is_example_value() {
 }
 
 if [ ! -f "$env_file" ]; then
-    echo "Le fichier d’environnement ${env_file} est introuvable." >&2
+    echo "Environment file ${env_file} was not found." >&2
     exit 1
 fi
 
@@ -63,9 +63,9 @@ elif stat -c '%a' "$env_file" >/dev/null 2>&1; then
     permissions="$(stat -c '%a' "$env_file")"
 fi
 if [ "$permissions" = "600" ]; then
-    pass "le fichier d’environnement est privé"
+    pass "the environment file is private"
 else
-    fail "protégez ${env_file} avec chmod 600"
+    fail "protect ${env_file} with chmod 600"
 fi
 
 app_env="$(env_value INSIGHT_APP_ENV)"
@@ -82,60 +82,60 @@ api_origins="$(env_value INSIGHT_API_ALLOWED_ORIGINS)"
 distributed_mode="$(env_value INSIGHT_DISTRIBUTED_MODE)"
 notifications_disabled="$(env_value INSIGHT_DISABLE_NOTIFICATIONS)"
 
-[ "$app_env" = "production" ] || fail "INSIGHT_APP_ENV doit valoir production"
-[ "$dev_bypass" = "0" ] || fail "INSIGHT_DEV_AUTH_BYPASS doit valoir 0"
-printf '%s' "$public_url" | grep -Eq '^https://[^/ ]+' || fail "INSIGHT_PUBLIC_URL doit utiliser HTTPS"
-is_example_value "$public_url" && fail "INSIGHT_PUBLIC_URL doit désigner le vrai domaine de l’instance"
-printf '%s' "$contact_email" | grep -Eq '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$' || fail "INSIGHT_CONTACT_EMAIL est invalide"
-is_example_value "$contact_email" && fail "INSIGHT_CONTACT_EMAIL doit être une adresse réelle"
-[ "${#db_password}" -ge 24 ] || fail "INSIGHT_DB_PASSWORD doit contenir au moins 24 caractères"
-[ "${#db_root_password}" -ge 24 ] || fail "INSIGHT_DB_ROOT_PASSWORD doit contenir au moins 24 caractères"
+[ "$app_env" = "production" ] || fail "INSIGHT_APP_ENV must be production"
+[ "$dev_bypass" = "0" ] || fail "INSIGHT_DEV_AUTH_BYPASS must be 0"
+printf '%s' "$public_url" | grep -Eq '^https://[^/ ]+' || fail "INSIGHT_PUBLIC_URL must use HTTPS"
+is_example_value "$public_url" && fail "INSIGHT_PUBLIC_URL must point to the instance's real domain"
+printf '%s' "$contact_email" | grep -Eq '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$' || fail "INSIGHT_CONTACT_EMAIL is invalid"
+is_example_value "$contact_email" && fail "INSIGHT_CONTACT_EMAIL must be a real address"
+[ "${#db_password}" -ge 24 ] || fail "INSIGHT_DB_PASSWORD must contain at least 24 characters"
+[ "${#db_root_password}" -ge 24 ] || fail "INSIGHT_DB_ROOT_PASSWORD must contain at least 24 characters"
 if ! printf '%s' "$notification_key" | grep -Eq '^[[:xdigit:]]{64}$' && [ "${#notification_key}" -lt 32 ]; then
-    fail "INSIGHT_NOTIFICATION_ENCRYPTION_KEY doit contenir 64 caractères hexadécimaux ou au moins 32 caractères"
+    fail "INSIGHT_NOTIFICATION_ENCRYPTION_KEY must contain 64 hexadecimal characters or at least 32 characters"
 fi
 cookie_secure_normalized="$(printf '%s' "$cookie_secure" | tr '[:upper:]' '[:lower:]')"
 case "$cookie_secure_normalized" in
     1|true|yes|on|auto) ;;
-    *) fail "INSIGHT_AUTH_COOKIE_SECURE ne doit pas désactiver les cookies sécurisés" ;;
+    *) fail "INSIGHT_AUTH_COOKIE_SECURE must not disable secure cookies" ;;
 esac
 
 for origin_group in "$allowed_origins" "$api_origins"; do
-    [ -n "$origin_group" ] || fail "les listes d’origines CORS ne peuvent pas être vides"
+    [ -n "$origin_group" ] || fail "CORS origin lists cannot be empty"
     old_ifs="$IFS"
     IFS=','
     for origin in $origin_group; do
         IFS="$old_ifs"
         origin="$(printf '%s' "$origin" | xargs)"
-        printf '%s' "$origin" | grep -Eq '^https://[^/ ]+' || fail "toutes les origines CORS doivent utiliser HTTPS"
-        printf '%s' "$origin" | grep -q '\*' && fail "les origines CORS génériques sont interdites"
-        is_example_value "$origin" && fail "les origines CORS doivent désigner les vrais domaines"
+        printf '%s' "$origin" | grep -Eq '^https://[^/ ]+' || fail "all CORS origins must use HTTPS"
+        printf '%s' "$origin" | grep -q '\*' && fail "wildcard CORS origins are forbidden"
+        is_example_value "$origin" && fail "CORS origins must point to real domains"
         IFS=','
     done
     IFS="$old_ifs"
 done
 
 if [ "$strict" -eq 1 ]; then
-    [ "$http_bind" = "127.0.0.1" ] || fail "INSIGHT_HTTP_BIND doit valoir 127.0.0.1 derrière le proxy HTTPS"
-    [ "$notifications_disabled" = "0" ] || fail "activez les notifications après leur test avec INSIGHT_DISABLE_NOTIFICATIONS=0"
+    [ "$http_bind" = "127.0.0.1" ] || fail "INSIGHT_HTTP_BIND must be 127.0.0.1 behind the HTTPS proxy"
+    [ "$notifications_disabled" = "0" ] || fail "enable notifications after testing them with INSIGHT_DISABLE_NOTIFICATIONS=0"
 fi
 
 if [ "$distributed_mode" = "hub" ]; then
     agent_secret="$(env_value INSIGHT_AGENT_MASTER_SECRET)"
     agent_https="$(env_value INSIGHT_AGENT_REQUIRE_HTTPS)"
     agent_auto_register="$(env_value INSIGHT_AGENT_AUTO_REGISTER)"
-    [ "${#agent_secret}" -ge 32 ] || fail "INSIGHT_AGENT_MASTER_SECRET doit contenir au moins 32 caractères en mode hub"
-    [ "$agent_https" = "1" ] || fail "INSIGHT_AGENT_REQUIRE_HTTPS doit valoir 1 en mode hub"
+    [ "${#agent_secret}" -ge 32 ] || fail "INSIGHT_AGENT_MASTER_SECRET must contain at least 32 characters in hub mode"
+    [ "$agent_https" = "1" ] || fail "INSIGHT_AGENT_REQUIRE_HTTPS must be 1 in hub mode"
     if [ "$strict" -eq 1 ]; then
-        [ "$agent_auto_register" = "0" ] || fail "désactivez INSIGHT_AGENT_AUTO_REGISTER après l’enrôlement des agents"
+        [ "$agent_auto_register" = "0" ] || fail "disable INSIGHT_AGENT_AUTO_REGISTER after agent enrollment"
     fi
 fi
 
 if [ "$errors" -eq 0 ]; then
-    pass "la configuration statique est cohérente"
+    pass "the static configuration is consistent"
 fi
 
 if [ "$strict" -eq 1 ]; then
-    command -v docker >/dev/null 2>&1 || fail "Docker est introuvable"
+    command -v docker >/dev/null 2>&1 || fail "Docker was not found"
     compose=(docker compose --env-file "$env_file")
     if [ -n "$project_name" ]; then
         compose+=(-p "$project_name")
@@ -144,12 +144,12 @@ if [ "$strict" -eq 1 ]; then
     if [ "$errors" -eq 0 ] || command -v docker >/dev/null 2>&1; then
         running_services="$("${compose[@]}" ps --services --status running 2>/dev/null || true)"
         for service in db php worker web; do
-            printf '%s\n' "$running_services" | grep -qx "$service" || fail "le service Docker ${service} n’est pas démarré"
+            printf '%s\n' "$running_services" | grep -qx "$service" || fail "Docker service ${service} is not running"
         done
 
         if printf '%s\n' "$running_services" | grep -qx php; then
             auth_users="$("${compose[@]}" exec -T php php -r '$path=getenv("INSIGHT_AUTH_DB_PATH") ?: "/var/lib/insight-auth/auth.sqlite"; if (!is_file($path)) { echo "0"; exit; } $db=new SQLite3($path, SQLITE3_OPEN_READONLY); echo (int)$db->querySingle("SELECT COUNT(*) FROM auth_users");' 2>/dev/null || echo 0)"
-            [ "$auth_users" -gt 0 ] 2>/dev/null || fail "créez le premier compte administrateur"
+            [ "$auth_users" -gt 0 ] 2>/dev/null || fail "create the first administrator account"
         fi
 
         if printf '%s\n' "$running_services" | grep -qx db; then
@@ -159,28 +159,28 @@ if [ "$strict" -eq 1 ]; then
             enabled_channels="$(printf '%s\n' "$db_report" | sed -n '3p')"
             tested_channels="$(printf '%s\n' "$db_report" | sed -n '4p')"
             healthy_runtime="$(printf '%s\n' "$db_report" | sed -n '5p')"
-            [ "${sites_count:-0}" -gt 0 ] 2>/dev/null || fail "créez au moins un moniteur réel"
-            [ "${smoke_count:-0}" -eq 0 ] 2>/dev/null || fail "supprimez les moniteurs de démonstration et de smoke test"
-            [ "${enabled_channels:-0}" -gt 0 ] 2>/dev/null || fail "activez au moins un canal de notification"
-            [ "${tested_channels:-0}" -gt 0 ] 2>/dev/null || fail "effectuez un envoi de test concluant sur un canal actif"
-            [ "${healthy_runtime:-0}" -eq 1 ] 2>/dev/null || fail "le worker n’a pas encore publié un état opérationnel"
+            [ "${sites_count:-0}" -gt 0 ] 2>/dev/null || fail "create at least one real monitor"
+            [ "${smoke_count:-0}" -eq 0 ] 2>/dev/null || fail "remove demo and smoke-test monitors"
+            [ "${enabled_channels:-0}" -gt 0 ] 2>/dev/null || fail "enable at least one notification channel"
+            [ "${tested_channels:-0}" -gt 0 ] 2>/dev/null || fail "complete a successful test delivery on an active channel"
+            [ "${healthy_runtime:-0}" -eq 1 ] 2>/dev/null || fail "the worker has not published a healthy state yet"
         fi
 
         if printf '%s\n' "$running_services" | grep -qx web; then
             http_port="$(env_value INSIGHT_HTTP_PORT)"
             http_port="${http_port:-8080}"
-            curl --fail --silent --show-error "http://127.0.0.1:${http_port}/api/public_runtime_state.php" >/dev/null 2>&1 || fail "l’API d’état locale ne répond pas"
+            curl --fail --silent --show-error "http://127.0.0.1:${http_port}/api/public_runtime_state.php" >/dev/null 2>&1 || fail "the local state API is not responding"
         fi
     fi
 fi
 
 if [ "$errors" -gt 0 ]; then
-    echo "Contrôle refusé : ${errors} erreur(s), ${warnings} avertissement(s)." >&2
+    echo "Check failed: ${errors} error(s), ${warnings} warning(s)." >&2
     exit 1
 fi
 
 if [ "$strict" -eq 1 ]; then
-    echo "Insight satisfait les contrôles stricts de production."
+    echo "Insight passes the strict production checks."
 else
-    echo "Insight satisfait les contrôles statiques de production."
+    echo "Insight passes the static production checks."
 fi

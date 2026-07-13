@@ -13,7 +13,7 @@ function insight_dashboard_rows(mysqli $database, string $query): array
 {
     $result = $database->query($query);
     if (!$result instanceof mysqli_result) {
-        throw new RuntimeException('Lecture des données impossible.');
+        throw new RuntimeException('Unable to read data.');
     }
     $rows = $result->fetch_all(MYSQLI_ASSOC);
     $result->free();
@@ -99,7 +99,7 @@ function insight_dashboard_demo_data(): array
                 'ended_at' => null,
                 'http_code' => 503,
                 'source_mode' => 'system',
-                'postmortem' => 'Des réponses intermittentes sont en cours d’analyse.',
+                'postmortem' => 'Intermittent responses are under investigation.',
             ],
             [
                 'id' => 100,
@@ -108,7 +108,7 @@ function insight_dashboard_demo_data(): array
                 'ended_at' => $now->modify('-4 hours 18 minutes')->format(DATE_ATOM),
                 'http_code' => 522,
                 'source_mode' => 'ai',
-                'postmortem' => 'Le temps de réponse est revenu à son niveau habituel.',
+                'postmortem' => 'Response time has returned to its usual level.',
             ],
         ],
         'open_incidents' => 1,
@@ -116,8 +116,8 @@ function insight_dashboard_demo_data(): array
             [
                 'id' => 12,
                 'url' => 'https://example.com',
-                'title' => 'Mise à jour applicative',
-                'description' => 'Déploiement planifié de la prochaine version.',
+                'title' => 'Application update',
+                'description' => 'Scheduled deployment of the next release.',
                 'starts_at' => $now->modify('+1 day 2 hours')->format(DATE_ATOM),
                 'ends_at' => $now->modify('+1 day 2 hours 30 minutes')->format(DATE_ATOM),
                 'status' => 'planned',
@@ -159,7 +159,7 @@ function insight_dashboard_demo_data(): array
             ],
             [
                 'node_key' => 'montreal-1',
-                'display_name' => 'Montréal 1',
+                'display_name' => 'Montreal 1',
                 'region' => 'ca-yul',
                 'zone' => 'ca-yul-1',
                 'status' => 'active',
@@ -305,7 +305,7 @@ function insight_dashboard_load_data(array $config): array
         $maintenances = insight_dashboard_rows($database, "
             SELECT
                 m.id,
-                COALESCE(s.url, 'Tous les services') AS url,
+                COALESCE(s.url, 'All services') AS url,
                 m.title,
                 m.description,
                 m.starts_at,
@@ -520,40 +520,40 @@ $runtimeStatusKey = $runtimeDegraded ? 'state.degraded' : ($runtimeOperational ?
 insight_admin_page_start('admin.meta.dashboardTitle', 'admin.meta.dashboardDescription', 'admin-dashboard-page');
 ?>
   <div class="admin-shell">
-    <aside class="admin-sidebar" aria-label="Navigation principale" data-i18n-aria-label="admin.nav.main">
+    <aside class="admin-sidebar" aria-label="Main navigation" data-i18n-aria-label="admin.nav.main">
       <a class="admin-sidebar-brand" href="/admin/">
         <img src="/favicons/favicon.svg" alt="" width="30" height="30">
         <span><?= insight_admin_escape($appName) ?></span>
       </a>
       <nav class="admin-nav">
-        <a class="is-active" href="#overview" data-admin-route="overview" aria-current="page"><i class="fa-solid fa-chart-line" aria-hidden="true"></i><span data-i18n="admin.nav.overview">Vue d’ensemble</span></a>
-        <a href="#monitors" data-admin-route="monitors"><i class="fa-solid fa-heart-pulse" aria-hidden="true"></i><span data-i18n="admin.nav.monitors">Moniteurs</span></a>
-        <a href="#servers" data-admin-route="servers"><i class="fa-solid fa-server" aria-hidden="true"></i><span data-i18n="admin.nav.servers">Serveurs</span></a>
-        <a href="#network" data-admin-route="network"><i class="fa-solid fa-code-branch" aria-hidden="true"></i><span data-i18n="admin.nav.network">Réseau</span></a>
+        <a class="is-active" href="#overview" data-admin-route="overview" aria-current="page"><i class="fa-solid fa-chart-line" aria-hidden="true"></i><span data-i18n="admin.nav.overview">Home</span></a>
+        <a href="#monitors" data-admin-route="monitors"><i class="fa-solid fa-heart-pulse" aria-hidden="true"></i><span data-i18n="admin.nav.monitors">Monitors</span></a>
+        <a href="#servers" data-admin-route="servers"><i class="fa-solid fa-server" aria-hidden="true"></i><span data-i18n="admin.nav.servers">Servers</span></a>
+        <a href="#network" data-admin-route="network"><i class="fa-solid fa-code-branch" aria-hidden="true"></i><span data-i18n="admin.nav.network">Network</span></a>
         <a href="#incidents" data-admin-route="incidents"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span data-i18n="admin.nav.incidents">Incidents</span></a>
-        <a href="#notifications" data-admin-route="notifications"><i class="fa-regular fa-bell" aria-hidden="true"></i><span data-i18n="admin.nav.notifications">Alertes</span></a>
-        <a href="#maintenance" data-admin-route="maintenance"><i class="fa-solid fa-calendar-check" aria-hidden="true"></i><span data-i18n="admin.nav.maintenance">Maintenance</span></a>
-        <a class="admin-nav-account" href="#account" data-admin-route="account"><i class="fa-solid fa-fingerprint" aria-hidden="true"></i><span data-i18n="admin.nav.account">Accès</span></a>
+        <a href="#notifications" data-admin-route="notifications"><i class="fa-regular fa-bell" aria-hidden="true"></i><span data-i18n="admin.nav.notifications">Alerts</span></a>
+        <a href="#maintenance" data-admin-route="maintenance"><i class="fa-solid fa-calendar-check" aria-hidden="true"></i><span data-i18n="admin.nav.maintenance">Schedule</span></a>
+        <a class="admin-nav-account" href="#account" data-admin-route="account"><i class="fa-solid fa-fingerprint" aria-hidden="true"></i><span data-i18n="admin.nav.account">Access</span></a>
       </nav>
-      <a class="admin-sidebar-public" href="/"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i><span data-i18n="admin.publicStatus">Page de statut publique</span></a>
+      <a class="admin-sidebar-public" href="/"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i><span data-i18n="admin.publicStatus">Public status page</span></a>
     </aside>
     <main class="admin-main">
       <header class="admin-toolbar">
         <div class="admin-toolbar-title">
           <span data-i18n="admin.dashboard.title">Dashboard</span>
           <?php if ($isDevBypass): ?>
-            <span class="admin-source-badge" data-source="development"><span aria-hidden="true"></span><span data-i18n="admin.devBadge">Mode dev</span></span>
+            <span class="admin-source-badge" data-source="development"><span aria-hidden="true"></span><span data-i18n="admin.devBadge">Dev mode</span></span>
           <?php elseif ($isPreview): ?>
-            <span class="admin-source-badge"><span aria-hidden="true"></span><span data-i18n="admin.previewBadge">Aperçu local</span></span>
+            <span class="admin-source-badge"><span aria-hidden="true"></span><span data-i18n="admin.previewBadge">Local preview</span></span>
           <?php endif; ?>
         </div>
         <div class="admin-toolbar-actions">
           <div id="insight-controls-root"></div>
-          <a class="admin-user" href="#account" data-admin-route="account" aria-label="Ouvrir les accès" data-i18n-aria-label="admin.nav.account"><i class="fa-regular fa-user" aria-hidden="true"></i><span><?= insight_admin_escape((string)$user['username']) ?></span></a>
+          <a class="admin-user" href="#account" data-admin-route="account" aria-label="Access" data-i18n-aria-label="admin.nav.account"><i class="fa-regular fa-user" aria-hidden="true"></i><span><?= insight_admin_escape((string)$user['username']) ?></span></a>
           <?php if (!$isDevBypass): ?>
             <form method="post" action="/admin/logout.php">
               <input type="hidden" name="csrf_token" value="<?= insight_admin_escape(insight_auth_csrf_token()) ?>">
-              <button class="admin-icon-button" type="submit" aria-label="Se déconnecter" title="Se déconnecter" data-i18n-aria-label="admin.logout" data-i18n-title="admin.logout"><i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i></button>
+              <button class="admin-icon-button" type="submit" aria-label="Sign out" title="Sign out" data-i18n-aria-label="admin.logout" data-i18n-title="admin.logout"><i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i></button>
             </form>
           <?php endif; ?>
         </div>
@@ -562,39 +562,39 @@ insight_admin_page_start('admin.meta.dashboardTitle', 'admin.meta.dashboardDescr
         <section id="overview" class="admin-overview" data-admin-view="overview">
           <div class="admin-page-heading">
             <div>
-              <p class="admin-eyebrow" data-i18n="admin.dashboard.eyebrow">Pilotage local</p>
-              <h1 data-i18n="admin.dashboard.heading">État de l’instance</h1>
-              <p data-i18n="admin.dashboard.description">Suivez les moniteurs et les événements qui demandent votre attention.</p>
+              <p class="admin-eyebrow" data-i18n="admin.dashboard.eyebrow">Local operations</p>
+              <h1 data-i18n="admin.dashboard.heading">Instance status</h1>
+              <p data-i18n="admin.dashboard.description">Track monitors and events that need your attention.</p>
             </div>
-            <a class="admin-secondary-button" href="/" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i><span data-i18n="admin.dashboard.openPublic">Ouvrir la page publique</span></a>
+            <a class="admin-secondary-button" href="/" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i><span data-i18n="admin.dashboard.openPublic">Open public page</span></a>
           </div>
           <?php if ($isDevBypass): ?>
             <div class="admin-dev-notice" role="status">
               <i class="fa-solid fa-unlock" aria-hidden="true"></i>
-              <div><strong data-i18n="admin.dev.title">Authentification contournée</strong><span data-i18n="admin.dev.description">Mode réservé au développement local. Aucun compte n’est nécessaire pour parcourir l’administration.</span></div>
+              <div><strong data-i18n="admin.dev.title">Authentication bypassed</strong><span data-i18n="admin.dev.description">For local development only. No account is required to browse the administration area.</span></div>
             </div>
           <?php endif; ?>
           <?php if ($isPreview): ?>
             <div class="admin-preview-notice" role="status">
               <i class="fa-solid fa-flask" aria-hidden="true"></i>
-              <div><strong data-i18n="admin.preview.title">Données de démonstration</strong><span data-i18n="admin.preview.description">MariaDB est vide ou indisponible. Ces données permettent de prévisualiser le dashboard.</span></div>
+              <div><strong data-i18n="admin.preview.title">Demo data</strong><span data-i18n="admin.preview.description">MariaDB is empty or unavailable. This data lets you preview the dashboard.</span></div>
             </div>
           <?php endif; ?>
-          <div class="admin-metrics" aria-label="Indicateurs" data-i18n-aria-label="admin.metrics.label">
+          <div class="admin-metrics" aria-label="Metrics" data-i18n-aria-label="admin.metrics.label">
             <div class="admin-metric">
-              <span><i class="fa-solid fa-heart-pulse" aria-hidden="true"></i><span data-i18n="admin.metrics.monitors">Moniteurs</span></span>
+              <span><i class="fa-solid fa-heart-pulse" aria-hidden="true"></i><span data-i18n="admin.metrics.monitors">Monitors</span></span>
               <strong><?= $totalMonitors ?></strong>
             </div>
             <div class="admin-metric is-positive">
-              <span><i class="fa-solid fa-circle-check" aria-hidden="true"></i><span data-i18n="admin.metrics.operational">Opérationnels</span></span>
+              <span><i class="fa-solid fa-circle-check" aria-hidden="true"></i><span data-i18n="admin.metrics.operational">Operational</span></span>
               <strong><?= $operational ?></strong>
             </div>
             <div class="admin-metric<?= $issues > 0 ? ' is-warning' : '' ?>">
-              <span><i class="fa-solid fa-wave-square" aria-hidden="true"></i><span data-i18n="admin.metrics.issues">À vérifier</span></span>
+              <span><i class="fa-solid fa-wave-square" aria-hidden="true"></i><span data-i18n="admin.metrics.issues">Needs review</span></span>
               <strong><?= $issues ?></strong>
             </div>
             <div class="admin-metric<?= $openIncidents > 0 ? ' is-negative' : '' ?>">
-              <span><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span data-i18n="admin.metrics.openIncidents">Incidents ouverts</span></span>
+              <span><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span data-i18n="admin.metrics.openIncidents">Open incidents</span></span>
               <strong><?= $openIncidents ?></strong>
             </div>
           </div>
@@ -602,12 +602,12 @@ insight_admin_page_start('admin.meta.dashboardTitle', 'admin.meta.dashboardDescr
 
         <section id="monitors" class="admin-section admin-route-section" data-admin-view="monitors" hidden>
           <div class="admin-section-heading">
-            <div><p class="admin-eyebrow" data-i18n="admin.monitors.eyebrow">Supervision</p><h1 data-i18n="admin.monitors.title">Moniteurs</h1></div>
-            <div class="admin-section-actions"><span class="admin-section-count"><?= count($monitors) ?></span><button class="admin-primary-button" type="button" data-probe-create="http" aria-label="Nouvelle sonde" title="Nouvelle sonde" data-i18n-aria-label="admin.probes.createMonitor" data-i18n-title="admin.probes.createMonitor"><i class="fa-solid fa-plus" aria-hidden="true"></i><span data-i18n="admin.probes.createMonitor">Nouvelle sonde</span></button></div>
+            <div><p class="admin-eyebrow" data-i18n="admin.monitors.eyebrow">Monitoring</p><h1 data-i18n="admin.monitors.title">Monitors</h1></div>
+            <div class="admin-section-actions"><span class="admin-section-count"><?= count($monitors) ?></span><button class="admin-primary-button" type="button" data-probe-create="http" aria-label="New monitor" title="New monitor" data-i18n-aria-label="admin.probes.createMonitor" data-i18n-title="admin.probes.createMonitor"><i class="fa-solid fa-plus" aria-hidden="true"></i><span data-i18n="admin.probes.createMonitor">New monitor</span></button></div>
           </div>
           <div class="admin-monitor-list">
             <div class="admin-monitor-header" aria-hidden="true">
-              <span data-i18n="admin.monitors.service">Service</span><span data-i18n="admin.monitors.state">État</span><span data-i18n="admin.monitors.response">Réponse</span><span>HTTP</span><span data-i18n="admin.monitors.lastCheck">Dernière sonde</span><span></span>
+              <span data-i18n="admin.monitors.service">Service</span><span data-i18n="admin.monitors.state">Status</span><span data-i18n="admin.monitors.response">Response</span><span>HTTP</span><span data-i18n="admin.monitors.lastCheck">Last check</span><span></span>
             </div>
             <?php foreach ($monitors as $monitor): ?>
               <?php [$statusClass, $statusKey] = insight_dashboard_status((string)($monitor['status'] ?? 'unknown')); ?>
@@ -618,13 +618,13 @@ insight_admin_page_start('admin.meta.dashboardTitle', 'admin.meta.dashboardDescr
                   <div><strong><?= insight_admin_escape(insight_dashboard_host((string)$monitor['url'])) ?></strong><span><?= insight_admin_escape((string)$monitor['url']) ?></span></div>
                 </div>
                 <span class="admin-status-badge" data-status="<?= insight_admin_escape($statusClass) ?>"><span aria-hidden="true"></span><span data-i18n="<?= insight_admin_escape($statusKey) ?>"><?= insight_admin_escape($statusClass) ?></span></span>
-                <span class="admin-monitor-value"><small data-i18n="admin.monitors.response">Réponse</small><?= isset($monitor['response_time']) ? insight_dashboard_number($monitor['response_time']) . ' ms' : '<span data-i18n="admin.common.notAvailable">N/D</span>' ?></span>
-                <span class="admin-monitor-value"><small>HTTP</small><?= isset($monitor['http_code']) ? (int)$monitor['http_code'] : '<span data-i18n="admin.common.notAvailable">N/D</span>' ?></span>
-                <span class="admin-monitor-time"><small data-i18n="admin.monitors.lastCheck">Dernière sonde</small><?php if ($checkedAt !== ''): ?><time datetime="<?= insight_admin_escape($checkedAt) ?>"></time><?php else: ?><span data-i18n="admin.common.never">Jamais</span><?php endif; ?></span>
+                <span class="admin-monitor-value"><small data-i18n="admin.monitors.response">Response</small><?= isset($monitor['response_time']) ? insight_dashboard_number($monitor['response_time']) . ' ms' : '<span data-i18n="admin.common.notAvailable">N/A</span>' ?></span>
+                <span class="admin-monitor-value"><small>HTTP</small><?= isset($monitor['http_code']) ? (int)$monitor['http_code'] : '<span data-i18n="admin.common.notAvailable">N/A</span>' ?></span>
+                <span class="admin-monitor-time"><small data-i18n="admin.monitors.lastCheck">Last check</small><?php if ($checkedAt !== ''): ?><time datetime="<?= insight_admin_escape($checkedAt) ?>"></time><?php else: ?><span data-i18n="admin.common.never">Never</span><?php endif; ?></span>
                 <?php if (!$isPreview || (int)($monitor['id'] ?? 0) >= 900000): ?>
                   <div class="admin-row-actions">
-                    <button class="admin-icon-button" type="button" data-probe-edit data-probe-id="<?= (int)($monitor['id'] ?? 0) ?>" data-probe-target="<?= insight_admin_escape((string)$monitor['url']) ?>" data-probe-type="<?= insight_admin_escape((string)($monitor['probe_type'] ?? 'http')) ?>" data-probe-interval="<?= (int)($monitor['probe_interval_sec'] ?? 60) ?>" aria-label="Modifier la sonde" title="Modifier la sonde" data-i18n-aria-label="admin.probes.edit" data-i18n-title="admin.probes.edit"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
-                    <button class="admin-icon-button is-destructive" type="button" data-probe-delete data-probe-id="<?= (int)($monitor['id'] ?? 0) ?>" data-probe-target="<?= insight_admin_escape((string)$monitor['url']) ?>" aria-label="Supprimer la sonde" title="Supprimer la sonde" data-i18n-aria-label="admin.probes.delete" data-i18n-title="admin.probes.delete"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></button>
+                    <button class="admin-icon-button" type="button" data-probe-edit data-probe-id="<?= (int)($monitor['id'] ?? 0) ?>" data-probe-target="<?= insight_admin_escape((string)$monitor['url']) ?>" data-probe-type="<?= insight_admin_escape((string)($monitor['probe_type'] ?? 'http')) ?>" data-probe-interval="<?= (int)($monitor['probe_interval_sec'] ?? 60) ?>" aria-label="Edit monitor" title="Edit monitor" data-i18n-aria-label="admin.probes.edit" data-i18n-title="admin.probes.edit"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
+                    <button class="admin-icon-button is-destructive" type="button" data-probe-delete data-probe-id="<?= (int)($monitor['id'] ?? 0) ?>" data-probe-target="<?= insight_admin_escape((string)$monitor['url']) ?>" aria-label="Delete monitor" title="Delete monitor" data-i18n-aria-label="admin.probes.delete" data-i18n-title="admin.probes.delete"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></button>
                   </div>
                 <?php endif; ?>
               </article>
@@ -634,15 +634,15 @@ insight_admin_page_start('admin.meta.dashboardTitle', 'admin.meta.dashboardDescr
 
         <section id="servers" class="admin-section admin-route-section" data-admin-view="servers" hidden>
           <div class="admin-section-heading">
-            <div><p class="admin-eyebrow" data-i18n="admin.servers.eyebrow">Disponibilité réseau</p><h1 data-i18n="admin.servers.title">Serveurs</h1></div>
-            <div class="admin-section-actions"><span class="admin-section-count"><?= $serversUp ?>/<?= count($servers) ?></span><button class="admin-primary-button" type="button" data-probe-create="server" aria-label="Ajouter un serveur" title="Ajouter un serveur" data-i18n-aria-label="admin.probes.createServer" data-i18n-title="admin.probes.createServer"><i class="fa-solid fa-plus" aria-hidden="true"></i><span data-i18n="admin.probes.createServer">Ajouter un serveur</span></button></div>
+            <div><p class="admin-eyebrow" data-i18n="admin.servers.eyebrow">Network availability</p><h1 data-i18n="admin.servers.title">Servers</h1></div>
+            <div class="admin-section-actions"><span class="admin-section-count"><?= $serversUp ?>/<?= count($servers) ?></span><button class="admin-primary-button" type="button" data-probe-create="server" aria-label="Add server" title="Add server" data-i18n-aria-label="admin.probes.createServer" data-i18n-title="admin.probes.createServer"><i class="fa-solid fa-plus" aria-hidden="true"></i><span data-i18n="admin.probes.createServer">Add server</span></button></div>
           </div>
           <div class="admin-server-list">
             <div class="admin-server-header" aria-hidden="true">
-              <span data-i18n="admin.servers.server">Serveur</span><span data-i18n="admin.servers.state">État</span><span data-i18n="admin.servers.check">Contrôle</span><span data-i18n="admin.servers.latency">Latence</span><span data-i18n="admin.servers.lastCheck">Dernière vérification</span><span></span>
+              <span data-i18n="admin.servers.server">Server</span><span data-i18n="admin.servers.state">Status</span><span data-i18n="admin.servers.check">Check</span><span data-i18n="admin.servers.latency">Latency</span><span data-i18n="admin.servers.lastCheck">Last check</span><span></span>
             </div>
             <?php if ($servers === []): ?>
-              <div class="admin-empty"><i class="fa-solid fa-server" aria-hidden="true"></i><span data-i18n="admin.servers.empty">Aucun serveur configuré.</span></div>
+              <div class="admin-empty"><i class="fa-solid fa-server" aria-hidden="true"></i><span data-i18n="admin.servers.empty">No server configured.</span></div>
             <?php endif; ?>
             <?php foreach ($servers as $server): ?>
               <?php [$serverStatusClass, $serverStatusKey] = insight_dashboard_server_status((string)($server['status'] ?? 'unknown')); ?>
@@ -654,13 +654,13 @@ insight_admin_page_start('admin.meta.dashboardTitle', 'admin.meta.dashboardDescr
                   <div><strong><?= insight_admin_escape(insight_dashboard_host((string)$server['url'])) ?></strong><span><?= insight_admin_escape((string)$server['url']) ?></span></div>
                 </div>
                 <span class="admin-status-badge" data-status="<?= insight_admin_escape($serverStatusClass) ?>"><span aria-hidden="true"></span><span data-i18n="<?= insight_admin_escape($serverStatusKey) ?>"><?= insight_admin_escape($serverStatusClass) ?></span></span>
-                <span class="admin-server-value"><small data-i18n="admin.servers.check">Contrôle</small><?= insight_admin_escape(strtoupper($serverProbeType === 'ping' ? 'icmp' : $serverProbeType)) ?></span>
-                <span class="admin-server-value"><small data-i18n="admin.servers.latency">Latence</small><?= isset($server['response_time']) ? insight_dashboard_number($server['response_time']) . ' ms' : '<span data-i18n="admin.common.notAvailable">N/D</span>' ?></span>
-                <span class="admin-server-time"><small data-i18n="admin.servers.lastCheck">Dernière vérification</small><?php if ($serverCheckedAt !== ''): ?><time datetime="<?= insight_admin_escape($serverCheckedAt) ?>"></time><?php else: ?><span data-i18n="admin.common.never">Jamais</span><?php endif; ?></span>
+                <span class="admin-server-value"><small data-i18n="admin.servers.check">Check</small><?= insight_admin_escape(strtoupper($serverProbeType === 'ping' ? 'icmp' : $serverProbeType)) ?></span>
+                <span class="admin-server-value"><small data-i18n="admin.servers.latency">Latency</small><?= isset($server['response_time']) ? insight_dashboard_number($server['response_time']) . ' ms' : '<span data-i18n="admin.common.notAvailable">N/A</span>' ?></span>
+                <span class="admin-server-time"><small data-i18n="admin.servers.lastCheck">Last check</small><?php if ($serverCheckedAt !== ''): ?><time datetime="<?= insight_admin_escape($serverCheckedAt) ?>"></time><?php else: ?><span data-i18n="admin.common.never">Never</span><?php endif; ?></span>
                 <?php if (!$isPreview || (int)($server['id'] ?? 0) >= 900000): ?>
                   <div class="admin-row-actions">
-                    <button class="admin-icon-button" type="button" data-probe-edit data-probe-id="<?= (int)($server['id'] ?? 0) ?>" data-probe-target="<?= insight_admin_escape((string)$server['url']) ?>" data-probe-type="<?= insight_admin_escape((string)($server['probe_type'] ?? 'icmp')) ?>" data-probe-interval="<?= (int)($server['probe_interval_sec'] ?? 60) ?>" aria-label="Modifier la sonde" title="Modifier la sonde" data-i18n-aria-label="admin.probes.edit" data-i18n-title="admin.probes.edit"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
-                    <button class="admin-icon-button is-destructive" type="button" data-probe-delete data-probe-id="<?= (int)($server['id'] ?? 0) ?>" data-probe-target="<?= insight_admin_escape((string)$server['url']) ?>" aria-label="Supprimer la sonde" title="Supprimer la sonde" data-i18n-aria-label="admin.probes.delete" data-i18n-title="admin.probes.delete"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></button>
+                    <button class="admin-icon-button" type="button" data-probe-edit data-probe-id="<?= (int)($server['id'] ?? 0) ?>" data-probe-target="<?= insight_admin_escape((string)$server['url']) ?>" data-probe-type="<?= insight_admin_escape((string)($server['probe_type'] ?? 'icmp')) ?>" data-probe-interval="<?= (int)($server['probe_interval_sec'] ?? 60) ?>" aria-label="Edit monitor" title="Edit monitor" data-i18n-aria-label="admin.probes.edit" data-i18n-title="admin.probes.edit"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
+                    <button class="admin-icon-button is-destructive" type="button" data-probe-delete data-probe-id="<?= (int)($server['id'] ?? 0) ?>" data-probe-target="<?= insight_admin_escape((string)$server['url']) ?>" aria-label="Delete monitor" title="Delete monitor" data-i18n-aria-label="admin.probes.delete" data-i18n-title="admin.probes.delete"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></button>
                   </div>
                 <?php endif; ?>
               </article>
@@ -670,21 +670,21 @@ insight_admin_page_start('admin.meta.dashboardTitle', 'admin.meta.dashboardDescr
 
         <section id="network" class="admin-section admin-route-section" data-admin-view="network" hidden>
           <div class="admin-section-heading">
-            <div><p class="admin-eyebrow" data-i18n="admin.network.eyebrow">Distribution</p><h1 data-i18n="admin.network.title">Réseau de sondes</h1></div>
+            <div><p class="admin-eyebrow" data-i18n="admin.network.eyebrow">Distribution</p><h1 data-i18n="admin.network.title">Probe network</h1></div>
             <span class="admin-section-count"><?= $liveNodes ?>/<?= count($nodes) ?></span>
           </div>
-          <div class="admin-network-summary" aria-label="Résumé du monitoring distribué" data-i18n-aria-label="admin.network.summaryLabel">
-            <div><span data-i18n="admin.network.mode">Mode</span><strong data-i18n="<?= $distributedMode === 'hub' ? 'admin.network.modeHub' : 'admin.network.modeStandalone' ?>"><?= $distributedMode === 'hub' ? 'Hub distribué' : 'Autonome' ?></strong></div>
-            <div><span data-i18n="admin.network.liveNodes">Nœuds actifs</span><strong><?= $liveNodes ?>/<?= count($nodes) ?></strong></div>
-            <div><span data-i18n="admin.network.healthyConsensus">Consensus sains</span><strong><?= $healthyConsensus ?>/<?= count($consensus) ?></strong></div>
-            <div><span data-i18n="admin.network.defaultReplication">Réplication par défaut</span><strong><?= max(0, (int)(getenv('INSIGHT_AGENT_DEFAULT_REPLICAS') ?: 3)) ?></strong></div>
+          <div class="admin-network-summary" aria-label="Distributed monitoring summary" data-i18n-aria-label="admin.network.summaryLabel">
+            <div><span data-i18n="admin.network.mode">Mode</span><strong data-i18n="<?= $distributedMode === 'hub' ? 'admin.network.modeHub' : 'admin.network.modeStandalone' ?>"><?= $distributedMode === 'hub' ? 'Distributed hub' : 'Standalone' ?></strong></div>
+            <div><span data-i18n="admin.network.liveNodes">Active nodes</span><strong><?= $liveNodes ?>/<?= count($nodes) ?></strong></div>
+            <div><span data-i18n="admin.network.healthyConsensus">Healthy consensus</span><strong><?= $healthyConsensus ?>/<?= count($consensus) ?></strong></div>
+            <div><span data-i18n="admin.network.defaultReplication">Default replication</span><strong><?= max(0, (int)(getenv('INSIGHT_AGENT_DEFAULT_REPLICAS') ?: 3)) ?></strong></div>
           </div>
           <div class="admin-network-grid">
             <div class="admin-network-column">
               <div class="admin-network-column-heading"><strong data-i18n="admin.network.nodes">Agents</strong><span><?= count($nodes) ?></span></div>
               <div class="admin-node-list">
                 <?php if ($nodes === []): ?>
-                  <div class="admin-empty"><i class="fa-solid fa-server" aria-hidden="true"></i><span data-i18n="admin.network.noNodes">Aucun agent enregistré.</span></div>
+                  <div class="admin-empty"><i class="fa-solid fa-server" aria-hidden="true"></i><span data-i18n="admin.network.noNodes">No registered agent.</span></div>
                 <?php endif; ?>
                 <?php foreach ($nodes as $node): ?>
                   <?php [$nodeStatusClass, $nodeStatusKey] = insight_dashboard_node_status($node); ?>
@@ -698,26 +698,26 @@ insight_admin_page_start('admin.meta.dashboardTitle', 'admin.meta.dashboardDescr
                     </div>
                     <div class="admin-node-state">
                       <span class="admin-status-badge" data-status="<?= insight_admin_escape($nodeStatusClass) ?>"><span aria-hidden="true"></span><span data-i18n="<?= insight_admin_escape($nodeStatusKey) ?>"><?= insight_admin_escape($nodeStatusClass) ?></span></span>
-                      <small><?= (int)($node['assignments'] ?? 0) ?> <span data-i18n="admin.network.targets">cibles</span><?php if ($lastSeenAt !== ''): ?> · <time datetime="<?= insight_admin_escape($lastSeenAt) ?>"></time><?php endif; ?></small>
+                      <small><?= (int)($node['assignments'] ?? 0) ?> <span data-i18n="admin.network.targets">targets</span><?php if ($lastSeenAt !== ''): ?> · <time datetime="<?= insight_admin_escape($lastSeenAt) ?>"></time><?php endif; ?></small>
                     </div>
                   </article>
                 <?php endforeach; ?>
               </div>
             </div>
             <div class="admin-network-column">
-              <div class="admin-network-column-heading"><strong data-i18n="admin.network.consensus">Consensus courant</strong><span><?= count($consensus) ?></span></div>
+              <div class="admin-network-column-heading"><strong data-i18n="admin.network.consensus">Current consensus</strong><span><?= count($consensus) ?></span></div>
               <div class="admin-consensus-list">
                 <?php if ($consensus === []): ?>
-                  <div class="admin-empty"><i class="fa-solid fa-code-branch" aria-hidden="true"></i><span data-i18n="admin.network.noConsensus">Aucun consensus calculé.</span></div>
+                  <div class="admin-empty"><i class="fa-solid fa-code-branch" aria-hidden="true"></i><span data-i18n="admin.network.noConsensus">No consensus computed.</span></div>
                 <?php endif; ?>
                 <?php foreach ($consensus as $current): ?>
                   <?php [$consensusStatusClass, $consensusStatusKey] = insight_dashboard_status((string)($current['status'] ?? 'unknown')); ?>
                   <article class="admin-consensus-row">
                     <div class="admin-consensus-copy">
                       <strong><?= insight_admin_escape(insight_dashboard_host((string)($current['url'] ?? 'Service'))) ?></strong>
-                      <span><?= (int)($current['nodes_fresh'] ?? 0) ?>/<?= (int)($current['nodes_expected'] ?? 0) ?> <span data-i18n="admin.network.responses">réponses</span> · <?= insight_dashboard_number(((float)($current['confidence'] ?? 0)) * 100) ?>%</span>
+                      <span><?= (int)($current['nodes_fresh'] ?? 0) ?>/<?= (int)($current['nodes_expected'] ?? 0) ?> <span data-i18n="admin.network.responses">responses</span> · <?= insight_dashboard_number(((float)($current['confidence'] ?? 0)) * 100) ?>%</span>
                     </div>
-                    <div class="admin-consensus-counts" aria-label="Répartition des réponses" data-i18n-aria-label="admin.network.distributionLabel">
+                    <div class="admin-consensus-counts" aria-label="Response distribution" data-i18n-aria-label="admin.network.distributionLabel">
                       <span data-kind="online"><i aria-hidden="true"></i><?= (int)($current['nodes_online'] ?? 0) ?></span>
                       <span data-kind="degraded"><i aria-hidden="true"></i><?= (int)($current['nodes_degraded'] ?? 0) ?></span>
                       <span data-kind="offline"><i aria-hidden="true"></i><?= (int)($current['nodes_offline'] ?? 0) ?></span>
@@ -734,12 +734,12 @@ insight_admin_page_start('admin.meta.dashboardTitle', 'admin.meta.dashboardDescr
         <div class="admin-view-fragments">
           <section id="incidents" class="admin-section admin-detail-section admin-route-section" data-admin-view="incidents" hidden>
             <div class="admin-section-heading">
-              <div><p class="admin-eyebrow" data-i18n="admin.incidents.eyebrow">Événements</p><h1 data-i18n="admin.incidents.title">Incidents récents</h1></div>
+              <div><p class="admin-eyebrow" data-i18n="admin.incidents.eyebrow">Events</p><h1 data-i18n="admin.incidents.title">Recent incidents</h1></div>
               <span class="admin-section-count"><?= count($incidents) ?></span>
             </div>
             <div class="admin-event-list">
               <?php if ($incidents === []): ?>
-                <div class="admin-empty"><i class="fa-regular fa-circle-check" aria-hidden="true"></i><span data-i18n="admin.incidents.empty">Aucun incident récent.</span></div>
+                <div class="admin-empty"><i class="fa-regular fa-circle-check" aria-hidden="true"></i><span data-i18n="admin.incidents.empty">No recent incidents.</span></div>
               <?php endif; ?>
               <?php foreach ($incidents as $incident): ?>
                 <?php $isOpen = empty($incident['ended_at']); ?>
@@ -747,8 +747,8 @@ insight_admin_page_start('admin.meta.dashboardTitle', 'admin.meta.dashboardDescr
                 <article class="admin-event-row">
                   <span class="admin-event-marker" data-event="<?= $isOpen ? 'open' : 'resolved' ?>"><i class="fa-solid <?= $isOpen ? 'fa-triangle-exclamation' : 'fa-check' ?>" aria-hidden="true"></i></span>
                   <div class="admin-event-copy">
-                    <div><strong><?= insight_admin_escape(insight_dashboard_host((string)$incident['url'])) ?></strong><span class="admin-event-state" data-event="<?= $isOpen ? 'open' : 'resolved' ?>" data-i18n="<?= $isOpen ? 'admin.incidents.ongoing' : 'admin.incidents.resolved' ?>"><?= $isOpen ? 'En cours' : 'Résolu' ?></span></div>
-                    <p><?= insight_admin_escape(trim((string)($incident['postmortem'] ?? '')) ?: 'Incident détecté par Insight.') ?></p>
+                    <div><strong><?= insight_admin_escape(insight_dashboard_host((string)$incident['url'])) ?></strong><span class="admin-event-state" data-event="<?= $isOpen ? 'open' : 'resolved' ?>" data-i18n="<?= $isOpen ? 'admin.incidents.ongoing' : 'admin.incidents.resolved' ?>"><?= $isOpen ? 'Ongoing' : 'Resolved' ?></span></div>
+                    <p><?= insight_admin_escape(trim((string)($incident['postmortem'] ?? '')) ?: 'Incident detected by Insight.') ?></p>
                     <span class="admin-event-meta"><?php if ($startedAt !== ''): ?><time datetime="<?= insight_admin_escape($startedAt) ?>"></time><?php endif; ?><?php if (isset($incident['http_code'])): ?><span>HTTP <?= (int)$incident['http_code'] ?></span><?php endif; ?></span>
                   </div>
                 </article>
@@ -758,65 +758,65 @@ insight_admin_page_start('admin.meta.dashboardTitle', 'admin.meta.dashboardDescr
 
           <section id="notifications" class="admin-section admin-route-section" data-admin-view="notifications" hidden>
             <div class="admin-section-heading">
-              <div><p class="admin-eyebrow" data-i18n="admin.notifications.eyebrow">Diffusion</p><h1 data-i18n="admin.notifications.title">Alertes</h1><p class="admin-section-description" data-i18n="admin.notifications.description">Prévenez les bonnes personnes dès qu’un service change d’état.</p></div>
-              <div class="admin-section-actions"><span class="admin-section-count" data-notification-count><?= count($notificationChannels) ?></span><button class="admin-primary-button" type="button" data-notification-create><i class="fa-solid fa-plus" aria-hidden="true"></i><span data-i18n="admin.notifications.newChannel">Nouveau canal</span></button></div>
+              <div><p class="admin-eyebrow" data-i18n="admin.notifications.eyebrow">Delivery</p><h1 data-i18n="admin.notifications.title">Alerts</h1><p class="admin-section-description" data-i18n="admin.notifications.description">Notify the right people as soon as a service changes status.</p></div>
+              <div class="admin-section-actions"><span class="admin-section-count" data-notification-count><?= count($notificationChannels) ?></span><button class="admin-primary-button" type="button" data-notification-create><i class="fa-solid fa-plus" aria-hidden="true"></i><span data-i18n="admin.notifications.newChannel">New channel</span></button></div>
             </div>
             <?php if ($notificationsDisabled): ?>
               <div class="admin-notification-notice" data-notification-disabled role="status">
                 <i class="fa-solid fa-pause" aria-hidden="true"></i>
-                <div><strong data-i18n="admin.notifications.disabledTitle">Envois automatiques désactivés</strong><span data-i18n="admin.notifications.disabledDescription">Les tests restent disponibles. Activez INSIGHT_DISABLE_NOTIFICATIONS=0 pour diffuser les alertes du moteur.</span></div>
+                <div><strong data-i18n="admin.notifications.disabledTitle">Automatic delivery disabled</strong><span data-i18n="admin.notifications.disabledDescription">Tests remain available. Set INSIGHT_DISABLE_NOTIFICATIONS=0 to deliver monitoring alerts.</span></div>
               </div>
             <?php endif; ?>
             <div class="admin-page-feedback" data-notification-page-feedback role="status" hidden></div>
             <div class="admin-notification-grid">
               <section class="admin-tool-panel" aria-labelledby="notification-channels-title">
-                <div class="admin-tool-panel-heading"><div><h2 id="notification-channels-title" data-i18n="admin.notifications.channels">Canaux</h2><span data-i18n="admin.notifications.channelsHint">Une même alerte peut partir vers plusieurs destinations.</span></div><i class="fa-solid fa-tower-broadcast" aria-hidden="true"></i></div>
+                <div class="admin-tool-panel-heading"><div><h2 id="notification-channels-title" data-i18n="admin.notifications.channels">Channels</h2><span data-i18n="admin.notifications.channelsHint">The same alert can be delivered to several destinations.</span></div><i class="fa-solid fa-tower-broadcast" aria-hidden="true"></i></div>
                 <div class="admin-notification-list" data-notification-list>
                   <?php if ($notificationChannels === []): ?>
-                    <div class="admin-empty admin-notification-empty" data-notification-empty><i class="fa-regular fa-bell-slash" aria-hidden="true"></i><span data-i18n="admin.notifications.empty">Aucun canal configuré.</span></div>
+                    <div class="admin-empty admin-notification-empty" data-notification-empty><i class="fa-regular fa-bell-slash" aria-hidden="true"></i><span data-i18n="admin.notifications.empty">No channel configured.</span></div>
                   <?php endif; ?>
                   <?php foreach ($notificationChannels as $channel): ?>
                     <?php $channelJson = json_encode($channel, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>
                     <?php $channelStatus = (string)($channel['last_status'] ?? 'unknown'); ?>
                     <article class="admin-notification-row" data-notification-channel data-channel-id="<?= (int)$channel['id'] ?>" data-channel-json="<?= insight_admin_escape((string)$channelJson) ?>">
                       <span class="admin-notification-icon"><i class="<?= insight_admin_escape((string)$channel['provider_icon']) ?>" aria-hidden="true"></i></span>
-                      <div class="admin-notification-copy"><strong><?= insight_admin_escape((string)$channel['name']) ?></strong><span><?= insight_admin_escape((string)$channel['provider_label']) ?> · <?= count((array)$channel['events']) ?> <span data-i18n="admin.notifications.eventsShort">événements</span></span></div>
-                      <span class="admin-status-badge" data-status="<?= $channel['enabled'] ? ($channelStatus === 'error' ? 'offline' : ($channelStatus === 'success' ? 'operational' : 'unknown')) : 'unknown' ?>"><span aria-hidden="true"></span><span data-i18n="<?= $channel['enabled'] ? ($channelStatus === 'error' ? 'admin.notifications.error' : 'admin.notifications.active') : 'admin.notifications.inactive' ?>"><?= $channel['enabled'] ? ($channelStatus === 'error' ? 'Erreur' : 'Actif') : 'Inactif' ?></span></span>
+                      <div class="admin-notification-copy"><strong><?= insight_admin_escape((string)$channel['name']) ?></strong><span><?= insight_admin_escape((string)$channel['provider_label']) ?> · <?= count((array)$channel['events']) ?> <span data-i18n="admin.notifications.eventsShort">events</span></span></div>
+                      <span class="admin-status-badge" data-status="<?= $channel['enabled'] ? ($channelStatus === 'error' ? 'offline' : ($channelStatus === 'success' ? 'operational' : 'unknown')) : 'unknown' ?>"><span aria-hidden="true"></span><span data-i18n="<?= $channel['enabled'] ? ($channelStatus === 'error' ? 'admin.notifications.error' : 'admin.notifications.active') : 'admin.notifications.inactive' ?>"><?= $channel['enabled'] ? ($channelStatus === 'error' ? 'Error' : 'Active') : 'Inactive' ?></span></span>
                       <div class="admin-row-actions">
-                        <button class="admin-icon-button" type="button" data-notification-test aria-label="Tester le canal" title="Tester le canal" data-i18n-aria-label="admin.notifications.test" data-i18n-title="admin.notifications.test"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i></button>
-                        <button class="admin-icon-button" type="button" data-notification-edit aria-label="Modifier le canal" title="Modifier le canal" data-i18n-aria-label="admin.notifications.edit" data-i18n-title="admin.notifications.edit"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
-                        <button class="admin-icon-button is-destructive" type="button" data-notification-delete aria-label="Supprimer le canal" title="Supprimer le canal" data-i18n-aria-label="admin.notifications.delete" data-i18n-title="admin.notifications.delete"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></button>
+                        <button class="admin-icon-button" type="button" data-notification-test aria-label="Test channel" title="Test channel" data-i18n-aria-label="admin.notifications.test" data-i18n-title="admin.notifications.test"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i></button>
+                        <button class="admin-icon-button" type="button" data-notification-edit aria-label="Edit channel" title="Edit channel" data-i18n-aria-label="admin.notifications.edit" data-i18n-title="admin.notifications.edit"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
+                        <button class="admin-icon-button is-destructive" type="button" data-notification-delete aria-label="Delete channel" title="Delete channel" data-i18n-aria-label="admin.notifications.delete" data-i18n-title="admin.notifications.delete"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></button>
                       </div>
                     </article>
                   <?php endforeach; ?>
                 </div>
               </section>
               <section class="admin-tool-panel" aria-labelledby="notification-templates-title">
-                <div class="admin-tool-panel-heading"><div><h2 id="notification-templates-title" data-i18n="admin.notifications.templates">Messages</h2><span data-i18n="admin.notifications.templatesHint">Chaque type d’événement possède son propre texte.</span></div><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></div>
+                <div class="admin-tool-panel-heading"><div><h2 id="notification-templates-title" data-i18n="admin.notifications.templates">Messages</h2><span data-i18n="admin.notifications.templatesHint">Each event type has its own message.</span></div><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></div>
                 <form class="admin-template-form" data-notification-template-form>
                   <label class="admin-field">
-                    <span data-i18n="admin.notifications.event">Événement</span>
-                    <span class="admin-select-wrap"><i class="fa-solid fa-wave-square" aria-hidden="true"></i><select name="event"><option value="monitor_down" data-i18n="admin.notifications.eventMonitorDown">Moniteur hors ligne</option><option value="monitor_up" data-i18n="admin.notifications.eventMonitorUp">Moniteur rétabli</option><option value="incident_open" data-i18n="admin.notifications.eventIncidentOpen">Incident ouvert</option><option value="incident_resolved" data-i18n="admin.notifications.eventIncidentResolved">Incident résolu</option></select></span>
+                    <span data-i18n="admin.notifications.event">Event</span>
+                    <span class="admin-select-wrap"><i class="fa-solid fa-wave-square" aria-hidden="true"></i><select name="event"><option value="monitor_down" data-i18n="admin.notifications.eventMonitorDown">Monitor down</option><option value="monitor_up" data-i18n="admin.notifications.eventMonitorUp">Monitor recovered</option><option value="incident_open" data-i18n="admin.notifications.eventIncidentOpen">Incident opened</option><option value="incident_resolved" data-i18n="admin.notifications.eventIncidentResolved">Incident resolved</option></select></span>
                   </label>
                   <label class="admin-field">
-                    <span data-i18n="admin.notifications.subject">Titre</span>
+                    <span data-i18n="admin.notifications.subject">Title</span>
                     <span class="admin-input-wrap"><i class="fa-solid fa-heading" aria-hidden="true"></i><input type="text" name="title" maxlength="500" required value="<?= insight_admin_escape((string)($notificationTemplates['monitor_down']['title'] ?? '')) ?>"></span>
                   </label>
                   <label class="admin-field">
                     <span data-i18n="admin.notifications.message">Message</span>
                     <textarea class="admin-textarea" name="body" maxlength="10000" rows="7" required><?= insight_admin_escape((string)($notificationTemplates['monitor_down']['body'] ?? '')) ?></textarea>
                   </label>
-                  <div class="admin-template-tokens" aria-label="Variables disponibles" data-i18n-aria-label="admin.notifications.variables"><button type="button" data-template-token="{{ app_name }}">app_name</button><button type="button" data-template-token="{{ domain }}">domain</button><button type="button" data-template-token="{{ sites }}">sites</button><button type="button" data-template-token="{{ status }}">status</button><button type="button" data-template-token="{{ message }}">message</button><button type="button" data-template-token="{{ timestamp }}">timestamp</button></div>
+                  <div class="admin-template-tokens" aria-label="Available variables" data-i18n-aria-label="admin.notifications.variables"><button type="button" data-template-token="{{ app_name }}">app_name</button><button type="button" data-template-token="{{ domain }}">domain</button><button type="button" data-template-token="{{ sites }}">sites</button><button type="button" data-template-token="{{ status }}">status</button><button type="button" data-template-token="{{ message }}">message</button><button type="button" data-template-token="{{ timestamp }}">timestamp</button></div>
                   <div class="admin-probe-feedback" data-notification-template-feedback role="alert" hidden></div>
-                  <div class="admin-template-actions"><span data-i18n="admin.notifications.liquidHint">Syntaxe Liquid compatible Uptime Kuma.</span><button class="admin-secondary-button" type="submit"><i class="fa-solid fa-check" aria-hidden="true"></i><span data-i18n="admin.notifications.saveMessage">Enregistrer</span></button></div>
+                  <div class="admin-template-actions"><span data-i18n="admin.notifications.liquidHint">Liquid syntax compatible with Uptime Kuma.</span><button class="admin-secondary-button" type="submit"><i class="fa-solid fa-check" aria-hidden="true"></i><span data-i18n="admin.notifications.saveMessage">Save</span></button></div>
                 </form>
               </section>
             </div>
             <section class="admin-delivery-panel" aria-labelledby="notification-deliveries-title">
-              <div class="admin-tool-panel-heading"><div><h2 id="notification-deliveries-title" data-i18n="admin.notifications.history">Derniers envois</h2><span data-i18n="admin.notifications.historyHint">Les livraisons sont conservées pendant 90 jours.</span></div><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i></div>
+              <div class="admin-tool-panel-heading"><div><h2 id="notification-deliveries-title" data-i18n="admin.notifications.history">Recent deliveries</h2><span data-i18n="admin.notifications.historyHint">Deliveries are retained for 90 days.</span></div><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i></div>
               <div class="admin-delivery-list" data-notification-deliveries>
                 <?php if ($notificationDeliveries === []): ?>
-                  <div class="admin-empty" data-delivery-empty><i class="fa-regular fa-clock" aria-hidden="true"></i><span data-i18n="admin.notifications.noHistory">Aucun envoi pour le moment.</span></div>
+                  <div class="admin-empty" data-delivery-empty><i class="fa-regular fa-clock" aria-hidden="true"></i><span data-i18n="admin.notifications.noHistory">No delivery yet.</span></div>
                 <?php endif; ?>
                 <?php foreach ($notificationDeliveries as $delivery): ?>
                   <?php $deliveryTime = insight_dashboard_iso(isset($delivery['attempted_at']) ? (string)$delivery['attempted_at'] : null); ?>
@@ -828,12 +828,12 @@ insight_admin_page_start('admin.meta.dashboardTitle', 'admin.meta.dashboardDescr
 
           <section id="maintenance" class="admin-section admin-detail-section admin-route-section" data-admin-view="maintenance" hidden>
             <div class="admin-section-heading">
-              <div><p class="admin-eyebrow" data-i18n="admin.maintenance.eyebrow">Planning</p><h1 data-i18n="admin.maintenance.title">Maintenances</h1></div>
+              <div><p class="admin-eyebrow" data-i18n="admin.maintenance.eyebrow">Schedule</p><h1 data-i18n="admin.maintenance.title">Maintenance</h1></div>
               <span class="admin-section-count"><?= count($maintenances) ?></span>
             </div>
             <div class="admin-event-list">
               <?php if ($maintenances === []): ?>
-                <div class="admin-empty"><i class="fa-regular fa-calendar" aria-hidden="true"></i><span data-i18n="admin.maintenance.empty">Aucune maintenance à venir.</span></div>
+                <div class="admin-empty"><i class="fa-regular fa-calendar" aria-hidden="true"></i><span data-i18n="admin.maintenance.empty">No upcoming maintenance.</span></div>
               <?php endif; ?>
               <?php foreach ($maintenances as $maintenance): ?>
                 <?php $startsAt = insight_dashboard_iso(isset($maintenance['starts_at']) ? (string)$maintenance['starts_at'] : null); ?>
@@ -841,9 +841,9 @@ insight_admin_page_start('admin.meta.dashboardTitle', 'admin.meta.dashboardDescr
                 <article class="admin-event-row">
                   <span class="admin-event-marker" data-event="maintenance"><i class="fa-solid fa-wrench" aria-hidden="true"></i></span>
                   <div class="admin-event-copy">
-                    <div><strong><?= insight_admin_escape((string)$maintenance['title']) ?></strong><span class="admin-event-state" data-event="maintenance" data-i18n="state.scheduledMaintenance">Planifiée</span></div>
+                    <div><strong><?= insight_admin_escape((string)$maintenance['title']) ?></strong><span class="admin-event-state" data-event="maintenance" data-i18n="state.scheduledMaintenance">Scheduled maintenance</span></div>
                     <p><?= insight_admin_escape(trim((string)($maintenance['description'] ?? '')) ?: insight_dashboard_host((string)$maintenance['url'])) ?></p>
-                    <span class="admin-event-meta"><?php if ($startsAt !== ''): ?><time datetime="<?= insight_admin_escape($startsAt) ?>"></time><?php endif; ?><?php if ($endsAt !== ''): ?><span><span data-i18n="admin.maintenance.until">jusqu’au</span> <time datetime="<?= insight_admin_escape($endsAt) ?>"></time></span><?php endif; ?></span>
+                    <span class="admin-event-meta"><?php if ($startsAt !== ''): ?><time datetime="<?= insight_admin_escape($startsAt) ?>"></time><?php endif; ?><?php if ($endsAt !== ''): ?><span><span data-i18n="admin.maintenance.until">until</span> <time datetime="<?= insight_admin_escape($endsAt) ?>"></time></span><?php endif; ?></span>
                   </div>
                 </article>
               <?php endforeach; ?>
@@ -853,69 +853,69 @@ insight_admin_page_start('admin.meta.dashboardTitle', 'admin.meta.dashboardDescr
 
         <div class="admin-view-fragments">
           <section class="admin-section admin-detail-section" data-admin-view="overview">
-            <div class="admin-section-heading"><div><p class="admin-eyebrow" data-i18n="admin.runtime.eyebrow">Exécution</p><h2 data-i18n="admin.runtime.title">Moteur de supervision</h2></div><span class="admin-status-badge" data-status="<?= insight_admin_escape($runtimeStatusClass) ?>"><span aria-hidden="true"></span><span data-i18n="<?= insight_admin_escape($runtimeStatusKey) ?>"><?= insight_admin_escape($runtimeStatusClass) ?></span></span></div>
+            <div class="admin-section-heading"><div><p class="admin-eyebrow" data-i18n="admin.runtime.eyebrow">Runtime</p><h2 data-i18n="admin.runtime.title">Monitoring engine</h2></div><span class="admin-status-badge" data-status="<?= insight_admin_escape($runtimeStatusClass) ?>"><span aria-hidden="true"></span><span data-i18n="<?= insight_admin_escape($runtimeStatusKey) ?>"><?= insight_admin_escape($runtimeStatusClass) ?></span></span></div>
             <dl class="admin-runtime-list">
-              <div><dt data-i18n="admin.runtime.engine">Moteur actif</dt><dd><i class="fa-solid fa-code" aria-hidden="true"></i><?= insight_admin_escape($runtimeEngine) ?></dd></div>
-              <div><dt data-i18n="admin.runtime.checked">Sites vérifiés</dt><dd><?= (int)($runtime['sites_checked'] ?? $totalMonitors) ?></dd></div>
-              <div><dt data-i18n="admin.runtime.errors">Erreurs au dernier passage</dt><dd><?= (int)($runtime['errors_count'] ?? 0) ?></dd></div>
-              <div><dt data-i18n="admin.runtime.lastRun">Dernier passage</dt><dd><?php $lastMonitor = insight_dashboard_iso(isset($runtime['last_monitor_at']) ? (string)$runtime['last_monitor_at'] : null); ?><?php if ($lastMonitor !== ''): ?><time datetime="<?= insight_admin_escape($lastMonitor) ?>"></time><?php else: ?><span data-i18n="admin.common.never">Jamais</span><?php endif; ?></dd></div>
+              <div><dt data-i18n="admin.runtime.engine">Active engine</dt><dd><i class="fa-solid fa-code" aria-hidden="true"></i><?= insight_admin_escape($runtimeEngine) ?></dd></div>
+              <div><dt data-i18n="admin.runtime.checked">Sites checked</dt><dd><?= (int)($runtime['sites_checked'] ?? $totalMonitors) ?></dd></div>
+              <div><dt data-i18n="admin.runtime.errors">Errors on last run</dt><dd><?= (int)($runtime['errors_count'] ?? 0) ?></dd></div>
+              <div><dt data-i18n="admin.runtime.lastRun">Last run</dt><dd><?php $lastMonitor = insight_dashboard_iso(isset($runtime['last_monitor_at']) ? (string)$runtime['last_monitor_at'] : null); ?><?php if ($lastMonitor !== ''): ?><time datetime="<?= insight_admin_escape($lastMonitor) ?>"></time><?php else: ?><span data-i18n="admin.common.never">Never</span><?php endif; ?></dd></div>
             </dl>
           </section>
 
           <section id="account" class="admin-section admin-detail-section admin-route-section" data-admin-view="account" hidden>
-            <div class="admin-section-heading"><div><p class="admin-eyebrow" data-i18n="admin.access.eyebrow">Sécurité et intégrations</p><h1 data-i18n="admin.access.title">Accès</h1><p class="admin-section-description" data-i18n="admin.access.description">Choisissez qui se connecte à Insight et comment vos outils le pilotent.</p></div><a class="admin-secondary-button" href="/admin/integrations.php"><i class="fa-solid fa-book" aria-hidden="true"></i><span data-i18n="admin.access.integrationGuide">Guide d’intégration</span></a></div>
+            <div class="admin-section-heading"><div><p class="admin-eyebrow" data-i18n="admin.access.eyebrow">Security and integrations</p><h1 data-i18n="admin.access.title">Access</h1><p class="admin-section-description" data-i18n="admin.access.description">Choose who signs in to Insight and how your tools control it.</p></div><a class="admin-secondary-button" href="/admin/integrations.php"><i class="fa-solid fa-book" aria-hidden="true"></i><span data-i18n="admin.access.integrationGuide">Integration guide</span></a></div>
             <div class="admin-access-identity">
               <span class="admin-account-icon"><i class="fa-solid <?= ($user['source'] ?? 'local') === 'oidc' ? 'fa-building-shield' : ($isDevBypass ? 'fa-unlock' : 'fa-user-shield') ?>" aria-hidden="true"></i></span>
-              <div><strong><?= insight_admin_escape((string)$user['username']) ?></strong><span data-i18n="<?= ($user['source'] ?? 'local') === 'oidc' ? 'admin.account.ssoAdmin' : ($isDevBypass ? 'admin.account.devAdmin' : 'admin.account.localAdmin') ?>"><?= ($user['source'] ?? 'local') === 'oidc' ? 'Administrateur SSO' : ($isDevBypass ? 'Administrateur virtuel de développement' : 'Administrateur local') ?></span></div>
-              <span class="admin-status-badge" data-status="operational"><span aria-hidden="true"></span><span data-i18n="admin.access.sessionActive">Session active</span></span>
+              <div><strong><?= insight_admin_escape((string)$user['username']) ?></strong><span data-i18n="<?= ($user['source'] ?? 'local') === 'oidc' ? 'admin.account.ssoAdmin' : ($isDevBypass ? 'admin.account.devAdmin' : 'admin.account.localAdmin') ?>"><?= ($user['source'] ?? 'local') === 'oidc' ? 'SSO administrator' : ($isDevBypass ? 'Virtual development administrator' : 'Local administrator') ?></span></div>
+              <span class="admin-status-badge" data-status="operational"><span aria-hidden="true"></span><span data-i18n="admin.access.sessionActive">Active session</span></span>
             </div>
-            <div class="admin-access-mode-map" aria-label="Modes d’accès" data-i18n-aria-label="admin.access.modesLabel">
-              <div><span class="admin-access-mode-icon"><i class="fa-solid fa-terminal" aria-hidden="true"></i></span><div><strong data-i18n="admin.access.modeApiTitle">Automatiser Insight</strong><span data-i18n="admin.access.modeApiDescription">Scripts, CI/CD et backends utilisent des jetons API.</span></div><code>API</code></div>
-              <div><span class="admin-access-mode-icon"><i class="fa-solid fa-arrow-right-to-bracket" aria-hidden="true"></i></span><div><strong data-i18n="admin.access.modeProviderTitle">Connecter une autre application</strong><span data-i18n="admin.access.modeProviderDescription">Insight devient son fournisseur de connexion.</span></div><code>OIDC</code></div>
-              <div><span class="admin-access-mode-icon"><i class="fa-solid fa-building-shield" aria-hidden="true"></i></span><div><strong data-i18n="admin.access.modeSsoTitle">Se connecter à Insight</strong><span data-i18n="admin.access.modeSsoDescription">Votre fournisseur d’identité protège ce dashboard.</span></div><code>SSO</code></div>
+            <div class="admin-access-mode-map" aria-label="Access modes" data-i18n-aria-label="admin.access.modesLabel">
+              <div><span class="admin-access-mode-icon"><i class="fa-solid fa-terminal" aria-hidden="true"></i></span><div><strong data-i18n="admin.access.modeApiTitle">Automate Insight</strong><span data-i18n="admin.access.modeApiDescription">Scripts, CI/CD, and backends use API tokens.</span></div><code>API</code></div>
+              <div><span class="admin-access-mode-icon"><i class="fa-solid fa-arrow-right-to-bracket" aria-hidden="true"></i></span><div><strong data-i18n="admin.access.modeProviderTitle">Connect another application</strong><span data-i18n="admin.access.modeProviderDescription">Insight becomes its sign-in provider.</span></div><code>OIDC</code></div>
+              <div><span class="admin-access-mode-icon"><i class="fa-solid fa-building-shield" aria-hidden="true"></i></span><div><strong data-i18n="admin.access.modeSsoTitle">Sign in to Insight</strong><span data-i18n="admin.access.modeSsoDescription">Your identity provider protects this dashboard.</span></div><code>SSO</code></div>
             </div>
             <div class="admin-page-feedback" data-access-feedback role="status" hidden></div>
             <div class="admin-access-grid">
               <section class="admin-tool-panel" aria-labelledby="access-api-title">
-                <div class="admin-tool-panel-heading"><div><h2 id="access-api-title" data-i18n="admin.access.apiTitle">Piloter Insight par API</h2><span data-i18n="admin.access.apiHint">Pour les scripts, CI/CD et services backend.</span></div><div class="admin-access-heading-meta"><span class="admin-status-badge" data-access-feature-status="api" data-status="<?= ($accessState['api_enabled'] ?? false) ? 'operational' : 'unknown' ?>"><span aria-hidden="true"></span><span data-access-feature-label data-i18n="<?= ($accessState['api_enabled'] ?? false) ? 'admin.access.active' : 'admin.access.inactive' ?>"><?= ($accessState['api_enabled'] ?? false) ? 'Actif' : 'Inactif' ?></span></span><i class="fa-solid fa-code" aria-hidden="true"></i></div></div>
+                <div class="admin-tool-panel-heading"><div><h2 id="access-api-title" data-i18n="admin.access.apiTitle">Control Insight by API</h2><span data-i18n="admin.access.apiHint">For scripts, CI/CD, and backend services.</span></div><div class="admin-access-heading-meta"><span class="admin-status-badge" data-access-feature-status="api" data-status="<?= ($accessState['api_enabled'] ?? false) ? 'operational' : 'unknown' ?>"><span aria-hidden="true"></span><span data-access-feature-label data-i18n="<?= ($accessState['api_enabled'] ?? false) ? 'admin.access.active' : 'admin.access.inactive' ?>"><?= ($accessState['api_enabled'] ?? false) ? 'Actif' : 'Inactif' ?></span></span><i class="fa-solid fa-code" aria-hidden="true"></i></div></div>
                 <div class="admin-access-panel-body">
-                  <label class="admin-switch"><input type="checkbox" data-access-toggle="api"<?= ($accessState['api_enabled'] ?? false) ? ' checked' : '' ?>><span aria-hidden="true"></span><span><strong data-i18n="admin.access.apiEnabled">Autoriser les jetons API</strong><small data-i18n="admin.access.apiEnabledHint">La désactivation coupe immédiatement tous les accès.</small></span></label>
-                  <div class="admin-access-endpoint"><span data-i18n="admin.access.baseUrl">URL de base</span><code data-access-api-url><?= insight_admin_escape((string)$accessState['api_base_url']) ?></code><button class="admin-icon-button" type="button" data-copy-value="<?= insight_admin_escape((string)$accessState['api_base_url']) ?>" aria-label="Copier" title="Copier" data-i18n-aria-label="admin.access.copy" data-i18n-title="admin.access.copy"><i class="fa-regular fa-copy" aria-hidden="true"></i></button></div>
-                  <div class="admin-access-list-heading"><strong data-i18n="admin.access.tokens">Jetons</strong><button class="admin-secondary-button" type="button" data-access-create-token><i class="fa-solid fa-plus" aria-hidden="true"></i><span data-i18n="admin.access.newToken">Nouveau jeton</span></button></div>
+                  <label class="admin-switch"><input type="checkbox" data-access-toggle="api"<?= ($accessState['api_enabled'] ?? false) ? ' checked' : '' ?>><span aria-hidden="true"></span><span><strong data-i18n="admin.access.apiEnabled">Allow API tokens</strong><small data-i18n="admin.access.apiEnabledHint">Disabling this immediately cuts off every token.</small></span></label>
+                  <div class="admin-access-endpoint"><span data-i18n="admin.access.baseUrl">Base URL</span><code data-access-api-url><?= insight_admin_escape((string)$accessState['api_base_url']) ?></code><button class="admin-icon-button" type="button" data-copy-value="<?= insight_admin_escape((string)$accessState['api_base_url']) ?>" aria-label="Copier" title="Copier" data-i18n-aria-label="admin.access.copy" data-i18n-title="admin.access.copy"><i class="fa-regular fa-copy" aria-hidden="true"></i></button></div>
+                  <div class="admin-access-list-heading"><strong data-i18n="admin.access.tokens">Tokens</strong><button class="admin-secondary-button" type="button" data-access-create-token><i class="fa-solid fa-plus" aria-hidden="true"></i><span data-i18n="admin.access.newToken">New token</span></button></div>
                   <div class="admin-access-list" data-access-token-list></div>
                 </div>
               </section>
               <section class="admin-tool-panel" aria-labelledby="access-oauth-title">
-                <div class="admin-tool-panel-heading"><div><h2 id="access-oauth-title" data-i18n="admin.access.oauthTitle">Connecter une autre application</h2><span data-i18n="admin.access.oauthHint">Insight authentifie ses utilisateurs avec OpenID Connect.</span></div><div class="admin-access-heading-meta"><span class="admin-status-badge" data-access-feature-status="oauth" data-status="<?= ($accessState['oauth_provider_enabled'] ?? false) ? 'operational' : 'unknown' ?>"><span aria-hidden="true"></span><span data-access-feature-label data-i18n="<?= ($accessState['oauth_provider_enabled'] ?? false) ? 'admin.access.active' : 'admin.access.inactive' ?>"><?= ($accessState['oauth_provider_enabled'] ?? false) ? 'Actif' : 'Inactif' ?></span></span><i class="fa-solid fa-link" aria-hidden="true"></i></div></div>
+                <div class="admin-tool-panel-heading"><div><h2 id="access-oauth-title" data-i18n="admin.access.oauthTitle">Connect another application</h2><span data-i18n="admin.access.oauthHint">Insight authenticates its users with OpenID Connect.</span></div><div class="admin-access-heading-meta"><span class="admin-status-badge" data-access-feature-status="oauth" data-status="<?= ($accessState['oauth_provider_enabled'] ?? false) ? 'operational' : 'unknown' ?>"><span aria-hidden="true"></span><span data-access-feature-label data-i18n="<?= ($accessState['oauth_provider_enabled'] ?? false) ? 'admin.access.active' : 'admin.access.inactive' ?>"><?= ($accessState['oauth_provider_enabled'] ?? false) ? 'Actif' : 'Inactif' ?></span></span><i class="fa-solid fa-link" aria-hidden="true"></i></div></div>
                 <div class="admin-access-panel-body">
-                  <label class="admin-switch"><input type="checkbox" data-access-toggle="oauth"<?= ($accessState['oauth_provider_enabled'] ?? false) ? ' checked' : '' ?><?= ($accessState['issuer_ready'] ?? false) ? '' : ' disabled' ?>><span aria-hidden="true"></span><span><strong data-i18n="admin.access.oauthEnabled">Autoriser les connexions OIDC</strong><small data-i18n="admin.access.oauthEnabledHint">Chaque application reçoit son propre identifiant et secret.</small></span></label>
-                  <div class="admin-access-endpoint"><span data-i18n="admin.access.discoveryUrl">Découverte</span><code data-access-discovery-url><?= insight_admin_escape((string)$accessState['discovery_url']) ?></code><button class="admin-icon-button" type="button" data-copy-value="<?= insight_admin_escape((string)$accessState['discovery_url']) ?>" aria-label="Copier" title="Copier" data-i18n-aria-label="admin.access.copy" data-i18n-title="admin.access.copy"><i class="fa-regular fa-copy" aria-hidden="true"></i></button></div>
-                  <?php if (!($accessState['issuer_ready'] ?? false)): ?><div class="admin-access-warning"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span data-i18n="admin.access.publicUrlRequired">Définissez une URL publique HTTPS avant l’activation.</span></div><?php endif; ?>
-                  <div class="admin-access-list-heading"><strong data-i18n="admin.access.clients">Applications</strong><button class="admin-secondary-button" type="button" data-access-create-client><i class="fa-solid fa-plus" aria-hidden="true"></i><span data-i18n="admin.access.newClient">Nouveau dashboard</span></button></div>
+                  <label class="admin-switch"><input type="checkbox" data-access-toggle="oauth"<?= ($accessState['oauth_provider_enabled'] ?? false) ? ' checked' : '' ?><?= ($accessState['issuer_ready'] ?? false) ? '' : ' disabled' ?>><span aria-hidden="true"></span><span><strong data-i18n="admin.access.oauthEnabled">Allow OIDC connections</strong><small data-i18n="admin.access.oauthEnabledHint">Each application receives its own ID and secret.</small></span></label>
+                  <div class="admin-access-endpoint"><span data-i18n="admin.access.discoveryUrl">Discovery</span><code data-access-discovery-url><?= insight_admin_escape((string)$accessState['discovery_url']) ?></code><button class="admin-icon-button" type="button" data-copy-value="<?= insight_admin_escape((string)$accessState['discovery_url']) ?>" aria-label="Copier" title="Copier" data-i18n-aria-label="admin.access.copy" data-i18n-title="admin.access.copy"><i class="fa-regular fa-copy" aria-hidden="true"></i></button></div>
+                  <?php if (!($accessState['issuer_ready'] ?? false)): ?><div class="admin-access-warning"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span data-i18n="admin.access.publicUrlRequired">Set a public HTTPS URL before enabling it.</span></div><?php endif; ?>
+                  <div class="admin-access-list-heading"><strong data-i18n="admin.access.clients">Applications</strong><button class="admin-secondary-button" type="button" data-access-create-client><i class="fa-solid fa-plus" aria-hidden="true"></i><span data-i18n="admin.access.newClient">New dashboard</span></button></div>
                   <div class="admin-access-list" data-access-client-list></div>
                 </div>
               </section>
               <section class="admin-tool-panel admin-access-sso-panel" aria-labelledby="access-sso-title">
-                <div class="admin-tool-panel-heading"><div><h2 id="access-sso-title" data-i18n="admin.access.ssoTitle">Connexion de ce dashboard</h2><span data-i18n="admin.access.ssoHint">Vos utilisateurs se connectent avec le fournisseur d’identité de l’organisation.</span></div><i class="fa-solid fa-building-shield" aria-hidden="true"></i></div>
+                <div class="admin-tool-panel-heading"><div><h2 id="access-sso-title" data-i18n="admin.access.ssoTitle">This dashboard’s sign-in</h2><span data-i18n="admin.access.ssoHint">Users sign in with your organization’s identity provider.</span></div><i class="fa-solid fa-building-shield" aria-hidden="true"></i></div>
                 <div class="admin-access-panel-body admin-access-sso-body">
                   <div class="admin-access-sso-status">
-                    <span class="admin-status-badge" data-status="<?= ($ssoState['enabled'] ?? false) ? (($ssoState['valid'] ?? false) ? 'operational' : 'offline') : 'unknown' ?>"><span aria-hidden="true"></span><span data-i18n="<?= ($ssoState['enabled'] ?? false) ? (($ssoState['valid'] ?? false) ? 'admin.access.configured' : 'admin.access.invalid') : 'admin.access.disabled' ?>"><?= ($ssoState['enabled'] ?? false) ? (($ssoState['valid'] ?? false) ? 'Configuré' : 'Configuration invalide') : 'Désactivé' ?></span></span>
+                    <span class="admin-status-badge" data-status="<?= ($ssoState['enabled'] ?? false) ? (($ssoState['valid'] ?? false) ? 'operational' : 'offline') : 'unknown' ?>"><span aria-hidden="true"></span><span data-i18n="<?= ($ssoState['enabled'] ?? false) ? (($ssoState['valid'] ?? false) ? 'admin.access.configured' : 'admin.access.invalid') : 'admin.access.disabled' ?>"><?= ($ssoState['enabled'] ?? false) ? (($ssoState['valid'] ?? false) ? 'Configured' : 'Invalid configuration') : 'Disabled' ?></span></span>
                     <div><strong><?= insight_admin_escape((string)($ssoState['provider_name'] ?? 'SSO')) ?></strong><span><?= insight_admin_escape((string)($ssoState['issuer'] ?? '')) ?></span></div>
                   </div>
-                  <div class="admin-access-endpoint"><span data-i18n="admin.access.callbackUrl">URL de retour</span><code><?= insight_admin_escape((string)$ssoState['callback_url']) ?></code><button class="admin-icon-button" type="button" data-copy-value="<?= insight_admin_escape((string)$ssoState['callback_url']) ?>" aria-label="Copier" title="Copier" data-i18n-aria-label="admin.access.copy" data-i18n-title="admin.access.copy"><i class="fa-regular fa-copy" aria-hidden="true"></i></button></div>
-                  <div class="admin-access-config-note"><i class="fa-solid fa-sliders" aria-hidden="true"></i><div><strong data-i18n="admin.access.ssoConfigTitle">Configuration dans .env</strong><span data-i18n="admin.access.ssoConfigDescription">Issuer, client OIDC et règles d’accès restent côté serveur.</span></div></div>
+                  <div class="admin-access-endpoint"><span data-i18n="admin.access.callbackUrl">Callback URL</span><code><?= insight_admin_escape((string)$ssoState['callback_url']) ?></code><button class="admin-icon-button" type="button" data-copy-value="<?= insight_admin_escape((string)$ssoState['callback_url']) ?>" aria-label="Copier" title="Copier" data-i18n-aria-label="admin.access.copy" data-i18n-title="admin.access.copy"><i class="fa-regular fa-copy" aria-hidden="true"></i></button></div>
+                  <div class="admin-access-config-note"><i class="fa-solid fa-sliders" aria-hidden="true"></i><div><strong data-i18n="admin.access.ssoConfigTitle">Configured in .env</strong><span data-i18n="admin.access.ssoConfigDescription">Issuer, OIDC client, and access rules remain server-side.</span></div></div>
                 </div>
               </section>
               <section class="admin-tool-panel admin-access-audit-panel" aria-labelledby="access-audit-title">
-                <div class="admin-tool-panel-heading"><div><h2 id="access-audit-title" data-i18n="admin.access.auditTitle">Activité de sécurité</h2><span data-i18n="admin.access.auditHint">Derniers événements de cette identité locale.</span></div><i class="fa-solid fa-shield-halved" aria-hidden="true"></i></div>
+                <div class="admin-tool-panel-heading"><div><h2 id="access-audit-title" data-i18n="admin.access.auditTitle">Security activity</h2><span data-i18n="admin.access.auditHint">Latest events for this identity.</span></div><i class="fa-solid fa-shield-halved" aria-hidden="true"></i></div>
                 <div class="admin-audit-list">
                   <?php if ($isDevBypass): ?>
-                    <div><span><i class="fa-solid fa-unlock" aria-hidden="true"></i><span data-i18n="admin.dev.audit">Contrôle d’accès désactivé par la configuration locale</span></span></div>
+                    <div><span><i class="fa-solid fa-unlock" aria-hidden="true"></i><span data-i18n="admin.dev.audit">Access control disabled by local configuration</span></span></div>
                   <?php else: ?>
                     <?php foreach ($auditEvents as $event): ?>
                       <?php $eventTime = insight_dashboard_utc_iso((string)($event['created_at'] ?? '')); ?>
                       <?php $eventKey = match ((string)($event['event'] ?? '')) { 'setup_completed' => 'admin.audit.setup', 'login_succeeded', 'sso_login_succeeded' => 'admin.audit.login', 'logout' => 'admin.audit.logout', default => 'admin.audit.activity' }; ?>
-                      <div><span><i class="fa-solid fa-shield" aria-hidden="true"></i><span data-i18n="<?= insight_admin_escape($eventKey) ?>">Activité locale</span></span><?php if ($eventTime !== ''): ?><time datetime="<?= insight_admin_escape($eventTime) ?>"></time><?php endif; ?></div>
+                      <div><span><i class="fa-solid fa-shield" aria-hidden="true"></i><span data-i18n="<?= insight_admin_escape($eventKey) ?>">Local activity</span></span><?php if ($eventTime !== ''): ?><time datetime="<?= insight_admin_escape($eventTime) ?>"></time><?php endif; ?></div>
                     <?php endforeach; ?>
                   <?php endif; ?>
                 </div>
@@ -928,65 +928,65 @@ insight_admin_page_start('admin.meta.dashboardTitle', 'admin.meta.dashboardDescr
   </div>
   <dialog class="admin-access-dialog" data-access-token-dialog aria-labelledby="admin-access-token-title">
     <form class="admin-access-form" data-access-token-form>
-      <div class="admin-probe-dialog-heading"><span class="admin-probe-dialog-icon"><i class="fa-solid fa-key" aria-hidden="true"></i></span><div><p class="admin-eyebrow" data-i18n="admin.access.apiTitle">API headless</p><h2 id="admin-access-token-title" data-i18n="admin.access.createTokenTitle">Créer un jeton</h2></div><button class="admin-icon-button" type="button" data-access-dialog-close aria-label="Fermer" title="Fermer" data-i18n-aria-label="common.close" data-i18n-title="common.close"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>
-      <label class="admin-field"><span data-i18n="admin.access.name">Nom</span><span class="admin-input-wrap"><i class="fa-solid fa-tag" aria-hidden="true"></i><input type="text" name="name" minlength="2" maxlength="120" required autocomplete="off" placeholder="Automatisation production" data-i18n-placeholder="admin.access.tokenNamePlaceholder"></span></label>
-      <label class="admin-field"><span data-i18n="admin.access.expiry">Expiration</span><span class="admin-select-wrap"><i class="fa-regular fa-clock" aria-hidden="true"></i><select name="expires_in_days"><option value="30" data-i18n="admin.access.days30">30 jours</option><option value="90" selected data-i18n="admin.access.days90">90 jours</option><option value="365" data-i18n="admin.access.year1">1 an</option><option value="0" data-i18n="admin.access.never">Jamais</option></select></span></label>
+      <div class="admin-probe-dialog-heading"><span class="admin-probe-dialog-icon"><i class="fa-solid fa-key" aria-hidden="true"></i></span><div><p class="admin-eyebrow" data-i18n="admin.access.apiTitle">Control Insight by API</p><h2 id="admin-access-token-title" data-i18n="admin.access.createTokenTitle">Create token</h2></div><button class="admin-icon-button" type="button" data-access-dialog-close aria-label="Close" title="Close" data-i18n-aria-label="common.close" data-i18n-title="common.close"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>
+      <label class="admin-field"><span data-i18n="admin.access.name">Name</span><span class="admin-input-wrap"><i class="fa-solid fa-tag" aria-hidden="true"></i><input type="text" name="name" minlength="2" maxlength="120" required autocomplete="off" placeholder="Production automation" data-i18n-placeholder="admin.access.tokenNamePlaceholder"></span></label>
+      <label class="admin-field"><span data-i18n="admin.access.expiry">Expiration</span><span class="admin-select-wrap"><i class="fa-regular fa-clock" aria-hidden="true"></i><select name="expires_in_days"><option value="30" data-i18n="admin.access.days30">30 days</option><option value="90" selected data-i18n="admin.access.days90">90 days</option><option value="365" data-i18n="admin.access.year1">1 year</option><option value="0" data-i18n="admin.access.never">Never</option></select></span></label>
       <fieldset class="admin-access-scopes"><legend data-i18n="admin.access.permissions">Permissions</legend><?php foreach (insight_access_scope_catalog() as $scope => $label): ?><label><input type="checkbox" name="scopes" value="<?= insight_admin_escape($scope) ?>"<?= in_array($scope, ['status:read', 'monitors:read', 'incidents:read'], true) ? ' checked' : '' ?>><span><code><?= insight_admin_escape($scope) ?></code><small data-i18n="<?= insight_admin_escape(insight_access_scope_i18n_key($scope)) ?>"><?= insight_admin_escape($label) ?></small></span></label><?php endforeach; ?></fieldset>
       <div class="admin-probe-feedback" data-access-token-feedback role="alert" hidden></div>
-      <div class="admin-probe-form-actions"><button class="admin-secondary-button" type="button" data-access-dialog-close data-i18n="admin.probes.cancel">Annuler</button><button class="admin-primary-button" type="submit"><i class="fa-solid fa-plus" aria-hidden="true"></i><span data-i18n="admin.access.create">Créer</span></button></div>
+      <div class="admin-probe-form-actions"><button class="admin-secondary-button" type="button" data-access-dialog-close data-i18n="admin.probes.cancel">Cancel</button><button class="admin-primary-button" type="submit"><i class="fa-solid fa-plus" aria-hidden="true"></i><span data-i18n="admin.access.create">Create</span></button></div>
     </form>
   </dialog>
   <dialog class="admin-access-dialog" data-access-client-dialog aria-labelledby="admin-access-client-title">
     <form class="admin-access-form" data-access-client-form>
-      <div class="admin-probe-dialog-heading"><span class="admin-probe-dialog-icon"><i class="fa-solid fa-link" aria-hidden="true"></i></span><div><p class="admin-eyebrow">OpenID Connect</p><h2 id="admin-access-client-title" data-i18n="admin.access.createClientTitle">Connecter un dashboard</h2></div><button class="admin-icon-button" type="button" data-access-dialog-close aria-label="Fermer" title="Fermer" data-i18n-aria-label="common.close" data-i18n-title="common.close"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>
-      <label class="admin-field"><span data-i18n="admin.access.name">Nom</span><span class="admin-input-wrap"><i class="fa-solid fa-tag" aria-hidden="true"></i><input type="text" name="name" minlength="2" maxlength="120" required autocomplete="off" placeholder="Dashboard opérations" data-i18n-placeholder="admin.access.clientNamePlaceholder"></span></label>
-      <label class="admin-field"><span data-i18n="admin.access.redirectUris">URI de retour exactes</span><textarea class="admin-textarea admin-code-textarea" name="redirect_uris" rows="3" maxlength="10000" required placeholder="https://dashboard.example.com/auth/callback"></textarea></label>
+      <div class="admin-probe-dialog-heading"><span class="admin-probe-dialog-icon"><i class="fa-solid fa-link" aria-hidden="true"></i></span><div><p class="admin-eyebrow">OpenID Connect</p><h2 id="admin-access-client-title" data-i18n="admin.access.createClientTitle">Connect a dashboard</h2></div><button class="admin-icon-button" type="button" data-access-dialog-close aria-label="Close" title="Close" data-i18n-aria-label="common.close" data-i18n-title="common.close"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>
+      <label class="admin-field"><span data-i18n="admin.access.name">Name</span><span class="admin-input-wrap"><i class="fa-solid fa-tag" aria-hidden="true"></i><input type="text" name="name" minlength="2" maxlength="120" required autocomplete="off" placeholder="Operations dashboard" data-i18n-placeholder="admin.access.clientNamePlaceholder"></span></label>
+      <label class="admin-field"><span data-i18n="admin.access.redirectUris">Exact redirect URIs</span><textarea class="admin-textarea admin-code-textarea" name="redirect_uris" rows="3" maxlength="10000" required placeholder="https://dashboard.example.com/auth/callback"></textarea></label>
       <fieldset class="admin-access-scopes"><legend data-i18n="admin.access.permissions">Permissions</legend><?php foreach (insight_access_oauth_scope_catalog() as $scope => $label): ?><label><input type="checkbox" name="scopes" value="<?= insight_admin_escape($scope) ?>"<?= in_array($scope, ['openid', 'profile'], true) ? ' checked' : '' ?><?= $scope === 'openid' ? ' disabled' : '' ?>><span><code><?= insight_admin_escape($scope) ?></code><small data-i18n="<?= insight_admin_escape(insight_access_scope_i18n_key($scope)) ?>"><?= insight_admin_escape($label) ?></small></span></label><?php endforeach; ?></fieldset>
       <div class="admin-probe-feedback" data-access-client-feedback role="alert" hidden></div>
-      <div class="admin-probe-form-actions"><button class="admin-secondary-button" type="button" data-access-dialog-close data-i18n="admin.probes.cancel">Annuler</button><button class="admin-primary-button" type="submit"><i class="fa-solid fa-link" aria-hidden="true"></i><span data-i18n="admin.access.create">Créer</span></button></div>
+      <div class="admin-probe-form-actions"><button class="admin-secondary-button" type="button" data-access-dialog-close data-i18n="admin.probes.cancel">Cancel</button><button class="admin-primary-button" type="submit"><i class="fa-solid fa-link" aria-hidden="true"></i><span data-i18n="admin.access.create">Create</span></button></div>
     </form>
   </dialog>
   <dialog class="admin-access-dialog" data-access-secret-dialog aria-labelledby="admin-access-secret-title">
-    <div class="admin-access-secret-content"><div class="admin-probe-dialog-heading"><span class="admin-probe-dialog-icon"><i class="fa-solid fa-key" aria-hidden="true"></i></span><div><p class="admin-eyebrow" data-i18n="admin.access.secretEyebrow">Secret créé</p><h2 id="admin-access-secret-title" data-i18n="admin.access.secretTitle">Conservez ces identifiants</h2></div><button class="admin-icon-button" type="button" data-access-secret-close aria-label="Fermer" title="Fermer" data-i18n-aria-label="common.close" data-i18n-title="common.close"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div><p data-i18n="admin.access.secretOnce">Ils ne seront plus affichés après la fermeture.</p><div class="admin-access-secret-values" data-access-secret-values></div><div class="admin-probe-form-actions"><button class="admin-primary-button" type="button" data-access-secret-close><i class="fa-solid fa-check" aria-hidden="true"></i><span data-i18n="admin.access.done">Terminé</span></button></div></div>
+    <div class="admin-access-secret-content"><div class="admin-probe-dialog-heading"><span class="admin-probe-dialog-icon"><i class="fa-solid fa-key" aria-hidden="true"></i></span><div><p class="admin-eyebrow" data-i18n="admin.access.secretEyebrow">Secret created</p><h2 id="admin-access-secret-title" data-i18n="admin.access.secretTitle">Store these credentials</h2></div><button class="admin-icon-button" type="button" data-access-secret-close aria-label="Close" title="Close" data-i18n-aria-label="common.close" data-i18n-title="common.close"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div><p data-i18n="admin.access.secretOnce">They will not be displayed again after closing.</p><div class="admin-access-secret-values" data-access-secret-values></div><div class="admin-probe-form-actions"><button class="admin-primary-button" type="button" data-access-secret-close><i class="fa-solid fa-check" aria-hidden="true"></i><span data-i18n="admin.access.done">Done</span></button></div></div>
   </dialog>
   <dialog class="admin-probe-dialog" data-probe-dialog aria-labelledby="admin-probe-dialog-title">
     <form class="admin-probe-form" data-probe-form>
       <div class="admin-probe-dialog-heading">
         <span class="admin-probe-dialog-icon"><i class="fa-solid fa-heart-pulse" aria-hidden="true" data-probe-dialog-icon></i></span>
-        <div><p class="admin-eyebrow" data-i18n="admin.probes.eyebrow">Nouvelle cible</p><h2 id="admin-probe-dialog-title" data-probe-dialog-title>Créer une sonde</h2></div>
-        <button class="admin-icon-button" type="button" data-probe-close aria-label="Fermer" title="Fermer" data-i18n-aria-label="common.close" data-i18n-title="common.close"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+        <div><p class="admin-eyebrow" data-i18n="admin.probes.eyebrow">New target</p><h2 id="admin-probe-dialog-title" data-probe-dialog-title>Create a monitor</h2></div>
+        <button class="admin-icon-button" type="button" data-probe-close aria-label="Close" title="Close" data-i18n-aria-label="common.close" data-i18n-title="common.close"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
       </div>
       <div class="admin-probe-type-field" data-probe-type-field hidden>
-        <span data-i18n="admin.probes.type">Type de contrôle</span>
+        <span data-i18n="admin.probes.type">Check type</span>
         <div class="admin-probe-type-control">
           <label><input type="radio" name="probe_type" value="icmp" checked><span><i class="fa-solid fa-satellite-dish" aria-hidden="true"></i><span>ICMP</span></span></label>
           <label><input type="radio" name="probe_type" value="tcp"><span><i class="fa-solid fa-network-wired" aria-hidden="true"></i><span>TCP</span></span></label>
         </div>
       </div>
       <label class="admin-field">
-        <span data-probe-target-label data-i18n="admin.probes.url">URL du service</span>
+        <span data-probe-target-label data-i18n="admin.probes.url">Service URL</span>
         <span class="admin-input-wrap"><i class="fa-solid fa-link" aria-hidden="true" data-probe-target-icon></i><input type="text" name="target" required maxlength="255" autocomplete="off" spellcheck="false" data-probe-target></span>
         <span class="admin-field-hint" data-probe-target-hint></span>
       </label>
       <label class="admin-field">
-        <span data-i18n="admin.probes.interval">Fréquence de contrôle</span>
-        <span class="admin-select-wrap"><i class="fa-regular fa-clock" aria-hidden="true"></i><select name="interval_sec"><option value="60" data-i18n="admin.probes.everyMinute">Toutes les minutes</option><option value="120" data-i18n="admin.probes.everyTwoMinutes">Toutes les 2 minutes</option><option value="300" data-i18n="admin.probes.everyFiveMinutes">Toutes les 5 minutes</option><option value="600" data-i18n="admin.probes.everyTenMinutes">Toutes les 10 minutes</option><option value="1800" data-i18n="admin.probes.everyThirtyMinutes">Toutes les 30 minutes</option></select></span>
+        <span data-i18n="admin.probes.interval">Check frequency</span>
+        <span class="admin-select-wrap"><i class="fa-regular fa-clock" aria-hidden="true"></i><select name="interval_sec"><option value="60" data-i18n="admin.probes.everyMinute">Every minute</option><option value="120" data-i18n="admin.probes.everyTwoMinutes">Every 2 minutes</option><option value="300" data-i18n="admin.probes.everyFiveMinutes">Every 5 minutes</option><option value="600" data-i18n="admin.probes.everyTenMinutes">Every 10 minutes</option><option value="1800" data-i18n="admin.probes.everyThirtyMinutes">Every 30 minutes</option></select></span>
       </label>
       <div class="admin-probe-feedback" data-probe-feedback role="alert" hidden></div>
       <div class="admin-probe-form-actions">
-        <button class="admin-secondary-button" type="button" data-probe-close data-i18n="admin.probes.cancel">Annuler</button>
-        <button class="admin-primary-button" type="submit" data-probe-submit><i class="fa-solid fa-plus" aria-hidden="true" data-probe-submit-icon></i><span data-i18n="admin.probes.submit" data-probe-submit-label>Créer la sonde</span></button>
+        <button class="admin-secondary-button" type="button" data-probe-close data-i18n="admin.probes.cancel">Cancel</button>
+        <button class="admin-primary-button" type="submit" data-probe-submit><i class="fa-solid fa-plus" aria-hidden="true" data-probe-submit-icon></i><span data-i18n="admin.probes.submit" data-probe-submit-label>Create monitor</span></button>
       </div>
     </form>
   </dialog>
   <dialog class="admin-confirm-dialog" data-probe-delete-dialog aria-labelledby="admin-probe-delete-title">
     <div class="admin-confirm-content">
       <span class="admin-confirm-icon"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></span>
-      <div><p class="admin-eyebrow" data-i18n="admin.probes.deleteEyebrow">Suppression</p><h2 id="admin-probe-delete-title" data-i18n="admin.probes.deleteTitle">Supprimer cette sonde ?</h2><p data-i18n="admin.probes.deleteDescription">Son historique, ses incidents et ses statistiques seront également supprimés.</p><strong data-probe-delete-target></strong></div>
+      <div><p class="admin-eyebrow" data-i18n="admin.probes.deleteEyebrow">Deletion</p><h2 id="admin-probe-delete-title" data-i18n="admin.probes.deleteTitle">Delete this monitor?</h2><p data-i18n="admin.probes.deleteDescription">Its history, incidents, and statistics will also be deleted.</p><strong data-probe-delete-target></strong></div>
       <div class="admin-probe-feedback" data-probe-delete-feedback role="alert" hidden></div>
       <div class="admin-probe-form-actions">
-        <button class="admin-secondary-button" type="button" data-probe-delete-close data-i18n="admin.probes.cancel">Annuler</button>
-        <button class="admin-primary-button is-destructive" type="button" data-probe-delete-confirm><i class="fa-regular fa-trash-can" aria-hidden="true"></i><span data-i18n="admin.probes.confirmDelete">Supprimer</span></button>
+        <button class="admin-secondary-button" type="button" data-probe-delete-close data-i18n="admin.probes.cancel">Cancel</button>
+        <button class="admin-primary-button is-destructive" type="button" data-probe-delete-confirm><i class="fa-regular fa-trash-can" aria-hidden="true"></i><span data-i18n="admin.probes.confirmDelete">Delete</span></button>
       </div>
     </div>
   </dialog>
@@ -994,67 +994,67 @@ insight_admin_page_start('admin.meta.dashboardTitle', 'admin.meta.dashboardDescr
     <form class="admin-notification-form" data-notification-form>
       <div class="admin-probe-dialog-heading">
         <span class="admin-probe-dialog-icon"><i class="fa-regular fa-bell" aria-hidden="true" data-notification-dialog-icon></i></span>
-        <div><p class="admin-eyebrow" data-i18n="admin.notifications.channelEyebrow">Destination</p><h2 id="admin-notification-dialog-title" data-notification-dialog-title data-i18n="admin.notifications.createTitle">Créer un canal</h2></div>
-        <button class="admin-icon-button" type="button" data-notification-close aria-label="Fermer" title="Fermer" data-i18n-aria-label="common.close" data-i18n-title="common.close"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+        <div><p class="admin-eyebrow" data-i18n="admin.notifications.channelEyebrow">Destination</p><h2 id="admin-notification-dialog-title" data-notification-dialog-title data-i18n="admin.notifications.createTitle">Create channel</h2></div>
+        <button class="admin-icon-button" type="button" data-notification-close aria-label="Close" title="Close" data-i18n-aria-label="common.close" data-i18n-title="common.close"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
       </div>
       <div class="admin-notification-primary-fields">
-        <label class="admin-field"><span data-i18n="admin.notifications.name">Nom</span><span class="admin-input-wrap"><i class="fa-solid fa-tag" aria-hidden="true"></i><input type="text" name="name" maxlength="120" required autocomplete="off" placeholder="Astreinte principale" data-i18n-placeholder="admin.notifications.namePlaceholder"></span></label>
+        <label class="admin-field"><span data-i18n="admin.notifications.name">Name</span><span class="admin-input-wrap"><i class="fa-solid fa-tag" aria-hidden="true"></i><input type="text" name="name" maxlength="120" required autocomplete="off" placeholder="Primary on-call" data-i18n-placeholder="admin.notifications.namePlaceholder"></span></label>
         <label class="admin-field"><span data-i18n="admin.notifications.provider">Service</span><span class="admin-select-wrap"><i class="fa-solid fa-plug" aria-hidden="true"></i><select name="provider" data-notification-provider><?php foreach ($notificationCatalog as $provider): ?><option value="<?= insight_admin_escape((string)$provider['id']) ?>" data-mode="<?= insight_admin_escape((string)$provider['mode']) ?>" data-icon="<?= insight_admin_escape((string)$provider['icon']) ?>"><?= insight_admin_escape((string)$provider['label']) ?></option><?php endforeach; ?></select></span></label>
       </div>
       <div class="admin-notification-config" data-notification-config="smtp">
         <div class="admin-notification-field-grid is-three">
-          <label class="admin-field"><span data-i18n="admin.notifications.smtpHost">Serveur SMTP</span><span class="admin-input-wrap"><i class="fa-solid fa-server" aria-hidden="true"></i><input type="text" name="smtp_host" maxlength="255" autocomplete="off" placeholder="smtp.example.com"></span></label>
+          <label class="admin-field"><span data-i18n="admin.notifications.smtpHost">SMTP server</span><span class="admin-input-wrap"><i class="fa-solid fa-server" aria-hidden="true"></i><input type="text" name="smtp_host" maxlength="255" autocomplete="off" placeholder="smtp.example.com"></span></label>
           <label class="admin-field"><span data-i18n="admin.notifications.smtpPort">Port</span><span class="admin-input-wrap"><i class="fa-solid fa-hashtag" aria-hidden="true"></i><input type="number" name="smtp_port" min="1" max="65535" value="465"></span></label>
-          <label class="admin-field"><span data-i18n="admin.notifications.smtpEncryption">Chiffrement</span><span class="admin-select-wrap"><i class="fa-solid fa-lock" aria-hidden="true"></i><select name="smtp_encryption"><option value="ssl">SSL</option><option value="tls">STARTTLS</option><option value="none" data-i18n="admin.notifications.none">Aucun</option></select></span></label>
+          <label class="admin-field"><span data-i18n="admin.notifications.smtpEncryption">Encryption</span><span class="admin-select-wrap"><i class="fa-solid fa-lock" aria-hidden="true"></i><select name="smtp_encryption"><option value="ssl">SSL</option><option value="tls">STARTTLS</option><option value="none" data-i18n="admin.notifications.none">None</option></select></span></label>
         </div>
         <div class="admin-notification-field-grid">
-          <label class="admin-field"><span data-i18n="admin.notifications.username">Identifiant</span><span class="admin-input-wrap"><i class="fa-regular fa-user" aria-hidden="true"></i><input type="text" name="smtp_username" maxlength="255" autocomplete="username"></span></label>
-          <label class="admin-field"><span data-i18n="admin.notifications.password">Mot de passe</span><span class="admin-input-wrap"><i class="fa-solid fa-key" aria-hidden="true"></i><input type="password" name="smtp_password" maxlength="2000" autocomplete="new-password" data-secret-field></span></label>
+          <label class="admin-field"><span data-i18n="admin.notifications.username">Username</span><span class="admin-input-wrap"><i class="fa-regular fa-user" aria-hidden="true"></i><input type="text" name="smtp_username" maxlength="255" autocomplete="username"></span></label>
+          <label class="admin-field"><span data-i18n="admin.notifications.password">Password</span><span class="admin-input-wrap"><i class="fa-solid fa-key" aria-hidden="true"></i><input type="password" name="smtp_password" maxlength="2000" autocomplete="new-password" data-secret-field></span></label>
         </div>
         <div class="admin-notification-field-grid">
-          <label class="admin-field"><span data-i18n="admin.notifications.fromEmail">Adresse d’envoi</span><span class="admin-input-wrap"><i class="fa-solid fa-at" aria-hidden="true"></i><input type="email" name="smtp_from_email" maxlength="320" autocomplete="email"></span></label>
-          <label class="admin-field"><span data-i18n="admin.notifications.fromName">Nom d’envoi</span><span class="admin-input-wrap"><i class="fa-solid fa-signature" aria-hidden="true"></i><input type="text" name="smtp_from_name" maxlength="120" value="<?= insight_admin_escape($appName) ?>"></span></label>
+          <label class="admin-field"><span data-i18n="admin.notifications.fromEmail">From address</span><span class="admin-input-wrap"><i class="fa-solid fa-at" aria-hidden="true"></i><input type="email" name="smtp_from_email" maxlength="320" autocomplete="email"></span></label>
+          <label class="admin-field"><span data-i18n="admin.notifications.fromName">From name</span><span class="admin-input-wrap"><i class="fa-solid fa-signature" aria-hidden="true"></i><input type="text" name="smtp_from_name" maxlength="120" value="<?= insight_admin_escape($appName) ?>"></span></label>
         </div>
-        <label class="admin-field"><span data-i18n="admin.notifications.recipients">Destinataires</span><textarea class="admin-textarea" name="smtp_to" rows="2" maxlength="2000" placeholder="ops@example.com, admin@example.com"></textarea></label>
+        <label class="admin-field"><span data-i18n="admin.notifications.recipients">Recipients</span><textarea class="admin-textarea" name="smtp_to" rows="2" maxlength="2000" placeholder="ops@example.com, admin@example.com"></textarea></label>
       </div>
       <div class="admin-notification-config" data-notification-config="webhook" hidden>
         <div class="admin-notification-field-grid is-endpoint">
-          <label class="admin-field"><span data-i18n="admin.notifications.webhookUrl">URL du webhook</span><span class="admin-input-wrap"><i class="fa-solid fa-link" aria-hidden="true"></i><input type="password" name="webhook_url" maxlength="4000" autocomplete="new-password" data-secret-field placeholder="https://hooks.example.com/…"></span></label>
-          <label class="admin-field"><span data-i18n="admin.notifications.method">Méthode</span><span class="admin-select-wrap"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i><select name="webhook_method"><option>POST</option><option>PUT</option><option>PATCH</option></select></span></label>
+          <label class="admin-field"><span data-i18n="admin.notifications.webhookUrl">Webhook URL</span><span class="admin-input-wrap"><i class="fa-solid fa-link" aria-hidden="true"></i><input type="password" name="webhook_url" maxlength="4000" autocomplete="new-password" data-secret-field placeholder="https://hooks.example.com/…"></span></label>
+          <label class="admin-field"><span data-i18n="admin.notifications.method">Method</span><span class="admin-select-wrap"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i><select name="webhook_method"><option>POST</option><option>PUT</option><option>PATCH</option></select></span></label>
         </div>
-        <label class="admin-field"><span data-i18n="admin.notifications.headers">En-têtes JSON</span><textarea class="admin-textarea" name="webhook_headers" rows="3" maxlength="10000" data-secret-field placeholder='{"Authorization":"Bearer …"}'></textarea></label>
-        <label class="admin-field"><span data-i18n="admin.notifications.payload">Corps JSON personnalisé</span><textarea class="admin-textarea admin-code-textarea" name="webhook_payload" rows="5" maxlength="20000" placeholder='{"title":"{{ title }}","message":"{{ body }}"}'></textarea></label>
+        <label class="admin-field"><span data-i18n="admin.notifications.headers">JSON headers</span><textarea class="admin-textarea" name="webhook_headers" rows="3" maxlength="10000" data-secret-field placeholder='{"Authorization":"Bearer …"}'></textarea></label>
+        <label class="admin-field"><span data-i18n="admin.notifications.payload">Custom JSON body</span><textarea class="admin-textarea admin-code-textarea" name="webhook_payload" rows="5" maxlength="20000" placeholder='{"title":"{{ title }}","message":"{{ body }}"}'></textarea></label>
       </div>
       <div class="admin-notification-config" data-notification-config="free_mobile" hidden>
         <div class="admin-notification-field-grid">
-          <label class="admin-field"><span data-i18n="admin.notifications.freeUser">Identifiant Free Mobile</span><span class="admin-input-wrap"><i class="fa-regular fa-user" aria-hidden="true"></i><input type="text" name="free_user" maxlength="120" autocomplete="off"></span></label>
-          <label class="admin-field"><span data-i18n="admin.notifications.freePassword">Clé d’identification</span><span class="admin-input-wrap"><i class="fa-solid fa-key" aria-hidden="true"></i><input type="password" name="free_password" maxlength="2000" autocomplete="new-password" data-secret-field></span></label>
+          <label class="admin-field"><span data-i18n="admin.notifications.freeUser">Free Mobile username</span><span class="admin-input-wrap"><i class="fa-regular fa-user" aria-hidden="true"></i><input type="text" name="free_user" maxlength="120" autocomplete="off"></span></label>
+          <label class="admin-field"><span data-i18n="admin.notifications.freePassword">Identification key</span><span class="admin-input-wrap"><i class="fa-solid fa-key" aria-hidden="true"></i><input type="password" name="free_password" maxlength="2000" autocomplete="new-password" data-secret-field></span></label>
         </div>
       </div>
       <div class="admin-notification-config" data-notification-config="apprise" hidden>
-        <label class="admin-field"><span data-i18n="admin.notifications.appriseUrls">URL de notification Apprise</span><textarea class="admin-textarea admin-code-textarea" name="apprise_urls" rows="4" maxlength="30000" data-secret-field placeholder="discord://…&#10;ntfys://…"></textarea><span class="admin-field-hint" data-i18n="admin.notifications.appriseHint">Une URL par ligne. Les 138+ services Apprise sont acceptés.</span></label>
+        <label class="admin-field"><span data-i18n="admin.notifications.appriseUrls">Apprise notification URL</span><textarea class="admin-textarea admin-code-textarea" name="apprise_urls" rows="4" maxlength="30000" data-secret-field placeholder="discord://…&#10;ntfys://…"></textarea><span class="admin-field-hint" data-i18n="admin.notifications.appriseHint">One URL per line. All 138+ Apprise services are accepted.</span></label>
       </div>
       <fieldset class="admin-notification-events">
-        <legend data-i18n="admin.notifications.triggerOn">Déclencher pour</legend>
-        <label><input type="checkbox" name="events" value="monitor_down" checked><span><i class="fa-solid fa-arrow-trend-down" aria-hidden="true"></i><span data-i18n="admin.notifications.eventMonitorDown">Moniteur hors ligne</span></span></label>
-        <label><input type="checkbox" name="events" value="monitor_up" checked><span><i class="fa-solid fa-arrow-trend-up" aria-hidden="true"></i><span data-i18n="admin.notifications.eventMonitorUp">Moniteur rétabli</span></span></label>
-        <label><input type="checkbox" name="events" value="incident_open" checked><span><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span data-i18n="admin.notifications.eventIncidentOpen">Incident ouvert</span></span></label>
-        <label><input type="checkbox" name="events" value="incident_resolved" checked><span><i class="fa-solid fa-circle-check" aria-hidden="true"></i><span data-i18n="admin.notifications.eventIncidentResolved">Incident résolu</span></span></label>
+        <legend data-i18n="admin.notifications.triggerOn">Trigger for</legend>
+        <label><input type="checkbox" name="events" value="monitor_down" checked><span><i class="fa-solid fa-arrow-trend-down" aria-hidden="true"></i><span data-i18n="admin.notifications.eventMonitorDown">Monitor down</span></span></label>
+        <label><input type="checkbox" name="events" value="monitor_up" checked><span><i class="fa-solid fa-arrow-trend-up" aria-hidden="true"></i><span data-i18n="admin.notifications.eventMonitorUp">Monitor recovered</span></span></label>
+        <label><input type="checkbox" name="events" value="incident_open" checked><span><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span data-i18n="admin.notifications.eventIncidentOpen">Incident opened</span></span></label>
+        <label><input type="checkbox" name="events" value="incident_resolved" checked><span><i class="fa-solid fa-circle-check" aria-hidden="true"></i><span data-i18n="admin.notifications.eventIncidentResolved">Incident resolved</span></span></label>
       </fieldset>
-      <label class="admin-switch"><input type="checkbox" name="enabled" checked><span aria-hidden="true"></span><span><strong data-i18n="admin.notifications.enabled">Canal actif</strong><small data-i18n="admin.notifications.enabledHint">Reçoit les alertes sélectionnées.</small></span></label>
+      <label class="admin-switch"><input type="checkbox" name="enabled" checked><span aria-hidden="true"></span><span><strong data-i18n="admin.notifications.enabled">Active channel</strong><small data-i18n="admin.notifications.enabledHint">Receives the selected alerts.</small></span></label>
       <div class="admin-probe-feedback" data-notification-feedback role="alert" hidden></div>
       <div class="admin-probe-form-actions">
-        <button class="admin-secondary-button" type="button" data-notification-close data-i18n="admin.probes.cancel">Annuler</button>
-        <button class="admin-primary-button" type="submit" data-notification-submit><i class="fa-solid fa-check" aria-hidden="true"></i><span data-notification-submit-label data-i18n="admin.notifications.create">Créer le canal</span></button>
+        <button class="admin-secondary-button" type="button" data-notification-close data-i18n="admin.probes.cancel">Cancel</button>
+        <button class="admin-primary-button" type="submit" data-notification-submit><i class="fa-solid fa-check" aria-hidden="true"></i><span data-notification-submit-label data-i18n="admin.notifications.create">Create channel</span></button>
       </div>
     </form>
   </dialog>
   <dialog class="admin-confirm-dialog" data-notification-delete-dialog aria-labelledby="admin-notification-delete-title">
     <div class="admin-confirm-content">
       <span class="admin-confirm-icon"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></span>
-      <div><p class="admin-eyebrow" data-i18n="admin.notifications.deleteEyebrow">Suppression</p><h2 id="admin-notification-delete-title" data-i18n="admin.notifications.deleteTitle">Supprimer ce canal ?</h2><p data-i18n="admin.notifications.deleteDescription">Les prochains événements ne seront plus envoyés vers cette destination.</p><strong data-notification-delete-target></strong></div>
+      <div><p class="admin-eyebrow" data-i18n="admin.notifications.deleteEyebrow">Deletion</p><h2 id="admin-notification-delete-title" data-i18n="admin.notifications.deleteTitle">Delete this channel?</h2><p data-i18n="admin.notifications.deleteDescription">Future events will no longer be sent to this destination.</p><strong data-notification-delete-target></strong></div>
       <div class="admin-probe-feedback" data-notification-delete-feedback role="alert" hidden></div>
-      <div class="admin-probe-form-actions"><button class="admin-secondary-button" type="button" data-notification-delete-close data-i18n="admin.probes.cancel">Annuler</button><button class="admin-primary-button is-destructive" type="button" data-notification-delete-confirm><i class="fa-regular fa-trash-can" aria-hidden="true"></i><span data-i18n="admin.notifications.confirmDelete">Supprimer</span></button></div>
+      <div class="admin-probe-form-actions"><button class="admin-secondary-button" type="button" data-notification-delete-close data-i18n="admin.probes.cancel">Cancel</button><button class="admin-primary-button is-destructive" type="button" data-notification-delete-confirm><i class="fa-regular fa-trash-can" aria-hidden="true"></i><span data-i18n="admin.notifications.confirmDelete">Delete</span></button></div>
     </div>
   </dialog>
 <?php insight_admin_page_end(); ?>

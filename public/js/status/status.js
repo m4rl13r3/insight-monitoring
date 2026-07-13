@@ -20,7 +20,7 @@ function calculateAvailability(hours) {
     });
 
     const availableKnownMinutes = Math.max(0, knownMinutes - offlineKnownMinutes);
-    // QoS strict: disponibilité réellement observée rapportée au temps total (24h).
+    // Strict QoS: observed availability divided by total time over 24 hours.
     const qualityPercent = (availableKnownMinutes / totalMinutes) * 100;
     const coveragePercent = (knownMinutes / totalMinutes) * 100;
 

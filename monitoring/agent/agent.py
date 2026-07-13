@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from python_monitoring.monitor import run_manual_check
 
 
-VERSION = "0.1.2"
+VERSION = "0.1.3"
 
 
 def env_bool(name: str, default: bool = False) -> bool:
@@ -317,9 +317,9 @@ class HubClient:
         try:
             result = json.loads(response_body)
         except json.JSONDecodeError as error:
-            raise AgentHttpError(0, "Réponse JSON invalide du hub.") from error
+            raise AgentHttpError(0, "Invalid JSON response from the hub.") from error
         if not isinstance(result, dict):
-            raise AgentHttpError(0, "Réponse du hub non structurée.")
+            raise AgentHttpError(0, "Hub response is not structured.")
         return result
 
 
@@ -333,11 +333,11 @@ class InsightAgent:
         self.node_key = (os.getenv("INSIGHT_AGENT_NODE_KEY") or "").strip().lower()
         self.secret = (os.getenv("INSIGHT_AGENT_SECRET") or "").strip()
         if not self.endpoint:
-            raise RuntimeError("INSIGHT_HUB_URL ou INSIGHT_AGENT_ENDPOINT est requis.")
+            raise RuntimeError("INSIGHT_HUB_URL or INSIGHT_AGENT_ENDPOINT is required.")
         if re.fullmatch(r"[a-z0-9][a-z0-9._-]{2,63}", self.node_key) is None:
-            raise RuntimeError("INSIGHT_AGENT_NODE_KEY est invalide.")
+            raise RuntimeError("INSIGHT_AGENT_NODE_KEY is invalid.")
         if len(self.secret) < 32:
-            raise RuntimeError("INSIGHT_AGENT_SECRET doit contenir au moins 32 caractères.")
+            raise RuntimeError("INSIGHT_AGENT_SECRET must contain at least 32 characters.")
         self.display_name = (os.getenv("INSIGHT_AGENT_DISPLAY_NAME") or self.node_key).strip()
         self.region = (os.getenv("INSIGHT_AGENT_REGION") or "").strip()
         self.zone = (os.getenv("INSIGHT_AGENT_ZONE") or "").strip()
@@ -395,7 +395,7 @@ class InsightAgent:
 
     def apply_config(self, config: Any) -> None:
         if not isinstance(config, dict) or not isinstance(config.get("targets"), list):
-            raise RuntimeError("Configuration distribuée invalide.")
+            raise RuntimeError("Invalid distributed configuration.")
         targets = [target for target in config["targets"] if isinstance(target, dict)]
         self.targets = targets
         self.batch_size = max(1, min(1000, int(config.get("batch_size") or self.batch_size)))
@@ -413,7 +413,7 @@ class InsightAgent:
         )
         self.apply_config(response.get("config"))
         self.next_config_at = time.time() + self.config_refresh
-        log(f"Configuration reçue: {len(self.targets)} cible(s), lot de {self.batch_size}.")
+        log(f"Configuration received: {len(self.targets)} target(s), batch size {self.batch_size}.")
 
     def send_heartbeat(self) -> None:
         stats = self.spool.stats()
@@ -462,7 +462,7 @@ class InsightAgent:
             "tcp": os.getenv("INSIGHT_AGENT_BLACKBOX_TCP_MODULE") or "tcp_connect",
         }
         if probe_type not in module_by_type:
-            raise RuntimeError(f"Type de sonde Blackbox non pris en charge: {probe_type}.")
+            raise RuntimeError(f"Unsupported Blackbox probe type: {probe_type}.")
         module = module_by_type[probe_type]
         probe_target = str(target.get("url") or "")
         if probe_type in {"icmp", "ping"}:
@@ -488,7 +488,7 @@ class InsightAgent:
         duration = metric("probe_duration_seconds")
         http_code = metric("probe_http_status_code")
         if success is None:
-            raise RuntimeError("Blackbox Exporter n’a pas renvoyé probe_success.")
+            raise RuntimeError("Blackbox Exporter did not return probe_success.")
         return {
             "http_code": int(http_code) if http_code is not None else None,
             "metadata": {"adapter": "blackbox", "module": module},
@@ -507,10 +507,10 @@ class InsightAgent:
         }
         probe_type = str(target.get("probe_type") or "http").lower()
         if probe_type not in {"http", "icmp", "ping", "tcp"}:
-            raise RuntimeError(f"La sonde {probe_type} nécessite Blackbox Exporter.")
+            raise RuntimeError(f"The {probe_type} probe requires Blackbox Exporter.")
         manual = run_manual_check(str(target.get("url") or ""), probe_type, config)
         if not manual.get("ok"):
-            raise RuntimeError(str(manual.get("message") or "Sonde native invalide."))
+            raise RuntimeError(str(manual.get("message") or "Invalid native probe."))
         result = manual.get("result") if isinstance(manual.get("result"), dict) else {}
         return {
             "http_code": result.get("http_code"),
@@ -590,7 +590,7 @@ class InsightAgent:
             for target in due:
                 interval = max(10, int(target.get("interval_sec") or 60))
                 self.spool.schedule(int(target["site_id"]), current_time + min(30, interval))
-            log(f"Connectivité locale indisponible: {len(due)} sonde(s) différée(s).", "warning")
+            log(f"Local connectivity unavailable: {len(due)} probe(s) delayed.", "warning")
             return 0
         completed = 0
         workers = min(self.concurrency, len(due))
@@ -605,8 +605,8 @@ class InsightAgent:
                 self.spool.schedule(site_id, time.time() + interval)
                 completed += 1
                 if dropped:
-                    log(f"Spool saturé: {dropped} ancienne(s) mesure(s) supprimée(s).", "warning")
-        log(f"{completed} sonde(s) exécutée(s) depuis {self.node_key}.")
+                    log(f"Spool full: {dropped} old sample(s) deleted.", "warning")
+        log(f"{completed} probe(s) executed from {self.node_key}.")
         return completed
 
     def flush(self, maximum_batches: int = 10) -> int:
@@ -625,49 +625,49 @@ class InsightAgent:
                 self.spool.complete_batch(batch_id)
                 sent += 1
                 if rejected:
-                    log(f"Lot {batch_id[:12]} accepté avec {rejected} rejet(s).", "warning")
+                    log(f"Batch {batch_id[:12]} accepted with {rejected} rejection(s).", "warning")
             except AgentHttpError as error:
                 delay = self.spool.retry_batch(batch_id, attempts)
                 log(
-                    f"Envoi du lot {batch_id[:12]} impossible ({error.status or 'réseau'}): {error}. Nouvelle tentative dans {delay:.1f} s.",
+                    f"Unable to send batch {batch_id[:12]} ({error.status or 'network'}): {error}. Retrying in {delay:.1f} s.",
                     "warning",
                 )
                 break
         return sent
 
     def run(self) -> None:
-        log(f"Insight Agent {VERSION} démarre sur le nœud {self.node_key}.")
+        log(f"Insight Agent {VERSION} starting on node {self.node_key}.")
         while True:
             current_time = time.time()
             previous_connectivity = self.connectivity_status
             self.connectivity_status = self.check_connectivity()
             if self.connectivity_status != previous_connectivity:
-                log(f"Connectivité locale: {self.connectivity_status}.")
+                log(f"Local connectivity: {self.connectivity_status}.")
             if self.once or current_time >= self.next_config_at:
                 try:
                     self.fetch_config()
                 except AgentHttpError as error:
                     self.next_config_at = time.time() + min(60, self.config_refresh)
-                    log(f"Configuration du hub indisponible ({error.status or 'réseau'}): {error}.", "warning")
+                    log(f"Hub configuration unavailable ({error.status or 'network'}): {error}.", "warning")
             if self.once or current_time >= self.next_heartbeat_at:
                 try:
                     self.send_heartbeat()
                 except AgentHttpError as error:
                     self.next_heartbeat_at = time.time() + min(30, self.heartbeat_interval)
-                    log(f"Heartbeat indisponible ({error.status or 'réseau'}): {error}.", "warning")
+                    log(f"Heartbeat unavailable ({error.status or 'network'}): {error}.", "warning")
             self.flush()
             self.run_due_probes(force=self.once)
             self.flush()
             if self.once:
                 stats = self.spool.stats()
-                log(f"Exécution unique terminée: {stats['samples']} mesure(s) et {stats['batches']} lot(s) en attente.")
+                log(f"Single run complete: {stats['samples']} sample(s) and {stats['batches']} pending batch(es).")
                 return
             time.sleep(self.loop_sleep)
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Agent de monitoring distribué Insight")
-    parser.add_argument("--once", action="store_true", help="Exécute un cycle puis s’arrête")
+    parser = argparse.ArgumentParser(description="Insight distributed monitoring agent")
+    parser.add_argument("--once", action="store_true", help="Run one cycle and stop")
     parser.add_argument("--version", action="version", version=f"Insight Agent {VERSION}")
     arguments = parser.parse_args()
     agent = None
@@ -676,7 +676,7 @@ def main() -> int:
         agent.run()
         return 0
     except KeyboardInterrupt:
-        log("Arrêt demandé.")
+        log("Shutdown requested.")
         return 0
     except Exception as error:
         log(str(error), "error")

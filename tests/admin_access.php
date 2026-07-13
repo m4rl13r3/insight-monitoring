@@ -41,12 +41,12 @@ $_SERVER['SCRIPT_FILENAME'] = __FILE__;
 require dirname(__DIR__) . '/public/admin/_oidc.php';
 
 try {
-    insight_test_access_assert(!insight_access_feature_enabled('headless_api_enabled'), 'L’API devrait être désactivée par défaut.');
-    insight_test_access_assert(!insight_access_feature_enabled('oauth_provider_enabled'), 'OIDC devrait être désactivé par défaut.');
+    insight_test_access_assert(!insight_access_feature_enabled('headless_api_enabled'), 'The API should be disabled by default.');
+    insight_test_access_assert(!insight_access_feature_enabled('oauth_provider_enabled'), 'OIDC should be disabled by default.');
 
     $password = 'Insight-access-2026!';
     $createdAdmin = insight_auth_create_first_admin('admin', $password, $password, false);
-    insight_test_access_assert(($createdAdmin['ok'] ?? false) === true, 'Le compte de test n’a pas été créé.');
+    insight_test_access_assert(($createdAdmin['ok'] ?? false) === true, 'The test account was not created.');
     $user = insight_auth_current_user();
     insight_test_access_assert(is_array($user), 'La session locale est absente.');
 
@@ -55,33 +55,33 @@ try {
         'scopes' => ['status:read', 'monitors:read'],
         'expires_in_days' => 30,
     ], $user);
-    insight_test_access_assert(($createdToken['ok'] ?? false) === true, 'Le jeton API n’a pas été créé.');
+    insight_test_access_assert(($createdToken['ok'] ?? false) === true, 'The API token was not created.');
     $plainToken = (string)$createdToken['token'];
     $storedToken = insight_auth_db()->query('SELECT token_hash FROM auth_api_tokens LIMIT 1')->fetchColumn();
-    insight_test_access_assert($storedToken === hash('sha256', $plainToken), 'Le hachage du jeton API est invalide.');
-    insight_test_access_assert(!str_contains((string)$storedToken, $plainToken), 'Le jeton API a été stocké en clair.');
+    insight_test_access_assert($storedToken === hash('sha256', $plainToken), 'The API token hash is invalid.');
+    insight_test_access_assert(!str_contains((string)$storedToken, $plainToken), 'The API token was stored in plain text.');
 
     insight_access_set_feature('headless_api_enabled', true);
     $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $plainToken;
     $apiIdentity = insight_access_authenticate_bearer(['status:read']);
-    insight_test_access_assert(($apiIdentity['kind'] ?? '') === 'pat', 'Le jeton API valide a été refusé.');
+    insight_test_access_assert(($apiIdentity['kind'] ?? '') === 'pat', 'A valid API token was rejected.');
     $forbidden = insight_access_authenticate_bearer(['monitors:write']);
-    insight_test_access_assert(($forbidden['forbidden'] ?? false) === true, 'Une permission absente a été accordée.');
+    insight_test_access_assert(($forbidden['forbidden'] ?? false) === true, 'A missing permission was granted.');
 
     $revoked = insight_access_revoke_token((int)$createdToken['item']['id'], $user);
-    insight_test_access_assert(($revoked['ok'] ?? false) === true, 'La révocation du jeton a échoué.');
-    insight_test_access_assert(insight_access_authenticate_bearer(['status:read']) === null, 'Le jeton révoqué fonctionne encore.');
+    insight_test_access_assert(($revoked['ok'] ?? false) === true, 'Token revocation failed.');
+    insight_test_access_assert(insight_access_authenticate_bearer(['status:read']) === null, 'The revoked token still works.');
 
     $createdClient = insight_access_create_oauth_client([
         'name' => 'Dashboard de test',
         'redirect_uris' => ['http://127.0.0.1:9000/callback'],
         'scopes' => ['openid', 'profile', 'status:read'],
     ], $user);
-    insight_test_access_assert(($createdClient['ok'] ?? false) === true, 'Le client OAuth n’a pas été créé.');
+    insight_test_access_assert(($createdClient['ok'] ?? false) === true, 'The OAuth client was not created.');
     $clientId = (string)$createdClient['client_id'];
     $clientSecret = (string)$createdClient['client_secret'];
     $storedSecret = insight_auth_db()->query('SELECT client_secret_hash FROM auth_oauth_clients LIMIT 1')->fetchColumn();
-    insight_test_access_assert(password_verify($clientSecret, (string)$storedSecret), 'Le secret OAuth n’est pas correctement haché.');
+    insight_test_access_assert(password_verify($clientSecret, (string)$storedSecret), 'The OAuth secret is not correctly hashed.');
 
     insight_access_set_feature('oauth_provider_enabled', true);
     $verifier = insight_access_base64url_encode(random_bytes(64));
@@ -96,12 +96,12 @@ try {
         'code_challenge' => $challenge,
         'code_challenge_method' => 'S256',
     ]);
-    insight_test_access_assert(($request['ok'] ?? false) === true, 'La demande OAuth valide a été refusée.');
+    insight_test_access_assert(($request['ok'] ?? false) === true, 'A valid OAuth request was rejected.');
     $invalidRedirect = insight_oauth_authorization_request(array_merge($request, [
         'response_type' => 'code',
         'redirect_uri' => 'http://127.0.0.1:9000/other',
     ]));
-    insight_test_access_assert(($invalidRedirect['ok'] ?? true) === false, 'Une URI de retour non enregistrée a été acceptée.');
+    insight_test_access_assert(($invalidRedirect['ok'] ?? true) === false, 'An unregistered redirect URI was accepted.');
 
     $code = insight_oauth_create_code($request, $user);
     $_SERVER['PHP_AUTH_USER'] = $clientId;
@@ -113,10 +113,10 @@ try {
         'code_verifier' => $verifier,
     ];
     $tokens = insight_oauth_exchange_code();
-    insight_test_access_assert(str_starts_with((string)$tokens['access_token'], 'insight_oat_'), 'Le jeton OAuth est absent.');
+    insight_test_access_assert(str_starts_with((string)$tokens['access_token'], 'insight_oat_'), 'The OAuth token is missing.');
     insight_test_access_assert(substr_count((string)$tokens['id_token'], '.') === 2, 'L’ID Token n’est pas un JWT.');
     $usedAt = insight_auth_db()->query('SELECT used_at FROM auth_oauth_codes LIMIT 1')->fetchColumn();
-    insight_test_access_assert((int)$usedAt > 0, 'Le code OAuth n’a pas été consommé.');
+    insight_test_access_assert((int)$usedAt > 0, 'The OAuth code was not consumed.');
 
     [$header, $payload, $signature] = explode('.', (string)$tokens['id_token']);
     $decodedSignature = insight_access_base64url_decode($signature);
@@ -124,15 +124,15 @@ try {
     insight_test_access_assert(
         is_string($decodedSignature)
         && openssl_verify($header . '.' . $payload, $decodedSignature, insight_oidc_jwk_public_key($jwk), OPENSSL_ALGO_SHA256) === 1,
-        'La signature RS256 de l’ID Token est invalide.'
+        'The ID Token RS256 signature is invalid.'
     );
     $claimsJson = insight_access_base64url_decode($payload);
     $claims = is_string($claimsJson) ? json_decode($claimsJson, true) : null;
-    insight_test_access_assert(is_array($claims) && ($claims['aud'] ?? '') === $clientId, 'L’audience de l’ID Token est invalide.');
+    insight_test_access_assert(is_array($claims) && ($claims['aud'] ?? '') === $clientId, 'The ID Token audience is invalid.');
 
     $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . (string)$tokens['access_token'];
     $oauthIdentity = insight_access_authenticate_bearer(['openid'], ['oauth']);
-    insight_test_access_assert(($oauthIdentity['kind'] ?? '') === 'oauth', 'Le jeton OAuth valide a été refusé.');
+    insight_test_access_assert(($oauthIdentity['kind'] ?? '') === 'oauth', 'A valid OAuth token was rejected.');
     insight_test_access_assert((insight_oauth_userinfo($oauthIdentity)['sub'] ?? '') !== '', 'Le profil OpenID est incomplet.');
 
     $ssoConfig = [
@@ -150,7 +150,7 @@ try {
         'email' => 'alice@example.com',
         'groups' => ['status-admins'],
     ], $ssoConfig);
-    insight_test_access_assert(($ssoIdentity['source'] ?? '') === 'oidc', 'L’identité SSO autorisée n’a pas été créée.');
+    insight_test_access_assert(($ssoIdentity['source'] ?? '') === 'oidc', 'The authorized SSO identity was not created.');
     putenv('INSIGHT_SSO_ENABLED=1');
     putenv('INSIGHT_SSO_ISSUER_URL=https://id.example.com');
     insight_auth_open_session($ssoIdentity, false);
@@ -159,15 +159,15 @@ try {
     insight_access_set_feature('oauth_provider_enabled', false);
     insight_test_access_assert(
         insight_access_authenticate_bearer(['openid'], ['oauth']) === null,
-        'La désactivation OIDC n’a pas révoqué les jetons actifs.'
+        'Disabling OIDC did not revoke active tokens.'
     );
     $deletedClient = insight_access_delete_oauth_client((int)$createdClient['item']['id'], $user);
-    insight_test_access_assert(($deletedClient['ok'] ?? false) === true, 'Le client OAuth n’a pas été supprimé.');
+    insight_test_access_assert(($deletedClient['ok'] ?? false) === true, 'The OAuth client was not deleted.');
     $oauthTokenCount = (int)insight_auth_db()->query('SELECT COUNT(*) FROM auth_oauth_access_tokens')->fetchColumn();
-    insight_test_access_assert($oauthTokenCount === 0, 'Les jetons du client supprimé existent encore.');
+    insight_test_access_assert($oauthTokenCount === 0, 'Tokens for the deleted client still exist.');
 
     insight_auth_destroy_session();
-    echo "API, OAuth et SSO validés.\n";
+    echo "API, OAuth, and SSO validated.\n";
 } finally {
     if (session_status() === PHP_SESSION_ACTIVE) {
         session_write_close();

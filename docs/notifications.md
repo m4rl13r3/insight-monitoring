@@ -1,76 +1,76 @@
-# Alertes et notifications
+# Alerts and notifications
 
-Insight envoie les changements d’état du moteur Python ou du consensus distribué vers les canaux configurés. Les canaux, abonnements, modèles et livraisons sont conservés dans MariaDB. Les secrets sont chiffrés avant écriture avec libsodium SecretBox.
+Insight sends state changes from the Python engine or distributed consensus to configured channels. Channels, subscriptions, templates, and deliveries are stored in MariaDB. Secrets are encrypted before storage with libsodium SecretBox.
 
-## Mise en service
+## Setup
 
-Le script `./scripts/install.sh` génère automatiquement la clé. Pour une installation manuelle :
+The `./scripts/install.sh` script automatically generates the key. For a manual installation:
 
 ```bash
 openssl rand -hex 32
 ```
 
-Placez le résultat dans `INSIGHT_NOTIFICATION_ENCRYPTION_KEY`, démarrez Insight, ouvrez **Administration → Alertes**, créez un canal puis utilisez son bouton de test. Quand les tests sont concluants :
+Place the result in `INSIGHT_NOTIFICATION_ENCRYPTION_KEY`, start Insight, open **Administration -> Alerts**, create a channel, and use its test button. Once testing succeeds:
 
 ```dotenv
 INSIGHT_DISABLE_NOTIFICATIONS=0
 ```
 
-Une modification de `.env` nécessite le redémarrage des services `php` et `worker`.
+Changing `.env` requires restarting the `php` and `worker` services.
 
-## Canaux
+## Channels
 
-Insight gère trois transports directement :
+Insight directly supports three transports:
 
-- SMTP avec SSL, STARTTLS ou connexion sans chiffrement pour un relais local.
-- Webhook HTTP en `POST`, `PUT` ou `PATCH`, avec en-têtes et corps JSON facultatifs.
-- API SMS Free Mobile.
+- SMTP with SSL, STARTTLS, or an unencrypted connection for a local relay.
+- HTTP webhooks using `POST`, `PUT`, or `PATCH`, with optional headers and JSON body.
+- Free Mobile SMS API.
 
-Tous les autres services passent par [Apprise](https://github.com/caronc/apprise). Le catalogue du dashboard propose les destinations courantes, tandis que l’entrée **Apprise · 138+ services** accepte n’importe quel schéma pris en charge. Collez une URL par ligne ; la [documentation des services Apprise](https://appriseit.com/services/) fournit le format propre à chaque fournisseur.
+All other services use [Apprise](https://github.com/caronc/apprise). The dashboard catalogue lists common destinations, while **Apprise - 138+ services** accepts any supported scheme. Enter one URL per line; the [Apprise service documentation](https://appriseit.com/services/) provides provider-specific formats.
 
-Les URL Apprise contiennent souvent un jeton. Insight les traite comme des secrets : elles restent vides lors d’une modification et une valeur vide conserve la configuration actuelle.
+Apprise URLs often contain a token. Insight treats them as secrets: they remain empty while editing, and an empty value preserves the current configuration.
 
-## Événements
+## Events
 
-Chaque canal peut s’abonner indépendamment à :
+Each channel can independently subscribe to:
 
-- `monitor_down` : une ou plusieurs cibles deviennent indisponibles.
-- `monitor_up` : les cibles répondent de nouveau.
-- `incident_open` : Insight ouvre un incident.
-- `incident_resolved` : Insight clôt un incident.
+- `monitor_down`: one or more targets become unavailable.
+- `monitor_up`: targets respond again.
+- `incident_open`: Insight opens an incident.
+- `incident_resolved`: Insight resolves an incident.
 
-Les changements simultanés d’un même domaine sont regroupés pour éviter une rafale de messages.
+Simultaneous changes within the same domain are grouped to avoid a burst of messages.
 
-## Messages Liquid
+## Liquid messages
 
-Le titre et le corps de chaque événement sont modifiables dans le dashboard. Le moteur utilise `python-liquid`, avec les variables sûres suivantes :
+The title and body of each event can be edited in the dashboard. The engine uses `python-liquid` with these safe variables:
 
-| Variable | Contenu |
+| Variable | Content |
 | --- | --- |
-| `app_name` | Nom public de l’instance |
-| `public_url` | URL de la page de statut |
-| `event` | Clé de l’événement |
-| `domain` | Domaine regroupant les cibles |
-| `sites` | Liste des cibles concernées |
-| `site_url` | Première cible du groupe |
-| `count` | Nombre de cibles concernées |
-| `status` | Nouvel état |
-| `message` | Contexte fourni par le moteur |
-| `timestamp` | Horodatage de l’envoi |
-| `channel_name` | Nom du canal destinataire |
+| `app_name` | Public instance name |
+| `public_url` | Status page URL |
+| `event` | Event key |
+| `domain` | Domain grouping the targets |
+| `sites` | List of affected targets |
+| `site_url` | First target in the group |
+| `count` | Number of affected targets |
+| `status` | New state |
+| `message` | Context supplied by the engine |
+| `timestamp` | Delivery timestamp |
+| `channel_name` | Destination channel name |
 
-Exemple :
+Example:
 
 ```liquid
-[{{ app_name }}] {{ domain }} est hors ligne
+[{{ app_name }}] {{ domain }} is offline
 
-{{ count }} service{% if count > 1 %}s sont{% else %} est{% endif %} indisponible{% if count > 1 %}s{% endif %} : {{ sites }}.
+{{ count }} service{% if count > 1 %}s are{% else %} is{% endif %} unavailable: {{ sites }}.
 ```
 
-Le dashboard valide la syntaxe avant l’enregistrement. Pour un webhook, un corps personnalisé peut également utiliser `title`, `body` et les variables de contexte ; le résultat doit être un document JSON.
+The dashboard validates syntax before saving. A custom webhook body can also use `title`, `body`, and context variables; the rendered result must be a JSON document.
 
-## Sauvegarde
+## Backup
 
-`./scripts/backup.sh` sauvegarde MariaDB et l’identité locale. Conservez en plus le fichier `.env`, ou au minimum `INSIGHT_NOTIFICATION_ENCRYPTION_KEY`, dans un coffre séparé. La clé n’est pas stockée dans la base et Insight ne possède aucun mécanisme de récupération. La remplacer sans déchiffrer puis rechiffrer les canaux rend les configurations existantes inutilisables.
+`./scripts/backup.sh` backs up MariaDB and local identity data. Also keep `.env`, or at least `INSIGHT_NOTIFICATION_ENCRYPTION_KEY`, in a separate vault. The key is not stored in the database and Insight has no recovery mechanism. Replacing it without decrypting and re-encrypting channels makes existing configurations unusable.
 
-Le journal de livraison conserve pendant 90 jours le canal, l’événement, le titre rendu et l’erreur éventuelle. Il ne conserve ni mot de passe, ni jeton, ni corps complet du message.
+The delivery log retains the channel, event, rendered title, and any error for 90 days. It never stores passwords, tokens, or the complete message body.

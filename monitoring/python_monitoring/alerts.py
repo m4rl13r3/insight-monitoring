@@ -50,7 +50,7 @@ def send_email_smtp(
         return False
 
     safe_subject = str(subject or "").strip() or "Updates monitoring"
-    display_name = str(to_name or "").strip() or "Membre équipe"
+    display_name = str(to_name or "").strip() or "Team member"
     sender_name = str(from_name or "").strip() or "Insight"
     encryption = str(smtp_encryption or "ssl").strip().lower()
 
@@ -61,9 +61,9 @@ def send_email_smtp(
     email_message.set_content(text)
     html = (
         "<html><body>"
-        f"<p>Bonjour {display_name},</p>"
+        f"<p>Hello {display_name},</p>"
         f"<p>{text}</p>"
-        "<p>Cordialement,<br>L’équipe Insight</p>"
+        "<p>Regards,<br>The Insight Team</p>"
         "</body></html>"
     )
     email_message.add_alternative(html, subtype="html")
@@ -107,17 +107,17 @@ def send_incident_alert(
     )
 
     if state == "open":
-        message = f"Dossier d'incident ouvert. {site_url} n'a pas répondu après plusieurs essais."
+        message = f"Incident opened. {site_url} did not respond after several attempts."
     elif state == "close":
         if timeout or pm_invalid:
             message = (
-                f"Dossier d'incident clos car {site_url} semble être à nouveau disponible. "
-                "Le rapport d'incident est indisponible, contactez l'équipe Insight."
+                f"Incident resolved because {site_url} appears to be available again. "
+                "The incident report is unavailable; contact the Insight Team."
             )
         else:
             message = (
-                f"Dossier d'incident clos car {site_url} semble être à nouveau disponible. "
-                f"Résumé de l'incident : {safe_pm_text[:280]}"
+                f"Incident resolved because {site_url} appears to be available again. "
+                f"Incident summary: {safe_pm_text[:280]}"
             )
     else:
         return False

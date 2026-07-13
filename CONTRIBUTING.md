@@ -1,19 +1,19 @@
-# Contribuer à Insight
+# Contributing to Insight
 
-Merci de contribuer à Insight.
+Thank you for contributing to Insight.
 
-## Préparer l’environnement
+## Prepare the environment
 
 ```bash
 cp .env.example .env
 docker compose up -d --build
 ```
 
-Travaillez sur une branche dédiée et gardez les changements centrés sur un problème précis. N’ajoutez jamais de secrets, de journaux, de captures de débogage ni de données provenant d’une instance réelle.
+Work on a dedicated branch and keep changes focused on a specific problem. Never add secrets, logs, debugging screenshots, or data from a real instance.
 
-## Vérifications attendues
+## Required checks
 
-Le contrôle de release nécessite `rg` (ripgrep).
+The release check requires `rg` (ripgrep).
 
 ```bash
 find . -name '*.php' -print0 | xargs -0 -n1 php -l
@@ -29,14 +29,14 @@ php tests/distributed_consensus.php
 python3 -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
-Pour les changements de comportement, vérifiez aussi la page publique, le contrat JSON v2, l’état du moteur et le flux RSS dans une installation fraîche.
+For behavioral changes, also check the public page, the v2 JSON contract, engine state, and RSS feed on a fresh installation.
 
-Les changements de déploiement doivent également passer `./scripts/smoke-test.sh` après un `docker compose up -d --build` sur des volumes vierges. Ce test inclut `tests/mariadb_integration.php`.
+Deployment changes must also pass `./scripts/smoke-test.sh` after `docker compose up -d --build` on empty volumes. This test includes `tests/mariadb_integration.php`.
 
-Les changements distribués doivent couvrir au minimum un agent unique, une paire en désaccord, une majorité sur trois agents, les réponses manquantes et le rejeu d’un lot après redémarrage.
+Distributed changes must cover at least one agent, two disagreeing agents, a three-agent majority, missing responses, and replaying a batch after restart.
 
-Toute nouvelle chaîne visible doit passer par le moteur i18n. Maintenez les catalogues `public/locales/fr.json` et `public/locales/en.json` avec les mêmes clés.
+Every new visible string must use the i18n engine. Keep `public/locales/fr.json` and `public/locales/en.json` synchronized with the same keys.
 
-## Proposition de modification
+## Proposing a change
 
-Décrivez le problème, la solution retenue, les effets visibles et les vérifications réalisées. Ajoutez une migration compatible lorsqu’un changement de schéma est nécessaire et maintenez `database/schema.sql` à jour pour les nouvelles installations.
+Describe the problem, selected solution, visible effects, and completed checks. Add a compatible migration when a schema change is required, and keep `database/schema.sql` current for new installations.

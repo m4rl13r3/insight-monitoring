@@ -77,25 +77,25 @@ function insight_access_issuer_ready(): bool
 function insight_access_scope_catalog(): array
 {
     return [
-        'status:read' => 'État global et moteur',
-        'monitors:read' => 'Lecture des moniteurs',
-        'monitors:write' => 'Création, modification et suppression des moniteurs',
-        'incidents:read' => 'Lecture des incidents',
-        'notifications:read' => 'Lecture des canaux et messages masqués',
-        'notifications:write' => 'Gestion des canaux et messages d’alerte',
+        'status:read' => 'Global status and engine',
+        'monitors:read' => 'Read monitors',
+        'monitors:write' => 'Monitor creation, editing, and deletion',
+        'incidents:read' => 'Read incidents',
+        'notifications:read' => 'Read channels and masked messages',
+        'notifications:write' => 'Manage alert channels and messages',
     ];
 }
 
 function insight_access_oauth_scope_catalog(): array
 {
     return [
-        'openid' => 'Identité OpenID Connect',
-        'profile' => 'Nom et rôle',
+        'openid' => 'OpenID Connect identity',
+        'profile' => 'Name and role',
         'email' => 'Adresse e-mail',
-        'status:read' => 'État global et moteur',
-        'monitors:read' => 'Lecture des moniteurs',
-        'incidents:read' => 'Lecture des incidents',
-        'notifications:read' => 'Lecture des canaux et messages masqués',
+        'status:read' => 'Global status and engine',
+        'monitors:read' => 'Read monitors',
+        'incidents:read' => 'Read incidents',
+        'notifications:read' => 'Read channels and masked messages',
     ];
 }
 
@@ -129,7 +129,7 @@ function insight_access_feature_enabled(string $feature): bool
 function insight_access_set_feature(string $feature, bool $enabled): void
 {
     if (!in_array($feature, ['headless_api_enabled', 'oauth_provider_enabled'], true)) {
-        throw new InvalidArgumentException('Fonctionnalité inconnue.');
+        throw new InvalidArgumentException('Unknown feature.');
     }
     if ($enabled && $feature === 'oauth_provider_enabled' && !insight_access_issuer_ready()) {
         throw new RuntimeException('admin.access.errorPublicUrl');

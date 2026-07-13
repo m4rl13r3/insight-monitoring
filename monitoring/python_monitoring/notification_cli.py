@@ -29,7 +29,7 @@ def _database(root: Path, cfg: dict[str, str]) -> Database:
 def _payload() -> dict:
     decoded = json.loads(sys.stdin.read() or "{}")
     if not isinstance(decoded, dict):
-        raise ValueError("Payload JSON invalide.")
+        raise ValueError("Invalid JSON payload.")
     return decoded
 
 

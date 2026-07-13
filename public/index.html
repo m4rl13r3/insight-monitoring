@@ -4,29 +4,29 @@
   {{INSIGHT_HEAD}}
 </head>
 <body class="status-page">
-  <div id="preloader" class="insight-preloader" role="status" aria-label="Chargement" data-i18n-aria-label="common.loading">
+  <div id="preloader" class="insight-preloader" role="status" aria-label="Loading" data-i18n-aria-label="common.loading">
     <img src="/favicons/favicon.svg" alt="" width="34" height="34">
     <span>{{INSIGHT_APP_NAME}}</span>
   </div>
   <header class="insight-topbar">
     <div class="insight-topbar-inner">
-      <a class="insight-brand" href="/" aria-label="Accueil Insight" data-i18n-aria-label="common.home">
+      <a class="insight-brand" href="/" aria-label="Insight home" data-i18n-aria-label="common.home">
         <img class="insight-brand-mark" src="/favicons/favicon.svg" alt="" width="32" height="32">
         <span>{{INSIGHT_APP_NAME}}</span>
       </a>
-      <nav class="insight-topbar-actions" aria-label="Liens publics" data-i18n-aria-label="common.publicLinks">
+      <nav class="insight-topbar-actions" aria-label="Public links" data-i18n-aria-label="common.publicLinks">
         <label class="status-timezone-control status-timezone-control-nav" for="statusTimezoneSelect">
-          <span class="sr-only" data-i18n="common.timezone">Fuseau horaire</span>
-          <select id="statusTimezoneSelect" data-status-timezone-select data-status-timezone-format="nav" aria-label="Fuseau horaire" data-i18n-aria-label="common.timezone"></select>
+          <span class="sr-only" data-i18n="common.timezone">Time zone</span>
+          <select id="statusTimezoneSelect" data-status-timezone-select data-status-timezone-format="nav" aria-label="Time zone" data-i18n-aria-label="common.timezone"></select>
         </label>
         <div id="insight-controls-root"></div>
-        <a class="insight-icon-link insight-rss-link" href="/hourly_stats_report.php?contract=v2&amp;mode=incidents&amp;format=rss" aria-label="Flux RSS des incidents" title="Flux RSS des incidents" data-i18n-aria-label="common.rssIncidents" data-i18n-title="common.rssIncidents">
+        <a class="insight-icon-link insight-rss-link" href="/hourly_stats_report.php?contract=v2&amp;mode=incidents&amp;format=rss" aria-label="Incident RSS feed" title="Incident RSS feed" data-i18n-aria-label="common.rssIncidents" data-i18n-title="common.rssIncidents">
           <i class="fa-solid fa-rss" aria-hidden="true"></i>
         </a>
         <a class="insight-icon-link insight-admin-link" href="/admin/" aria-label="Administration" title="Administration" data-i18n-aria-label="admin.open" data-i18n-title="admin.open">
           <i class="fa-solid fa-gauge-high" aria-hidden="true"></i>
         </a>
-        <a class="insight-topbar-link" href="{{INSIGHT_CONTACT_MAILTO}}" aria-label="Contacter" data-i18n-aria-label="common.contact"><i class="fa-regular fa-envelope" aria-hidden="true"></i><span class="insight-contact-wide" data-i18n="common.contact">Contacter</span><span class="insight-contact-compact" data-i18n="common.contactShort">Contact</span></a>
+        <a class="insight-topbar-link" href="{{INSIGHT_CONTACT_MAILTO}}" aria-label="Contact" data-i18n-aria-label="common.contact"><i class="fa-regular fa-envelope" aria-hidden="true"></i><span class="insight-contact-wide" data-i18n="common.contact">Contact</span><span class="insight-contact-compact" data-i18n="common.contactShort">Contact</span></a>
       </nav>
     </div>
   </header>
@@ -34,22 +34,22 @@
     <header id="system-status" class="status-hero">
       <div class="status-hero-inner">
         <div class="status-hero-copy">
-          <p class="status-eyebrow" data-i18n="common.monitoring">Supervision</p>
-          <h1 data-i18n="common.serviceStatus">État des services</h1>
+          <p class="status-eyebrow" data-i18n="common.monitoring">Monitoring</p>
+          <h1 data-i18n="common.serviceStatus">Service status</h1>
         </div>
         <section class="status-overview-panel status-grid-card" data-status="loading" aria-live="polite">
           <span class="status-overview-signal" aria-hidden="true"><i class="fa-solid fa-satellite-dish"></i></span>
           <div class="status-overview-main">
             <div class="status-overview-line">
               <span class="status-overview-dot" aria-hidden="true"></span>
-              <p class="status-overview-state" data-i18n="common.checkingStatus">Vérification en cours</p>
+              <p class="status-overview-state" data-i18n="common.checkingStatus">Checking status</p>
             </div>
-            <p class="status-message" data-i18n="common.loadingOverall">Lecture des dernières vérifications…</p>
+            <p class="status-message" data-i18n="common.loadingOverall">Reading the latest checks…</p>
           </div>
           <div class="status-overview-meta">
             <div class="status-updated-control">
               <i class="fa-regular fa-clock" aria-hidden="true"></i>
-              <p id="last-updated" data-i18n="common.loadingUpdated">Actualisation des données…</p>
+              <p id="last-updated" data-i18n="common.loadingUpdated">Refreshing data…</p>
             </div>
           </div>
         </section>
@@ -58,14 +58,14 @@
     <div id="services-wrapper">
       <div class="status-section-head">
         <div class="status-section-copy">
-          <p class="status-section-kicker" data-i18n="common.publicInfrastructure">Infrastructure publique</p>
+          <p class="status-section-kicker" data-i18n="common.publicInfrastructure">Public infrastructure</p>
           <h2 id="status-section-title" data-i18n="common.services">Services</h2>
         </div>
         <div class="status-section-actions">
           <div id="statusDetailActions" class="status-detail-actions"></div>
-          <button id="statusBackButton" class="status-back-button hidden" type="button" aria-label="Retour aux services" data-i18n-aria-label="common.backToServices">
+          <button id="statusBackButton" class="status-back-button hidden" type="button" aria-label="Back to services" data-i18n-aria-label="common.backToServices">
             <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
-            <span data-i18n="common.back">Retour</span>
+            <span data-i18n="common.back">Back</span>
           </button>
         </div>
       </div>
@@ -73,35 +73,35 @@
         <section class="status-cards max-w-[90%] mx-auto"></section>
       </div>
       <section id="planned-maintenances" class="maintenance-section hidden">
-        <h3 class="maintenance-section-title" data-i18n="common.scheduledMaintenances">Maintenances planifiées</h3>
+        <h3 class="maintenance-section-title" data-i18n="common.scheduledMaintenances">Scheduled maintenance</h3>
         <div data-maintenance-list class="maintenance-list"></div>
-        <p data-maintenance-empty class="maintenance-section-subtitle" data-i18n="common.noScheduledMaintenance">Aucune maintenance planifiée pour le moment.</p>
+        <p data-maintenance-empty class="maintenance-section-subtitle" data-i18n="common.noScheduledMaintenance">No scheduled maintenance at this time.</p>
       </section>
     </div>
     <section id="report-incident" class="container mx-auto px-4 my-12 max-w-screen-md text-center">
       <div>
-        <h3 data-i18n="common.reportTitle">Vous remarquez un comportement inhabituel&nbsp;?</h3>
-        <p data-i18n="common.reportDescription">Signalez-le à l’équipe en charge de cette instance.</p>
+        <h3 data-i18n="common.reportTitle">Noticing unusual behavior?</h3>
+        <p data-i18n="common.reportDescription">Report it to the team managing this instance.</p>
       </div>
-      <a href="{{INSIGHT_CONTACT_MAILTO}}"><i class="fa-regular fa-envelope" aria-hidden="true"></i><span data-i18n="common.reportCta">Contacter l’équipe</span></a>
+      <a href="{{INSIGHT_CONTACT_MAILTO}}"><i class="fa-regular fa-envelope" aria-hidden="true"></i><span data-i18n="common.reportCta">Contact the team</span></a>
     </section>
   </div>
   <div id="runtimeDegradedModal" class="runtime-modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="runtimeDegradedModalTitle">
     <div class="runtime-modal-card">
       <div class="runtime-modal-head">
-        <h3 id="runtimeDegradedModalTitle" class="runtime-modal-title"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span data-i18n="common.degradedTitle">Supervision perturbée</span></h3>
-        <button id="runtimeDegradedModalClose" class="runtime-modal-close" type="button" aria-label="Fermer" data-i18n-aria-label="common.close"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+        <h3 id="runtimeDegradedModalTitle" class="runtime-modal-title"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span data-i18n="common.degradedTitle">Monitoring disruption</span></h3>
+        <button id="runtimeDegradedModalClose" class="runtime-modal-close" type="button" aria-label="Close" data-i18n-aria-label="common.close"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
       </div>
-      <p id="runtimeDegradedModalSummary" class="runtime-modal-summary" data-i18n="common.degradedSummary">Le moteur de supervision rencontre une instabilité. Les données publiques peuvent ne plus être actualisées.</p>
+      <p id="runtimeDegradedModalSummary" class="runtime-modal-summary" data-i18n="common.degradedSummary">The monitoring engine is experiencing instability. Public data may no longer be refreshed.</p>
       <p id="runtimeDegradedModalDetails" class="runtime-modal-details"></p>
       <div class="runtime-modal-actions">
-        <button id="runtimeDegradedModalAcknowledge" class="runtime-modal-cta" type="button" data-i18n="common.understood">Compris</button>
+        <button id="runtimeDegradedModalAcknowledge" class="runtime-modal-cta" type="button" data-i18n="common.understood">Got it</button>
       </div>
     </div>
   </div>
   <footer class="insight-footer">
     <div class="insight-footer-inner">
-      <span>{{INSIGHT_APP_NAME}} · <span data-i18n="common.footerTagline">supervision open source</span></span>
+      <span>{{INSIGHT_APP_NAME}} · <span data-i18n="common.footerTagline">open source monitoring</span></span>
       <a href="{{INSIGHT_CONTACT_MAILTO}}">{{INSIGHT_CONTACT_EMAIL}}</a>
     </div>
   </footer>

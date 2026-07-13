@@ -63,14 +63,14 @@ $contactEmail = insight_env('INSIGHT_CONTACT_EMAIL', 'contact@example.com');
 $timezone = insight_env('INSIGHT_TIMEZONE', 'Europe/Paris');
 $defaultLocale = strtolower(insight_env('INSIGHT_DEFAULT_LOCALE', 'auto'));
 $supportedLocales = array_values(array_filter(
-    array_map('trim', explode(',', insight_env('INSIGHT_SUPPORTED_LOCALES', 'fr,en'))),
+    array_map('trim', explode(',', insight_env('INSIGHT_SUPPORTED_LOCALES', 'en,fr'))),
     static fn(string $locale): bool => preg_match('/^[a-z]{2}$/i', $locale) === 1
 ));
 if ($supportedLocales === []) {
-    $supportedLocales = ['fr', 'en'];
+    $supportedLocales = ['en', 'fr'];
 }
-$title = 'État des systèmes | ' . $appName;
-$description = 'Disponibilité, incidents et maintenances des services surveillés avec Insight.';
+$title = 'System status | ' . $appName;
+$description = 'Availability, incidents, and maintenance for services monitored with Insight.';
 $canonical = $publicUrl !== '' ? $publicUrl : '';
 
 $head = '<meta charset="utf-8">' . PHP_EOL
@@ -97,7 +97,7 @@ $head = '<meta charset="utf-8">' . PHP_EOL
 $template = file_get_contents(__DIR__ . '/index.html');
 if (!is_string($template)) {
     http_response_code(500);
-    echo 'Template Insight introuvable.';
+    echo 'Insight template not found.';
     exit;
 }
 

@@ -1,135 +1,135 @@
-# Monitoring distribué
+# Distributed monitoring
 
-Insight peut fonctionner seul sur un serveur ou agréger les observations d’autant d’agents distants que nécessaire. Les agents ne se connectent jamais à MariaDB : ils récupèrent leur configuration depuis le hub, exécutent les sondes, puis envoient des lots signés à l’API Insight.
+Insight can run alone on one server or aggregate observations from as many remote agents as required. Agents never connect to MariaDB: they retrieve their configuration from the hub, execute probes, and send signed batches to the Insight API.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    A1[Agent Paris] -->|HTTPS + HMAC| H[Hub Insight]
-    A2[Agent Francfort] -->|HTTPS + HMAC| H
+    A1[Paris agent] -->|HTTPS + HMAC| H[Insight hub]
+    A2[Frankfurt agent] -->|HTTPS + HMAC| H
     AN[Agent N] -->|HTTPS + HMAC| H
-    B[Blackbox Exporter optionnel] --> A1
-    H --> R[(Observations brutes)]
+    B[Optional Blackbox Exporter] --> A1
+    H --> R[(Raw observations)]
     R --> C[Consensus]
-    C --> P[(Sondes canoniques)]
-    P --> S[Statistiques et incidents]
+    C --> P[(Canonical probes)]
+    P --> S[Statistics and incidents]
     H --> M[/metrics]
 ```
 
-Le système reprend des principes éprouvés dans l’écosystème open source : séparation agent/hub d’OpenTelemetry, file persistante et rejeu idempotent de Prometheus Remote Write, sondes multi-cibles de Blackbox Exporter et contrôle de connectivité inspiré de Gatus. Insight conserve son propre protocole minimal afin de rester déployable sans Prometheus ni service externe.
+The system adopts proven principles from the open source ecosystem: OpenTelemetry's agent/hub separation, Prometheus Remote Write's persistent queue and idempotent replay, Blackbox Exporter's multi-target probing, and connectivity checks inspired by Gatus. Insight keeps its own minimal protocol so it remains deployable without Prometheus or an external service.
 
-Chaque agent possède :
+Each agent has:
 
-- un identifiant stable, une région et une zone ;
-- une file SQLite persistante qui survit aux redémarrages et aux coupures du hub ;
-- des sondes HTTP et ICMP natives ;
-- un adaptateur facultatif pour les sondes HTTP, ICMP, TCP, DNS et gRPC de Prometheus Blackbox Exporter ;
-- une relance locale courte avant de confirmer un échec ;
-- un contrôle de connectivité facultatif qui diffère les sondes si le réseau local est indisponible ;
-- un envoi par lots avec rejeu octet pour octet, backoff exponentiel et jitter.
+- a stable identifier, region, and zone;
+- a persistent SQLite queue that survives restarts and hub outages;
+- native HTTP, ICMP, and TCP probes;
+- an optional adapter for Prometheus Blackbox Exporter HTTP, ICMP, TCP, DNS, and gRPC probes;
+- a short local retry before confirming failure;
+- an optional connectivity check that delays probes when the local network is unavailable;
+- batched delivery with byte-for-byte replay, exponential backoff, and jitter.
 
-Le hub conserve séparément les observations brutes et le résultat canonique. Seul le consensus alimente `probes`, les statistiques horaires, les incidents et la page publique.
+The hub stores raw observations separately from the canonical result. Only consensus feeds `probes`, hourly statistics, incidents, and the public page.
 
-## Affectation et quorum
+## Assignment and quorum
 
-Les cibles sont distribuées par hachage rendezvous. L’affectation reste déterministe quand l’ordre des agents change et ne déplace qu’une partie des cibles lorsqu’un agent est ajouté ou retiré.
+Targets are distributed through rendezvous hashing. Assignment remains deterministic when agent order changes and moves only a portion of targets when an agent is added or removed.
 
-`INSIGHT_AGENT_DEFAULT_REPLICAS=3` affecte chaque cible à trois agents au maximum. La valeur `0` utilise tous les agents actifs. Une cible peut surcharger ce réglage avec `sites.probe_replication_factor`.
+`INSIGHT_AGENT_DEFAULT_REPLICAS=3` assigns each target to at most three agents. A value of `0` uses all active agents. A target can override this setting with `sites.probe_replication_factor`.
 
-Les quorums de succès et d’échec valent par défaut `floor(n / 2) + 1`. Les colonnes `probe_success_quorum` et `probe_failure_quorum` permettent une politique différente par cible. La valeur `0` conserve la majorité automatique.
+Success and failure quorums default to `floor(n / 2) + 1`. The `probe_success_quorum` and `probe_failure_quorum` columns support a different policy for each target. A value of `0` keeps the automatic majority.
 
-| Agents attendus | Observations fraîches | État canonique |
+| Expected agents | Fresh observations | Canonical state |
 | --- | --- | --- |
-| 1 | 1 en ligne | `online` |
-| 1 | 1 hors ligne | `offline` |
-| 2 | 2 en ligne | `online` |
-| 2 | 1 en ligne, 1 hors ligne | `degraded` |
-| 2 | 2 hors ligne | `offline` |
-| 3 | 3 en ligne | `online` |
-| 3 | 2 en ligne, 1 manquante | `online`, confiance 67 % |
-| 3 | 2 en ligne, 1 hors ligne | `degraded` |
-| 3 | 1 en ligne, 2 manquantes | `unknown` |
-| 3 | 2 hors ligne | `offline` |
+| 1 | 1 online | `online` |
+| 1 | 1 offline | `offline` |
+| 2 | 2 online | `online` |
+| 2 | 1 online, 1 offline | `degraded` |
+| 2 | 2 offline | `offline` |
+| 3 | 3 online | `online` |
+| 3 | 2 online, 1 missing | `online`, 67% confidence |
+| 3 | 2 online, 1 offline | `degraded` |
+| 3 | 1 online, 2 missing | `unknown` |
+| 3 | 2 offline | `offline` |
 
-Une panne minoritaire explicite reste donc visible en `degraded`, même si la majorité répond. Une absence de données devient `unknown` et n’est pas comptée comme du temps d’arrêt dans les agrégations.
+An explicit minority failure therefore remains visible as `degraded`, even when the majority responds. Missing data becomes `unknown` and is not counted as downtime in aggregates.
 
-Un agent actif mais silencieux conserve ses affectations et compte comme manquant. Passez-le explicitement en pause ou révoquez-le pour redistribuer ses cibles.
+An active but silent agent keeps its assignments and counts as missing. Explicitly pause or revoke it to redistribute its targets.
 
-## Configurer le hub
+## Configure the hub
 
-Pour une nouvelle installation, générez les secrets avec le script d’installation puis activez le mode hub dans `.env` :
+For a new installation, generate secrets with the installation script, then enable hub mode in `.env`:
 
 ```dotenv
 INSIGHT_DISTRIBUTED_MODE=hub
-INSIGHT_AGENT_MASTER_SECRET=une_valeur_aleatoire_de_64_caracteres_hexadecimaux
+INSIGHT_AGENT_MASTER_SECRET=a_random_64_character_hexadecimal_value
 INSIGHT_AGENT_REQUIRE_HTTPS=1
 INSIGHT_AGENT_DEFAULT_REPLICAS=3
 ```
 
-Le secret peut aussi être généré manuellement :
+The secret can also be generated manually:
 
 ```bash
 openssl rand -hex 32
 docker compose up -d --build
 ```
 
-Le worker exécute alors `monitoring/distributed_consensus.php` à la place des sondes centrales. Les agrégations horaires et quotidiennes continuent normalement.
+The worker then runs `monitoring/distributed_consensus.php` instead of central probes. Hourly and daily aggregation continues normally.
 
-Pour une base Insight existante, le mode hub applique automatiquement les tables manquantes. La migration peut aussi être lancée explicitement :
+For an existing Insight database, hub mode automatically applies missing tables. The migration can also be run explicitly:
 
 ```bash
 docker compose exec -T db sh -lc 'mariadb -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" "$MARIADB_DATABASE"' < database/migrations/002-distributed-monitoring.sql
 ```
 
-## Déployer un agent
+## Deploy an agent
 
-Choisissez une clé unique en minuscules, puis dérivez son secret depuis le hub :
+Choose a unique lowercase key, then derive its secret from the hub:
 
 ```bash
 docker compose exec php php scripts/agent-key.php paris-1
 ```
 
-Sur le serveur distant :
+On the remote server:
 
 ```bash
 cp .env.agent.example .env.agent
 ```
 
-Renseignez au minimum :
+Set at least:
 
 ```dotenv
 INSIGHT_HUB_URL=https://status.example.com
 INSIGHT_AGENT_NODE_KEY=paris-1
-INSIGHT_AGENT_SECRET=secret_genere_par_le_hub
+INSIGHT_AGENT_SECRET=secret_generated_by_the_hub
 INSIGHT_AGENT_DISPLAY_NAME=Paris 1
 INSIGHT_AGENT_REGION=fr-par
 INSIGHT_AGENT_ZONE=fr-par-1
 ```
 
-Lancez ensuite l’agent :
+Then start the agent:
 
 ```bash
 docker compose --env-file .env.agent -f docker-compose.agent.yml up -d --build
 ```
 
-Le volume `insight_agent_spool` contient la file locale. Ne le supprimez pas pendant une panne du hub, sous peine de perdre les observations qui n’ont pas encore été confirmées.
+The `insight_agent_spool` volume contains the local queue. Do not remove it during a hub outage, or observations that have not yet been acknowledged will be lost.
 
-Pour tester un cycle sans Docker :
+To test one cycle without Docker:
 
 ```bash
 INSIGHT_HUB_URL=https://status.example.com \
 INSIGHT_AGENT_NODE_KEY=paris-1 \
-INSIGHT_AGENT_SECRET=secret_genere_par_le_hub \
+INSIGHT_AGENT_SECRET=secret_generated_by_the_hub \
 INSIGHT_AGENT_SPOOL_PATH=./data/agent.sqlite \
 python3 monitoring/agent/agent.py --once
 ```
 
 ## Blackbox Exporter
 
-L’agent natif suffit pour HTTP, ICMP et TCP. Blackbox Exporter ajoute notamment DNS, gRPC, des contrôles TLS plus fins et des scénarios HTTP configurables.
+The native agent is sufficient for HTTP, ICMP, and TCP. Blackbox Exporter additionally provides DNS, gRPC, finer TLS checks, and configurable HTTP scenarios.
 
-Dans `.env.agent` :
+In `.env.agent`:
 
 ```dotenv
 INSIGHT_AGENT_BLACKBOX_URL=http://blackbox:9115
@@ -141,37 +141,37 @@ INSIGHT_AGENT_BLACKBOX_GRPC_MODULE=grpc
 INSIGHT_AGENT_BLACKBOX_FALLBACK_NATIVE=1
 ```
 
-Puis lancez le profil fourni :
+Then start the provided profile:
 
 ```bash
 docker compose --env-file .env.agent -f docker-compose.agent.yml --profile blackbox up -d --build
 ```
 
-Si Blackbox est indisponible, le fallback natif reste actif par défaut pour HTTP, ICMP et TCP. DNS et gRPC exigent Blackbox. La configuration fournie dans `docker/agent/blackbox.yml` couvre les cinq protocoles. Son module DNS interroge `example.com` en type A ; adaptez `query_name`, le transport et les validations à votre usage.
+When Blackbox is unavailable, native fallback remains enabled by default for HTTP, ICMP, and TCP. DNS and gRPC require Blackbox. The configuration in `docker/agent/blackbox.yml` covers all five protocols. Its DNS module queries `example.com` with type A; adapt `query_name`, transport, and validations to your environment.
 
-Chaque échec est retenté une fois après 500 ms par défaut. Ajustez `INSIGHT_AGENT_PROBE_RETRIES` et `INSIGHT_AGENT_PROBE_RETRY_DELAY_MS` sur les agents sans dépasser l’intervalle de la cible.
+Each failure is retried once after 500 ms by default. Adjust `INSIGHT_AGENT_PROBE_RETRIES` and `INSIGHT_AGENT_PROBE_RETRY_DELAY_MS` on agents without exceeding the target interval.
 
-## Connectivité locale
+## Local connectivity
 
-`INSIGHT_AGENT_CONNECTIVITY_TARGET` accepte `hôte:port` ou une URL. Utilisez une passerelle, un résolveur DNS ou un service que vous contrôlez :
+`INSIGHT_AGENT_CONNECTIVITY_TARGET` accepts `host:port` or a URL. Use a gateway, DNS resolver, or service you control:
 
 ```dotenv
 INSIGHT_AGENT_CONNECTIVITY_TARGET=dns.internal.example:53
 ```
 
-Si cette cible ne répond plus, l’agent signale sa connectivité locale comme hors ligne et diffère ses sondes. Il n’envoie pas une série de faux échecs pour toutes les cibles.
+If this target stops responding, the agent reports local connectivity as offline and delays its probes. It does not send a series of false failures for every target.
 
-Laissez la variable vide pour exécuter les sondes sans ce garde-fou.
+Leave the variable empty to run probes without this safeguard.
 
-## Exploiter les nœuds
+## Operate nodes
 
-Lister les agents et leurs affectations :
+List agents and their assignments:
 
 ```bash
 docker compose exec php php scripts/node-admin.php list
 ```
 
-Modifier leur état :
+Change their state:
 
 ```bash
 docker compose exec php php scripts/node-admin.php pause paris-1
@@ -179,9 +179,9 @@ docker compose exec php php scripts/node-admin.php activate paris-1
 docker compose exec php php scripts/node-admin.php revoke paris-1
 ```
 
-`pause` et `revoke` retirent l’agent des affectations au prochain calcul. `revoke` bloque aussi ses futures requêtes jusqu’à une réactivation explicite.
+`pause` and `revoke` remove the agent from assignments during the next calculation. `revoke` also blocks future requests until explicit reactivation.
 
-Personnaliser une cible :
+Customize a target:
 
 ```sql
 UPDATE sites
@@ -191,11 +191,11 @@ SET probe_replication_factor = 5,
 WHERE id = 1;
 ```
 
-L’affectation est rafraîchie lors de la prochaine configuration d’agent ou du prochain passage du worker.
+Assignments are refreshed on the next agent configuration request or worker run.
 
 ## Incidents
 
-Un seul lot négatif n’ouvre pas immédiatement un incident. Par défaut, Insight exige deux fenêtres de consensus hors ligne et deux fenêtres en ligne pour confirmer la récupération :
+A single negative batch does not immediately open an incident. By default, Insight requires two offline consensus windows and two online windows to confirm recovery:
 
 ```dotenv
 INSIGHT_CONSENSUS_FAILURE_WINDOWS=2
@@ -203,62 +203,62 @@ INSIGHT_CONSENSUS_RECOVERY_WINDOWS=2
 INSIGHT_DISTRIBUTED_INCIDENTS=1
 ```
 
-Le statut `degraded` signale un désaccord régional sans ouvrir automatiquement un incident global. Les valeurs `unknown` ne ferment ni n’ouvrent un incident.
+The `degraded` status reports regional disagreement without automatically opening a global incident. `unknown` values neither open nor resolve an incident.
 
-## Prometheus et VictoriaMetrics
+## Prometheus and VictoriaMetrics
 
-L’endpoint `/metrics` est désactivé par défaut. Activez-le et protégez-le avec un jeton :
+The `/metrics` endpoint is disabled by default. Enable it and protect it with a token:
 
 ```dotenv
 INSIGHT_METRICS_ENABLED=1
-INSIGHT_METRICS_TOKEN=un_jeton_aleatoire
+INSIGHT_METRICS_TOKEN=a_random_token
 ```
 
-Configuration Prometheus minimale :
+Minimal Prometheus configuration:
 
 ```yaml
 scrape_configs:
   - job_name: insight
     metrics_path: /metrics
     authorization:
-      credentials: un_jeton_aleatoire
+      credentials: a_random_token
     static_configs:
       - targets: [status.example.com]
 ```
 
-Les séries exposées couvrent la présence et le décalage d’horloge des agents, la connectivité locale, les observations par cible et par région, le consensus, sa confiance et le nombre de réponses attendues, fraîches ou manquantes.
+Exposed series cover agent presence and clock skew, local connectivity, observations by target and region, consensus, confidence, and expected, fresh, or missing response counts.
 
-## Sécurité
+## Security
 
-Le hub dérive un secret distinct pour chaque clé de nœud avec HMAC-SHA256. Il ne stocke pas ces secrets dans la base. Chaque requête comprend un horodatage, un nonce unique, l’empreinte du corps et une signature. Les nonces déjà vus sont rejetés.
+The hub derives a distinct secret for each node key with HMAC-SHA256. It does not store these secrets in the database. Every request includes a timestamp, unique nonce, body digest, and signature. Previously seen nonces are rejected.
 
-- Utilisez HTTPS et `INSIGHT_AGENT_REQUIRE_HTTPS=1` dès que le hub est exposé.
-- Gardez `INSIGHT_AGENT_MASTER_SECRET` uniquement sur le hub.
-- Donnez à chaque agent une clé unique et ne réutilisez pas son secret.
-- Désactivez `INSIGHT_AGENT_AUTO_REGISTER` après l’enrôlement si aucun nouveau nœud n’est attendu.
-- Synchronisez les horloges avec NTP ; la fenêtre HMAC vaut 300 secondes par défaut.
-- Une rotation du secret maître invalide tous les secrets agents. Mettez à jour chaque `.env.agent` sans supprimer son volume SQLite.
+- Use HTTPS and `INSIGHT_AGENT_REQUIRE_HTTPS=1` whenever the hub is exposed.
+- Keep `INSIGHT_AGENT_MASTER_SECRET` only on the hub.
+- Give each agent a unique key and never reuse its secret.
+- Disable `INSIGHT_AGENT_AUTO_REGISTER` after enrollment when no new node is expected.
+- Synchronize clocks with NTP; the HMAC window defaults to 300 seconds.
+- Rotating the master secret invalidates every agent secret. Update each `.env.agent` without removing its SQLite volume.
 
-## Rétention et capacité
+## Retention and capacity
 
-Les observations brutes et les lots sont conservés sept jours par défaut. Les snapshots de consensus sont conservés 90 jours. Les sondes canoniques et les agrégations suivent les politiques historiques d’Insight.
+Raw observations and batches are retained for seven days by default. Consensus snapshots are retained for 90 days. Canonical probes and aggregates follow Insight's historical retention policies.
 
-Pour N agents et M cibles, le volume brut est approximativement `N × M × 1440` observations par jour à une minute lorsque toutes les cibles utilisent tous les agents. Gardez trois répliques pour le cas général et augmentez-les seulement pour les services critiques ou l’analyse géographique.
+For N agents and M targets, raw volume is approximately `N x M x 1440` observations per day at one-minute intervals when every target uses every agent. Keep three replicas for general use and increase them only for critical services or geographic analysis.
 
-Variables utiles :
+Useful variables:
 
-| Variable | Défaut | Rôle |
+| Variable | Default | Purpose |
 | --- | --- | --- |
-| `INSIGHT_AGENT_DEFAULT_REPLICAS` | `3` | Agents affectés par cible, `0` pour tous |
-| `INSIGHT_AGENT_NODE_TTL_SEC` | `180` | Délai avant qu’un agent soit affiché comme silencieux |
-| `INSIGHT_CONSENSUS_FRESHNESS_SEC` | `180` | Fraîcheur minimale d’une observation |
-| `INSIGHT_CONSENSUS_BUCKET_SEC` | `60` | Taille d’une fenêtre canonique |
-| `INSIGHT_AGENT_BATCH_SIZE` | `200` | Observations maximales par lot |
-| `INSIGHT_AGENT_RAW_RETENTION_DAYS` | `7` | Rétention des observations brutes |
-| `INSIGHT_AGENT_BATCH_RETENTION_DAYS` | `7` | Rétention des reçus de lots |
-| `INSIGHT_CONSENSUS_RETENTION_DAYS` | `90` | Rétention des snapshots agrégés |
+| `INSIGHT_AGENT_DEFAULT_REPLICAS` | `3` | Agents assigned per target, `0` for all |
+| `INSIGHT_AGENT_NODE_TTL_SEC` | `180` | Delay before an agent is shown as silent |
+| `INSIGHT_CONSENSUS_FRESHNESS_SEC` | `180` | Minimum observation freshness |
+| `INSIGHT_CONSENSUS_BUCKET_SEC` | `60` | Canonical window size |
+| `INSIGHT_AGENT_BATCH_SIZE` | `200` | Maximum observations per batch |
+| `INSIGHT_AGENT_RAW_RETENTION_DAYS` | `7` | Raw observation retention |
+| `INSIGHT_AGENT_BATCH_RETENTION_DAYS` | `7` | Batch receipt retention |
+| `INSIGHT_CONSENSUS_RETENTION_DAYS` | `90` | Aggregated snapshot retention |
 
-## Références techniques
+## Technical references
 
 - [Prometheus Remote Write](https://prometheus.io/docs/specs/prw/remote_write_spec/)
 - [Prometheus Multi-target Exporter Pattern](https://prometheus.io/docs/guides/multi-target-exporter/)

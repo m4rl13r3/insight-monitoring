@@ -17,26 +17,26 @@ insight_admin_auth_topbar();
 ?>
   <main class="admin-guide-main">
     <header class="admin-guide-heading">
-      <a class="admin-icon-button" href="/admin/#account" aria-label="Retour aux accès" title="Retour aux accès" data-i18n-aria-label="admin.access.back" data-i18n-title="admin.access.back"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></a>
-      <div><p class="admin-eyebrow">API · OAuth 2.0 · OpenID Connect</p><h1 data-i18n="admin.access.guideTitle">Intégrer Insight</h1><p data-i18n="admin.access.guideDescription">Les points d’entrée et réglages nécessaires à vos automatisations et dashboards.</p></div>
+      <a class="admin-icon-button" href="/admin/#account" aria-label="Back to access" title="Back to access" data-i18n-aria-label="admin.access.back" data-i18n-title="admin.access.back"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></a>
+      <div><p class="admin-eyebrow">API · OAuth 2.0 · OpenID Connect</p><h1 data-i18n="admin.access.guideTitle">Integrate Insight</h1><p data-i18n="admin.access.guideDescription">Endpoints and settings for your automation and dashboards.</p></div>
     </header>
 
     <section class="admin-guide-section" aria-labelledby="guide-api-title">
-      <div class="admin-guide-section-heading"><span><i class="fa-solid fa-code" aria-hidden="true"></i></span><div><h2 id="guide-api-title">API headless</h2><p><span data-i18n="admin.access.guideApiBefore">Activez l’API et créez un jeton depuis</span> <a href="/admin/#account" data-i18n="admin.access.title">Accès</a><span data-i18n="admin.access.guideApiAfter">, avec uniquement les permissions requises.</span></p></div></div>
+      <div class="admin-guide-section-heading"><span><i class="fa-solid fa-code" aria-hidden="true"></i></span><div><h2 id="guide-api-title">API headless</h2><p><span data-i18n="admin.access.guideApiBefore">Enable the API and create a token from</span> <a href="/admin/#account" data-i18n="admin.access.title">Access</a><span data-i18n="admin.access.guideApiAfter">, using only the required permissions.</span></p></div></div>
       <pre><code>curl -H "Authorization: Bearer API_TOKEN" \
   <?= insight_admin_escape($apiBase) ?>/status.php</code></pre>
-      <div class="admin-guide-table" role="table" aria-label="Routes de l’API headless" data-i18n-aria-label="admin.access.guideRoutesLabel">
+      <div class="admin-guide-table" role="table" aria-label="Headless API routes" data-i18n-aria-label="admin.access.guideRoutesLabel">
         <div role="row"><strong role="cell">GET</strong><code role="cell">/status.php</code><span role="cell">status:read</span></div>
         <div role="row"><strong role="cell">GET</strong><code role="cell">/monitors.php</code><span role="cell">monitors:read</span></div>
         <div role="row"><strong role="cell">POST · PATCH · DELETE</strong><code role="cell">/monitors.php</code><span role="cell">monitors:write</span></div>
         <div role="row"><strong role="cell">GET</strong><code role="cell">/incidents.php</code><span role="cell">incidents:read</span></div>
         <div role="row"><strong role="cell">GET · POST · PATCH · DELETE</strong><code role="cell">/notifications.php</code><span role="cell">notifications:read / write</span></div>
       </div>
-      <p class="admin-guide-note"><i class="fa-solid fa-file-code" aria-hidden="true"></i><span><span data-i18n="admin.access.guideOpenApi">Schéma OpenAPI disponible une fois l’API active :</span> <code><?= insight_admin_escape($apiBase) ?>/openapi.php</code></span></p>
+      <p class="admin-guide-note"><i class="fa-solid fa-file-code" aria-hidden="true"></i><span><span data-i18n="admin.access.guideOpenApi">OpenAPI schema available once the API is enabled:</span> <code><?= insight_admin_escape($apiBase) ?>/openapi.php</code></span></p>
     </section>
 
     <section class="admin-guide-section" aria-labelledby="guide-provider-title">
-      <div class="admin-guide-section-heading"><span><i class="fa-solid fa-link" aria-hidden="true"></i></span><div><h2 id="guide-provider-title" data-i18n="admin.access.guideProviderTitle">Authentifier un autre dashboard</h2><p data-i18n="admin.access.guideProviderDescription">Enregistrez son URI de retour exacte, puis utilisez la découverte OpenID Connect.</p></div></div>
+      <div class="admin-guide-section-heading"><span><i class="fa-solid fa-link" aria-hidden="true"></i></span><div><h2 id="guide-provider-title" data-i18n="admin.access.guideProviderTitle">Authenticate another dashboard</h2><p data-i18n="admin.access.guideProviderDescription">Register its exact redirect URI, then use OpenID Connect discovery.</p></div></div>
       <dl class="admin-guide-values"><div><dt>Issuer</dt><dd><code><?= insight_admin_escape($issuer) ?></code></dd></div><div><dt>Discovery</dt><dd><code><?= insight_admin_escape($discovery) ?></code></dd></div><div><dt>Flow</dt><dd><code>Authorization Code + PKCE S256</code></dd></div></dl>
       <pre><code>{
   "issuer": "<?= insight_admin_escape($issuer) ?>",
@@ -45,11 +45,11 @@ insight_admin_auth_topbar();
   "redirect_uri": "https://dashboard.example.com/auth/callback",
   "scope": "openid profile status:read"
 }</code></pre>
-      <p class="admin-guide-note"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i><span><span data-i18n="admin.access.guideClientVerifyBefore">Le client doit vérifier</span> <code>state</code>, <code>nonce</code><span data-i18n="admin.access.guideClientVerifyAfter">, l’issuer, l’audience et la signature RS256. Le secret reste uniquement sur son serveur.</span></span></p>
+      <p class="admin-guide-note"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i><span><span data-i18n="admin.access.guideClientVerifyBefore">The client must verify</span> <code>state</code>, <code>nonce</code><span data-i18n="admin.access.guideClientVerifyAfter">, the issuer, audience, and RS256 signature. Keep the secret on its server only.</span></span></p>
     </section>
 
     <section class="admin-guide-section" aria-labelledby="guide-sso-title">
-      <div class="admin-guide-section-heading"><span><i class="fa-solid fa-building-shield" aria-hidden="true"></i></span><div><h2 id="guide-sso-title" data-i18n="admin.access.guideSsoTitle">Déporter la connexion Insight</h2><p data-i18n="admin.access.guideSsoDescription">Créez un client OIDC confidentiel chez votre fournisseur avec cette URL de retour exacte.</p></div></div>
+      <div class="admin-guide-section-heading"><span><i class="fa-solid fa-building-shield" aria-hidden="true"></i></span><div><h2 id="guide-sso-title" data-i18n="admin.access.guideSsoTitle">Delegate Insight sign-in</h2><p data-i18n="admin.access.guideSsoDescription">Create a confidential OIDC client with this exact callback URL at your identity provider.</p></div></div>
       <div class="admin-guide-copy-line"><code><?= insight_admin_escape((string)$sso['callback_url']) ?></code></div>
       <pre><code>INSIGHT_SSO_ENABLED=1
 INSIGHT_SSO_PROVIDER_NAME=Organization
@@ -59,7 +59,7 @@ INSIGHT_SSO_CLIENT_ID=insight
 INSIGHT_SSO_CLIENT_SECRET=OIDC_CLIENT_SECRET
 INSIGHT_SSO_ALLOWED_GROUPS=ops,status-admins
 INSIGHT_SSO_ADMIN_GROUPS=status-admins</code></pre>
-      <p class="admin-guide-note"><i class="fa-solid fa-key" aria-hidden="true"></i><span><span data-i18n="admin.access.guideSsoPolicyBefore">Une liste d’e-mails, une liste de groupes ou</span> <code>INSIGHT_SSO_ALLOW_ALL=1</code> <span data-i18n="admin.access.guideSsoPolicyAfter">est obligatoire. Le compte local reste disponible sur</span> <code>/admin/login.php?local=1</code>.</span></p>
+      <p class="admin-guide-note"><i class="fa-solid fa-key" aria-hidden="true"></i><span><span data-i18n="admin.access.guideSsoPolicyBefore">An email list, group list, or</span> <code>INSIGHT_SSO_ALLOW_ALL=1</code> <span data-i18n="admin.access.guideSsoPolicyAfter">is required. The local account remains available at</span> <code>/admin/login.php?local=1</code>.</span></p>
     </section>
   </main>
 <?php insight_admin_page_end(); ?>

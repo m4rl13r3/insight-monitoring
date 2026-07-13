@@ -1,116 +1,116 @@
 # Insight
 
-Insight est une page de statut open source auto-hébergée avec supervision HTTP, ICMP et TCP, historique de disponibilité, incidents, maintenances planifiées, suivi TLS et dashboard protégé. Le moteur de supervision est écrit en Python. Insight peut aussi agréger des sondes provenant d’un, deux, trois ou autant de serveurs distants que nécessaire.
+Insight is a self-hosted open source status page with HTTP, ICMP, and TCP monitoring, uptime history, incidents, scheduled maintenance, TLS tracking, and a protected dashboard. Its monitoring engine is written in Python. Insight can also aggregate probes from one, two, three, or as many remote servers as required.
 
-L’interface publique est disponible en français et en anglais, détecte la langue du navigateur et ne nécessite aucun service privé. Le déploiement de référence utilise Docker Compose avec Nginx, PHP-FPM, un worker et MariaDB.
+The public interface is available in French and English, detects the browser language, and requires no private service. The reference deployment uses Docker Compose with Nginx, PHP-FPM, a worker, and MariaDB.
 
-L’application est rendue en PHP et JavaScript. React gère uniquement les contrôles de langue et de thème. Le build Vite utilise les conventions shadcn et Tailwind comme compilateur CSS ; le navigateur ne charge ensuite que les ressources statiques locales produites dans `public/assets`.
+The application is rendered with PHP and JavaScript. React only manages the language and theme controls. The Vite build follows shadcn conventions and uses Tailwind as a CSS compiler; browsers only load the local static assets generated in `public/assets`.
 
-Les icônes Font Awesome Free utilisées par l’interface sont embarquées dans `public/assets` sous forme de fontes WOFF2 locales. Leur notice et leur licence complète sont conservées dans `THIRD_PARTY_NOTICES.md` et `licenses/FONT-AWESOME-FREE.txt`.
+The Font Awesome Free icons used by the interface are bundled as local WOFF2 fonts in `public/assets`. Their notice and full license are included in `THIRD_PARTY_NOTICES.md` and `licenses/FONT-AWESOME-FREE.txt`.
 
-## Démarrage rapide
+## Quick start
 
-Prérequis : Docker avec le module Compose et OpenSSL.
+Requirements: Docker with the Compose plugin and OpenSSL.
 
 ```bash
 ./scripts/install.sh
 ```
 
-Le script crée `.env`, génère les mots de passe MariaDB et le secret maître des agents, construit les images puis démarre Insight. Compose refuse les mots de passe vides.
+The script creates `.env`, generates the MariaDB passwords and agent master secret, builds the images, and starts Insight. Compose rejects empty passwords.
 
-Pour une configuration manuelle, copiez `.env.example`, renseignez `INSIGHT_DB_PASSWORD`, `INSIGHT_DB_ROOT_PASSWORD` et `INSIGHT_NOTIFICATION_ENCRYPTION_KEY` avec le résultat de `openssl rand -hex 32`, puis exécutez `docker compose up -d --build`.
+For manual configuration, copy `.env.example`, set `INSIGHT_DB_PASSWORD`, `INSIGHT_DB_ROOT_PASSWORD`, and `INSIGHT_NOTIFICATION_ENCRYPTION_KEY` with the output of `openssl rand -hex 32`, then run `docker compose up -d --build`.
 
-Insight est ensuite disponible sur `http://localhost:8080`.
+Insight is then available at `http://localhost:8080`.
 
-Pour une instance publique, ne conservez pas les valeurs locales. Le guide [Mise en production](docs/production.md) couvre HTTPS, le premier compte, les vraies sondes, le test des alertes, les agents distants et le contrôle final avec `./scripts/production-check.sh --strict`.
+Do not keep local defaults on a public instance. The [Production guide](docs/production.md) covers HTTPS, the first account, real monitors, alert testing, remote agents, and the final `./scripts/production-check.sh --strict` validation.
 
-Ouvrez `http://localhost:8080/admin/` pour créer le premier compte administrateur. Comme Uptime Kuma, Insight utilise un compte propre à l’instance : aucun fournisseur d’identité ni serveur externe n’est requis. Un fournisseur OpenID Connect externe peut ensuite être activé sans supprimer cet accès local de secours. Les comptes, sessions, jetons et clés d’identité sont conservés dans le volume privé `insight_auth`, séparé des données de supervision MariaDB.
+Open `http://localhost:8080/admin/` to create the first administrator account. Like Uptime Kuma, Insight uses an account local to the instance: no identity provider or external server is required. An external OpenID Connect provider can later be enabled without removing this local fallback access. Accounts, sessions, tokens, and identity keys are stored in the private `insight_auth` volume, separately from MariaDB monitoring data.
 
-Ajoutez un premier site :
+Add a first site:
 
 ```bash
 docker compose exec worker python3 monitoring/python_monitoring/cli.py actions add --site-url https://example.com --probe-type http
 ```
 
-Pour surveiller uniquement la disponibilité d’un serveur, utilisez ICMP ou un port TCP :
+To monitor only whether a server is online, use ICMP or a TCP port:
 
 ```bash
 docker compose exec worker python3 monitoring/python_monitoring/cli.py actions add --site-url server.example.com --probe-type icmp
 docker compose exec worker python3 monitoring/python_monitoring/cli.py actions add --site-url server.example.com:22 --probe-type tcp
 ```
 
-Insight enregistre alors seulement l’état en ligne ou hors ligne, la latence et l’heure du dernier contrôle. Aucun agent de métriques système n’est requis.
+Insight then records only the online or offline state, latency, and last check time. No system metrics agent is required.
 
-Les mêmes actions sont disponibles dans le dashboard : **Moniteurs → Nouvelle sonde** pour HTTP/HTTPS et **Serveurs → Ajouter un serveur** pour ICMP ou TCP. Chaque sonde peut ensuite être modifiée ou supprimée. En mode développement sans MariaDB, les cibles créées sont conservées localement dans le dossier `data/`, déjà exclu du paquet publié.
+The same actions are available in the dashboard under **Monitors -> New monitor** for HTTP/HTTPS and **Servers -> Add server** for ICMP or TCP. Each monitor can then be edited or deleted. In development mode without MariaDB, created targets are stored locally in `data/`, which is already excluded from release archives.
 
-Les alertes se configurent dans **Alertes**. Insight fournit directement SMTP, webhook HTTP et Free Mobile, puis s’appuie sur Apprise pour Discord, Telegram, Slack, Teams, ntfy, Gotify, PagerDuty, Opsgenie, Matrix, Signal et plus de 138 services. Chaque canal choisit les événements reçus et possède une action de test. Les titres et messages sont modifiables avec des variables Liquid.
+Alerts are configured under **Alerts**. Insight directly supports SMTP, HTTP webhooks, and Free Mobile, and uses Apprise for Discord, Telegram, Slack, Teams, ntfy, Gotify, PagerDuty, Opsgenie, Matrix, Signal, and more than 138 services. Each channel selects the events it receives and provides a test action. Titles and messages can be customized with Liquid variables.
 
-Affichez les sites configurés :
+List configured sites:
 
 ```bash
 docker compose exec worker python3 monitoring/python_monitoring/cli.py actions list
 ```
 
-Le schéma SQL est importé automatiquement au premier démarrage de MariaDB. Pour réinitialiser complètement une instance de développement :
+The SQL schema is imported automatically when MariaDB starts for the first time. To completely reset a development instance:
 
 ```bash
 docker compose down -v
 docker compose up -d --build
 ```
 
-Cette commande supprime toutes les données locales.
+This command deletes all local data.
 
-## Services Docker
+## Docker services
 
-- `web` sert les fichiers publics avec Nginx et transmet les scripts PHP à PHP-FPM.
-- `php` exécute la page publique, les API, l’authentification locale SQLite et le dashboard.
-- `worker` lance les sondes selon `INSIGHT_MONITOR_INTERVAL_SEC`, puis les agrégations horaires et quotidiennes.
-- `db` stocke les sites, sondes, statistiques, incidents et maintenances dans MariaDB.
+- `web` serves public files with Nginx and forwards PHP scripts to PHP-FPM.
+- `php` runs the public page, APIs, local SQLite authentication, and the dashboard.
+- `worker` runs probes according to `INSIGHT_MONITOR_INTERVAL_SEC`, followed by hourly and daily aggregation.
+- `db` stores sites, probes, statistics, incidents, and maintenance windows in MariaDB.
 
-## Sauvegarde et restauration
+## Backup and restore
 
-Créez une archive cohérente de MariaDB, des comptes locaux, des clients API et de la clé privée OIDC :
+Create a consistent archive of MariaDB, local accounts, API clients, and the OIDC private key:
 
 ```bash
 ./scripts/backup.sh
 ```
 
-L’archive et son empreinte SHA-256 sont écrites dans `backups/`, dossier exclu de Git. Le fichier `.env` n’est jamais inclus : conservez-le séparément dans un coffre à secrets, car il contient notamment la clé qui protège les canaux d’alerte.
+The archive and its SHA-256 checksum are written to `backups/`, which is excluded from Git. The `.env` file is never included: store it separately in a secret vault because it contains, among other values, the key protecting alert channel credentials.
 
-Pour restaurer une archive, placez d’abord le bon `.env`, démarrez la pile, puis confirmez explicitement l’opération :
+To restore an archive, first provide the correct `.env`, start the stack, and explicitly confirm the operation:
 
 ```bash
-INSIGHT_RESTORE_CONFIRM=1 ./scripts/restore.sh backups/insight-AAAAmmjjTHHMMSSZ.tar.gz
+INSIGHT_RESTORE_CONFIRM=1 ./scripts/restore.sh backups/insight-YYYYmmddTHHMMSSZ.tar.gz
 ```
 
-Le script vérifie l’empreinte lorsqu’elle est disponible, crée une sauvegarde de sécurité, suspend le worker et le web, restaure les deux bases, contrôle leur intégrité puis redémarre la pile. Les sessions de dashboard sont invalidées après restauration. Pour un fichier Compose ou un nom de projet particulier, utilisez `INSIGHT_COMPOSE_ENV_FILE` et `INSIGHT_COMPOSE_PROJECT_NAME`.
+The script verifies the checksum when available, creates a safety backup, pauses the worker and web services, restores both databases, checks their integrity, and restarts the stack. Dashboard sessions are invalidated after a restore. Use `INSIGHT_COMPOSE_ENV_FILE` and `INSIGHT_COMPOSE_PROJECT_NAME` for a custom Compose environment file or project name.
 
-Pour automatiser la sauvegarde, utilisez `scripts/backup-scheduled.sh`. La durée de conservation locale se règle avec `INSIGHT_BACKUP_RETENTION_DAYS` et une copie distante optionnelle avec `INSIGHT_BACKUP_RCLONE_DEST`.
+Use `scripts/backup-scheduled.sh` to automate backups. Local retention is controlled by `INSIGHT_BACKUP_RETENTION_DAYS`, with an optional remote copy configured through `INSIGHT_BACKUP_RCLONE_DEST`.
 
-## Mises à jour sans réinstallation
+## Updates without reinstallation
 
-Insight peut rechercher puis installer une version stable sans recréer la configuration ni les volumes :
+Insight can find and install a stable release without recreating its configuration or volumes:
 
 ```bash
 ./scripts/update.sh --check
 ./scripts/update.sh --apply
 ```
 
-Le déploiement crée une sauvegarde, applique uniquement les nouvelles migrations, reconstruit les images et contrôle la pile. En cas d’échec, il revient automatiquement au code précédent sans écraser les données. Sur Linux avec systemd, `./scripts/install-auto-update.sh` active le contrôle quotidien. Le guide [Mises à jour](docs/updates.md) décrit le canal stable, les tags signés, le timer et le retour arrière.
+The deployment creates a backup, applies only new migrations, rebuilds the images, and validates the stack. On failure, it automatically returns to the previous code without overwriting data. On Linux with systemd, `./scripts/install-auto-update.sh` enables a daily check. The [Update guide](docs/updates.md) describes the stable channel, signed tags, timer, and rollback process.
 
-## Monitoring distribué
+## Distributed monitoring
 
-Le mode `standalone` par défaut exécute les sondes depuis le worker. Le mode `hub` reçoit les observations d’agents indépendants, calcule un quorum par cible et publie uniquement le consensus. Chaque agent possède une file SQLite persistante et peut utiliser les sondes natives ou Prometheus Blackbox Exporter.
+The default `standalone` mode runs probes from the worker. The `hub` mode receives observations from independent agents, calculates a quorum for each target, and publishes only the consensus. Each agent has a persistent SQLite queue and can use native probes or Prometheus Blackbox Exporter.
 
-Configuration minimale du hub :
+Minimal hub configuration:
 
 ```dotenv
 INSIGHT_DISTRIBUTED_MODE=hub
-INSIGHT_AGENT_MASTER_SECRET=remplacez_par_le_resultat_de_openssl_rand_hex_32
+INSIGHT_AGENT_MASTER_SECRET=replace_with_openssl_rand_hex_32_output
 INSIGHT_AGENT_REQUIRE_HTTPS=1
 ```
 
-Générez ensuite un secret par agent et déployez l’image dédiée :
+Then generate a secret for each agent and deploy the dedicated image:
 
 ```bash
 docker compose exec php php scripts/agent-key.php paris-1
@@ -118,82 +118,82 @@ cp .env.agent.example .env.agent
 docker compose --env-file .env.agent -f docker-compose.agent.yml up -d --build
 ```
 
-Le dashboard affiche les agents, régions, affectations, réponses manquantes et la confiance du consensus. Le guide [Monitoring distribué](docs/distributed-monitoring.md) détaille les scénarios 1, 2, 3 et N serveurs, les quorums, Blackbox Exporter, Prometheus et la rotation des secrets.
+The dashboard displays agents, regions, assignments, missing responses, and consensus confidence. The [Distributed monitoring guide](docs/distributed-monitoring.md) covers 1, 2, 3, and N-server scenarios, quorums, Blackbox Exporter, Prometheus, and secret rotation.
 
 ## Configuration
 
-Copiez `.env.example` vers `.env`, puis remplacez au minimum les mots de passe de base de données. Ne publiez jamais le fichier `.env`.
+Copy `.env.example` to `.env`, then replace at least the database passwords. Never publish the `.env` file.
 
-Variables principales :
+Main variables:
 
-| Variable | Valeur par défaut | Rôle |
+| Variable | Default | Purpose |
 | --- | --- | --- |
-| `INSIGHT_APP_NAME` | `Insight` | Nom affiché publiquement |
-| `INSIGHT_PUBLIC_URL` | `http://localhost:8080` | URL canonique de l’instance |
-| `INSIGHT_CONTACT_EMAIL` | `contact@example.com` | Contact affiché sur la page |
-| `INSIGHT_TIMEZONE` | `Europe/Paris` | Fuseau du service |
-| `INSIGHT_DEFAULT_LOCALE` | `auto` | Langue initiale ou détection du navigateur |
-| `INSIGHT_SUPPORTED_LOCALES` | `fr,en` | Catalogues proposés, séparés par des virgules |
-| `INSIGHT_APP_ENV` | `production` | Environnement actif |
-| `INSIGHT_DEV_AUTH_BYPASS` | `0` | Contournement local de l’authentification en développement |
-| `INSIGHT_AUTH_DB_PATH` | `/var/lib/insight-auth/auth.sqlite` | Base privée des comptes locaux |
-| `INSIGHT_AUTH_SESSION_TTL_SEC` | `43200` | Durée d’inactivité d’une session standard |
-| `INSIGHT_AUTH_REMEMBER_TTL_SEC` | `2592000` | Durée d’une session conservée |
-| `INSIGHT_AUTH_MAX_ATTEMPTS` | `5` | Échecs admis dans la fenêtre de connexion |
-| `INSIGHT_AUTH_WINDOW_SEC` | `900` | Fenêtre de limitation des connexions |
-| `INSIGHT_AUTH_COOKIE_SECURE` | `auto` | Cookie sécurisé détecté depuis HTTPS |
-| `INSIGHT_AUTH_COOKIE_SAMESITE` | `Lax` | Compatible avec le retour OIDC, `Strict` sans SSO externe |
-| `INSIGHT_API_ALLOWED_ORIGINS` | URL locale | Origines autorisées pour l’API headless |
-| `INSIGHT_SSO_ENABLED` | `0` | Active la connexion du dashboard par OIDC externe |
-| `INSIGHT_SSO_ISSUER_URL` | vide | Issuer exact du fournisseur d’identité |
-| `INSIGHT_SSO_ALLOWED_ENDPOINT_HOSTS` | hôte de l’issuer | Hôtes OIDC supplémentaires explicitement autorisés |
-| `INSIGHT_SSO_CLIENT_ID` | vide | Identifiant du client OIDC Insight |
-| `INSIGHT_SSO_ALLOWED_EMAILS` | vide | E-mails autorisés, avec claim vérifié par défaut |
-| `INSIGHT_SSO_ALLOWED_GROUPS` | vide | Groupes autorisés à ouvrir le dashboard |
-| `INSIGHT_DB_*` | voir `.env.example` | Connexion MariaDB |
-| `INSIGHT_MONITOR_INTERVAL_SEC` | `60` | Fréquence du worker en secondes |
-| `INSIGHT_DISTRIBUTED_MODE` | `standalone` | Sondes locales ou consensus du hub |
-| `INSIGHT_AGGREGATION_REPROCESS_HOURS` | `2` | Fenêtre recalculée à chaque passage, étendue automatiquement après une interruption |
-| `INSIGHT_PROBE_RETENTION_DAYS` | `30` | Conservation des vérifications brutes après agrégation |
-| `INSIGHT_HOURLY_RETENTION_DAYS` | `365` | Conservation des statistiques horaires |
-| `INSIGHT_DAILY_RETENTION_DAYS` | `730` | Conservation des statistiques journalières |
-| `INSIGHT_TLS_RETENTION_DAYS` | `365` | Conservation des contrôles TLS |
-| `INSIGHT_HTTP_BIND` | `0.0.0.0` | Adresse publiée par Docker, `127.0.0.1` derrière un proxy HTTPS local |
-| `INSIGHT_AGENT_MASTER_SECRET` | vide | Secret maître des agents distants |
-| `INSIGHT_AGENT_REQUIRE_HTTPS` | `1` | Refuse les agents distribués hors HTTPS |
-| `INSIGHT_AGENT_DEFAULT_REPLICAS` | `3` | Nombre d’agents affectés par cible, `0` pour tous |
-| `INSIGHT_DISABLE_NOTIFICATIONS` | `1` | Coupe les envois automatiques, mais pas les tests manuels |
-| `INSIGHT_NOTIFICATION_ENCRYPTION_KEY` | générée à l’installation | Chiffre les secrets des canaux avec SecretBox |
-| `INSIGHT_ALLOWED_ORIGINS` | URL locale | Origines CORS séparées par des virgules |
+| `INSIGHT_APP_NAME` | `Insight` | Publicly displayed name |
+| `INSIGHT_PUBLIC_URL` | `http://localhost:8080` | Canonical instance URL |
+| `INSIGHT_CONTACT_EMAIL` | `contact@example.com` | Contact shown on the status page |
+| `INSIGHT_TIMEZONE` | `Europe/Paris` | Service timezone |
+| `INSIGHT_DEFAULT_LOCALE` | `auto` | Initial language or browser detection |
+| `INSIGHT_SUPPORTED_LOCALES` | `en,fr` | Comma-separated available catalogues |
+| `INSIGHT_APP_ENV` | `production` | Active environment |
+| `INSIGHT_DEV_AUTH_BYPASS` | `0` | Local authentication bypass for development |
+| `INSIGHT_AUTH_DB_PATH` | `/var/lib/insight-auth/auth.sqlite` | Private local account database |
+| `INSIGHT_AUTH_SESSION_TTL_SEC` | `43200` | Standard session inactivity lifetime |
+| `INSIGHT_AUTH_REMEMBER_TTL_SEC` | `2592000` | Remembered session lifetime |
+| `INSIGHT_AUTH_MAX_ATTEMPTS` | `5` | Allowed failures during the login window |
+| `INSIGHT_AUTH_WINDOW_SEC` | `900` | Login rate-limit window |
+| `INSIGHT_AUTH_COOKIE_SECURE` | `auto` | Secure cookie detection from HTTPS |
+| `INSIGHT_AUTH_COOKIE_SAMESITE` | `Lax` | Compatible with OIDC callbacks; use `Strict` without external SSO |
+| `INSIGHT_API_ALLOWED_ORIGINS` | local URL | Origins allowed for the headless API |
+| `INSIGHT_SSO_ENABLED` | `0` | Enables dashboard login through external OIDC |
+| `INSIGHT_SSO_ISSUER_URL` | empty | Exact identity provider issuer |
+| `INSIGHT_SSO_ALLOWED_ENDPOINT_HOSTS` | issuer host | Explicitly allowed additional OIDC hosts |
+| `INSIGHT_SSO_CLIENT_ID` | empty | Insight OIDC client identifier |
+| `INSIGHT_SSO_ALLOWED_EMAILS` | empty | Allowed emails, requiring a verified claim by default |
+| `INSIGHT_SSO_ALLOWED_GROUPS` | empty | Groups allowed to open the dashboard |
+| `INSIGHT_DB_*` | see `.env.example` | MariaDB connection |
+| `INSIGHT_MONITOR_INTERVAL_SEC` | `60` | Worker frequency in seconds |
+| `INSIGHT_DISTRIBUTED_MODE` | `standalone` | Local probes or hub consensus |
+| `INSIGHT_AGGREGATION_REPROCESS_HOURS` | `2` | Window recalculated on each run, automatically extended after interruption |
+| `INSIGHT_PROBE_RETENTION_DAYS` | `30` | Raw check retention after aggregation |
+| `INSIGHT_HOURLY_RETENTION_DAYS` | `365` | Hourly statistics retention |
+| `INSIGHT_DAILY_RETENTION_DAYS` | `730` | Daily statistics retention |
+| `INSIGHT_TLS_RETENTION_DAYS` | `365` | TLS check retention |
+| `INSIGHT_HTTP_BIND` | `0.0.0.0` | Address published by Docker; use `127.0.0.1` behind a local HTTPS proxy |
+| `INSIGHT_AGENT_MASTER_SECRET` | empty | Remote agent master secret |
+| `INSIGHT_AGENT_REQUIRE_HTTPS` | `1` | Rejects distributed agents outside HTTPS |
+| `INSIGHT_AGENT_DEFAULT_REPLICAS` | `3` | Agents assigned per target, or `0` for all |
+| `INSIGHT_DISABLE_NOTIFICATIONS` | `1` | Disables automatic delivery, but not manual tests |
+| `INSIGHT_NOTIFICATION_ENCRYPTION_KEY` | generated at installation | Encrypts channel secrets with SecretBox |
+| `INSIGHT_ALLOWED_ORIGINS` | local URL | Comma-separated CORS origins |
 
-Les notifications sont désactivées par défaut avec `INSIGHT_DISABLE_NOTIFICATIONS=1`. Configurez et testez les canaux dans le dashboard, puis passez cette variable à `0`. Les configurations sont chiffrées avant leur écriture en base et leurs secrets ne sont jamais renvoyés à l’interface. L’ancien réglage SMTP/SMS par variables d’environnement reste utilisé uniquement lorsqu’aucun canal moderne n’est configuré. Le guide [Alertes et notifications](docs/notifications.md) décrit les services Apprise, les modèles Liquid, les webhooks et les sauvegardes.
+Notifications are disabled by default with `INSIGHT_DISABLE_NOTIFICATIONS=1`. Configure and test channels in the dashboard, then set this variable to `0`. Configurations are encrypted before being written to the database, and their secrets are never returned to the interface. The legacy SMTP/SMS environment settings are only used when no modern channel is configured. The [Alerts and notifications guide](docs/notifications.md) describes Apprise services, Liquid templates, webhooks, and backups.
 
-## Internationalisation
+## Internationalization
 
-Les catalogues sont stockés dans `public/locales`. Le français sert de langue de repli. La langue choisie est enregistrée dans le navigateur et peut aussi être imposée avec `?lang=fr` ou `?lang=en`.
+Catalogues are stored in `public/locales`. English is the fallback language. The selected language is saved in the browser and can also be forced with `?lang=fr` or `?lang=en`.
 
-Pour ajouter une langue, dupliquez un catalogue existant, traduisez toutes ses clés, ajoutez son code à `INSIGHT_SUPPORTED_LOCALES`, puis vérifiez la page sur ordinateur et mobile. Les dates, nombres, durées et fuseaux utilisent automatiquement la locale active avec `Intl`.
+To add a language, duplicate an existing catalogue, translate every key, add its code to `INSIGHT_SUPPORTED_LOCALES`, then test the page on desktop and mobile. Dates, numbers, durations, and timezones automatically use the active locale through `Intl`.
 
-## API publique
+## Public API
 
-- `GET /` : page publique Insight.
-- `GET /hourly_stats_report.php?contract=v2` : disponibilité et services.
-- `GET /api/public_runtime_state.php` : état du moteur actif.
-- `GET /api/distributed_state.php` : résumé public du réseau d’agents et du consensus.
-- `GET /metrics` : métriques Prometheus, désactivées par défaut.
-- `GET /hourly_stats_report.php?contract=v2&mode=incidents` : incidents en JSON.
-- `GET /hourly_stats_report.php?contract=v2&mode=incidents&format=rss` : incidents en RSS.
-- `GET /admin/` : dashboard local protégé ou création du premier compte.
+- `GET /`: public Insight status page.
+- `GET /hourly_stats_report.php?contract=v2`: availability and services.
+- `GET /api/public_runtime_state.php`: active engine state.
+- `GET /api/distributed_state.php`: public agent network and consensus summary.
+- `GET /metrics`: Prometheus metrics, disabled by default.
+- `GET /hourly_stats_report.php?contract=v2&mode=incidents`: incidents as JSON.
+- `GET /hourly_stats_report.php?contract=v2&mode=incidents&format=rss`: incidents as RSS.
+- `GET /admin/`: protected local dashboard or first-account setup.
 
-## API headless et SSO
+## Headless API and SSO
 
-Le menu **Accès** active une API d’administration indépendante du dashboard. Les jetons sont limités par permissions, expirables et révocables ; leur valeur n’est affichée qu’une fois. Les routes versionnées couvrent l’état global, les moniteurs, les incidents et les alertes sous `/api/v1/`.
+The **Access** menu enables an administration API independent of the dashboard. Tokens have scoped permissions, can expire, and can be revoked; their value is shown only once. Versioned routes cover global status, monitors, incidents, and alerts under `/api/v1/`.
 
-Insight peut aussi authentifier un autre dashboard en tant que fournisseur OpenID Connect, ou déléguer sa propre connexion à un fournisseur OIDC externe. Ces deux directions utilisent Authorization Code, PKCE S256, des URI de retour exactes et des jetons courts. Consultez le [guide API et SSO](docs/api-and-sso.md) ou ouvrez **Accès → Guide d’intégration** dans l’instance.
+Insight can authenticate another dashboard as an OpenID Connect provider, or delegate its own login to an external OIDC provider. Both directions use Authorization Code, PKCE S256, exact redirect URIs, and short-lived tokens. Read the [API and SSO guide](docs/api-and-sso.md) or open **Access -> Integration guide** in the instance.
 
-Lorsque la base locale ne contient aucun site, l’interface affiche un aperçu avec `example.com`, `status.example.com` et `api.example.com` sur `localhost`. Le détail contient aussi quatre incidents fictifs couvrant les états en cours, résolu, assisté et à confiance faible. Ajoutez `?incidents=off` pour masquer ce jeu de test.
+When the local database contains no sites, the interface displays a preview with `example.com`, `status.example.com`, and `api.example.com` on `localhost`. The detail view also contains four sample incidents covering ongoing, resolved, assisted, and low-confidence states. Add `?incidents=off` to hide this sample data.
 
-## Commandes du worker
+## Worker commands
 
 ```bash
 docker compose exec worker php monitoring/monitoring.php
@@ -202,27 +202,27 @@ docker compose exec worker php monitoring/daily.php
 docker compose exec worker php monitoring/retention.php
 ```
 
-Les agrégations mémorisent leur dernier passage réussi et recalculent au minimum les deux dernières heures. La purge quotidienne travaille par lots et refuse de supprimer les sondes brutes ou les heures tant que les agrégations correspondantes ne sont pas à jour. Les périodes sans observation sont conservées comme temps inconnu et ne sont pas comptées comme une disponibilité réussie. Les temps de réponse journaliers sont pondérés par le nombre réel d’échantillons.
+Aggregations remember their last successful run and recalculate at least the latest two hours. The daily cleanup works in batches and refuses to delete raw probes or hourly rows until the corresponding aggregations are current. Periods without observations remain unknown time and are not counted as successful availability. Daily response times are weighted by the actual sample count.
 
-Le CLI Python permet aussi d’ajouter, modifier, supprimer ou tester manuellement une sonde :
+The Python CLI can also add, edit, delete, or manually test a monitor:
 
 ```bash
 docker compose exec worker python3 monitoring/python_monitoring/cli.py --help
 ```
 
-## Installation sans Docker
+## Installation without Docker
 
-Utilisez PHP 8.2 ou plus récent avec `mysqli`, `pdo_sqlite`, `curl`, `mbstring`, `sodium` et `xml`, Python 3.10 ou plus récent, Node.js 22, MariaDB ou MySQL, et Nginx ou Apache. Importez `database/schema.sql`, installez les dépendances puis compilez l’interface avec `npm ci && npm run build`, installez `monitoring/python_monitoring/requirements.txt`, exposez uniquement le dossier `public/`, puis exécutez régulièrement `monitoring/monitoring.php`, `monitoring/hourly.php` et `monitoring/daily.php`. Le schéma `database/auth-schema.sql` est appliqué automatiquement au premier accès à `/admin/`.
+Use PHP 8.2 or newer with `mysqli`, `pdo_sqlite`, `curl`, `mbstring`, `sodium`, and `xml`; Python 3.10 or newer; Node.js 22; MariaDB or MySQL; and Nginx or Apache. Import `database/schema.sql`, install dependencies and build the interface with `npm ci && npm run build`, install `monitoring/python_monitoring/requirements.txt`, expose only the `public/` directory, then regularly run `monitoring/monitoring.php`, `monitoring/hourly.php`, and `monitoring/daily.php`. The `database/auth-schema.sql` schema is applied automatically on the first visit to `/admin/`.
 
-## Développement
+## Development
 
-Pour ouvrir toute l’administration sans créer de compte, lancez le serveur de développement dédié :
+To open the entire administration interface without creating an account, start the dedicated development server:
 
 ```bash
 ./scripts/dev-server.sh
 ```
 
-Le contournement n’est actif que lorsque `INSIGHT_APP_ENV=development` et `INSIGHT_DEV_AUTH_BYPASS=1` sont définis ensemble. Il reste désactivé par défaut dans Docker et ne doit jamais être utilisé sur une instance exposée.
+The bypass is active only when `INSIGHT_APP_ENV=development` and `INSIGHT_DEV_AUTH_BYPASS=1` are set together. It remains disabled by default in Docker and must never be used on an exposed instance.
 
 ```bash
 npm ci
@@ -239,20 +239,20 @@ php tests/distributed_consensus.php
 python3 -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
-Avec Docker démarré, `./scripts/smoke-test.sh` contrôle le schéma et le CRUD MariaDB sur une installation complète, puis exécute réellement une sonde HTTP, une sonde ICMP et une sonde TCP.
+With Docker running, `./scripts/smoke-test.sh` validates the schema and MariaDB CRUD on a complete installation, then executes real HTTP, ICMP, and TCP probes.
 
-Pour produire l’archive publique depuis un commit contrôlé :
+To build the public archive from a validated commit:
 
 ```bash
 ./scripts/package-release.sh
 ```
 
-La commande relance tous les contrôles, exporte uniquement les fichiers suivis sans dossier `.git`, recherche les données d’exécution et anciennes dépendances privées, puis écrit l’archive et son empreinte dans `dist/`.
+The command reruns every check, exports only tracked files without the `.git` directory, searches for runtime data and legacy private dependencies, then writes the archive and its checksum to `dist/`.
 
-Le CLI shadcn peut ajouter un composant dans le dépôt avec `npx shadcn@latest add nom-du-composant`. Les composants compilés ne dépendent pas d’un service distant à l’exécution.
+The shadcn CLI can add a component to the repository with `npx shadcn@latest add component-name`. Compiled components do not depend on a remote service at runtime.
 
-Consultez `CONTRIBUTING.md` pour proposer une modification et `SECURITY.md` pour signaler une vulnérabilité.
+Read `CONTRIBUTING.md` to propose a change and `SECURITY.md` to report a vulnerability.
 
-## Licence
+## License
 
-Insight est distribué sous licence MIT.
+Insight is distributed under the MIT License.

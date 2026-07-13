@@ -35,11 +35,11 @@ site_id = 0
 try:
     created = add_site(db, target, "http", calc_method="time_weighted")
     if not created.get("ok"):
-        raise RuntimeError("La cible d’agrégation n’a pas été créée.")
+        raise RuntimeError("The aggregation target was not created.")
     site = db.query_one("SELECT id FROM sites WHERE url = %s LIMIT 1", (target,)) or {}
     site_id = int(site.get("id") or 0)
     if site_id <= 0:
-        raise RuntimeError("La cible d’agrégation est introuvable.")
+        raise RuntimeError("The aggregation target was not found.")
 
     now = database_now(db)
     slot = (now - timedelta(days=1)).replace(hour=12, minute=0, second=0, microsecond=0)
@@ -58,41 +58,41 @@ try:
     test_cfg["aggregation_reprocess_hours"] = "72"
     hourly_result = run_hourly_job(db, test_cfg)
     if int(hourly_result.get("bad_data", 0)) != 0:
-        raise RuntimeError("L’agrégation horaire a rejeté des données valides.")
+        raise RuntimeError("Hourly aggregation rejected valid data.")
     hourly = db.query_one(
         "SELECT avg_response_time, sample_count, response_time_sum, total_seconds, offline_seconds, unknown_seconds, availability_ratio, calc_method FROM hourly_stats WHERE site_id = %s AND date = %s AND hour = %s LIMIT 1",
         (site_id, slot.strftime("%Y-%m-%d"), slot.hour),
     ) or {}
     if int(hourly.get("total_seconds") or 0) != 3600:
-        raise RuntimeError("La durée horaire agrégée est invalide.")
+        raise RuntimeError("The aggregated hourly duration is invalid.")
     if int(hourly.get("offline_seconds") or 0) != 900:
-        raise RuntimeError("La durée hors ligne agrégée est invalide.")
+        raise RuntimeError("The aggregated offline duration is invalid.")
     if int(hourly.get("unknown_seconds") or 0) != 900:
-        raise RuntimeError("La durée inconnue agrégée est invalide.")
+        raise RuntimeError("The aggregated unknown duration is invalid.")
     if int(hourly.get("sample_count") or 0) != 2 or abs(float(hourly.get("response_time_sum") or 0.0) - 60.0) > 0.001:
-        raise RuntimeError("La pondération des temps de réponse horaires est invalide.")
+        raise RuntimeError("Hourly response-time weighting is invalid.")
     if abs(float(hourly.get("avg_response_time") or 0.0) - 30.0) > 0.001:
-        raise RuntimeError("Le temps de réponse horaire est invalide.")
+        raise RuntimeError("The hourly response time is invalid.")
     if abs(float(hourly.get("availability_ratio") or 0.0) - 0.6667) > 0.0001:
-        raise RuntimeError("La disponibilité horaire est invalide.")
+        raise RuntimeError("Hourly availability is invalid.")
     if str(hourly.get("calc_method") or "") != "time_weighted":
-        raise RuntimeError("La méthode d’agrégation horaire est invalide.")
+        raise RuntimeError("The hourly aggregation method is invalid.")
 
     daily_result = run_daily_job(db, test_cfg)
     if int(daily_result.get("bad_data", 0)) != 0:
-        raise RuntimeError("L’agrégation journalière a rejeté des données valides.")
+        raise RuntimeError("Daily aggregation rejected valid data.")
     daily = db.query_one(
         "SELECT avg_response_time, sample_count, response_time_sum, total_seconds, offline_seconds, unknown_seconds, availability_ratio, calc_method FROM daily_stats WHERE site_id = %s AND date = %s LIMIT 1",
         (site_id, slot.strftime("%Y-%m-%d")),
     ) or {}
     if int(daily.get("unknown_seconds") or 0) != 900:
-        raise RuntimeError("La durée inconnue journalière est invalide.")
+        raise RuntimeError("The daily unknown duration is invalid.")
     if abs(float(daily.get("availability_ratio") or 0.0) - 0.6667) > 0.0001:
-        raise RuntimeError("La disponibilité journalière est invalide.")
+        raise RuntimeError("Daily availability is invalid.")
     if int(daily.get("sample_count") or 0) != 2 or abs(float(daily.get("response_time_sum") or 0.0) - 60.0) > 0.001:
-        raise RuntimeError("La pondération des temps de réponse journaliers est invalide.")
+        raise RuntimeError("Daily response-time weighting is invalid.")
     if abs(float(daily.get("avg_response_time") or 0.0) - 30.0) > 0.001:
-        raise RuntimeError("Le temps de réponse journalier est invalide.")
+        raise RuntimeError("The daily response time is invalid.")
 
     old_slot = (now - timedelta(days=40)).replace(hour=8, minute=0, second=0, microsecond=0)
     old_date = old_slot.strftime("%Y-%m-%d")
@@ -125,25 +125,25 @@ try:
     )
     retention = run_retention_job(db, retention_cfg)
     if retention.get("skipped"):
-        raise RuntimeError("La purge a été ignorée malgré des agrégations à jour.")
+        raise RuntimeError("Cleanup was skipped despite current aggregations.")
     for table, date_column in (("probes", "checked_at"), ("hourly_stats", "date"), ("daily_stats", "date"), ("ssl_checks", "checked_at")):
         remaining = db.query_one(
             f"SELECT COUNT(*) AS total FROM `{table}` WHERE site_id = %s AND {date_column} <= %s",
             (site_id, old_slot.strftime("%Y-%m-%d %H:%M:%S")),
         ) or {}
         if int(remaining.get("total") or 0) != 0:
-            raise RuntimeError(f"La purge de {table} a échoué.")
+            raise RuntimeError(f"Cleanup of {table} failed.")
 
     deleted = delete_site(db, site_id)
     if not deleted.get("ok"):
-        raise RuntimeError("La suppression de la cible a échoué.")
+        raise RuntimeError("Target deletion failed.")
     site_id = 0
     for table in ("probes", "hourly_stats", "daily_stats", "ssl_checks"):
         remaining = db.query_one(f"SELECT COUNT(*) AS total FROM `{table}` WHERE site_id = %s", (int(site.get("id") or 0),)) or {}
         if int(remaining.get("total") or 0) != 0:
-            raise RuntimeError(f"La suppression en cascade de {table} a échoué.")
+            raise RuntimeError(f"Cascading deletion from {table} failed.")
 
-    print("Agrégations, rétention et suppression en cascade validées.")
+    print("Aggregation, retention, and cascading deletion validated.")
 finally:
     if site_id > 0:
         delete_site(db, site_id)

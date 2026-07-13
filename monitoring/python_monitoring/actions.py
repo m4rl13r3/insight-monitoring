@@ -151,7 +151,7 @@ def add_site(
     probe = _normalize_probe_type(probe_type)
     url = _normalize_url(site_url, probe)
     if not url:
-        return {"ok": False, "status_code": 400, "message": "URL invalide."}
+        return {"ok": False, "status_code": 400, "message": "Invalid URL."}
     normalized_interval = _normalize_interval_sec(interval_sec)
     normalized_calc_method = _normalize_calc_method(calc_method)
     normalized_http_methods = _normalize_http_methods(http_methods)
@@ -180,11 +180,11 @@ def add_site(
 
 def delete_site(db: Database, site_id: int) -> dict:
     if site_id <= 0:
-        return {"ok": False, "status_code": 400, "message": "ID invalide."}
+        return {"ok": False, "status_code": 400, "message": "Invalid ID."}
 
     row = db.query_one("SELECT id FROM sites WHERE id = %s LIMIT 1", (site_id,))
     if not row:
-        return {"ok": False, "status_code": 404, "message": "ID non trouvé."}
+        return {"ok": False, "status_code": 404, "message": "ID not found."}
 
     db.execute("DELETE FROM sites WHERE id = %s", (site_id,))
     return {"ok": True}
@@ -204,12 +204,12 @@ def update_site(
 ) -> dict:
     _ensure_sites_runtime_columns(db)
     if site_id <= 0:
-        return {"ok": False, "status_code": 400, "message": "ID invalide."}
+        return {"ok": False, "status_code": 400, "message": "Invalid ID."}
 
     probe = _normalize_probe_type(probe_type)
     url = _normalize_url(site_url, probe)
     if not url:
-        return {"ok": False, "status_code": 400, "message": "URL invalide."}
+        return {"ok": False, "status_code": 400, "message": "Invalid URL."}
     normalized_interval = _normalize_interval_sec(interval_sec)
     normalized_calc_method = _normalize_calc_method(calc_method)
     normalized_http_methods = _normalize_http_methods(http_methods)
@@ -219,7 +219,7 @@ def update_site(
 
     row = db.query_one("SELECT id FROM sites WHERE id = %s LIMIT 1", (site_id,))
     if not row:
-        return {"ok": False, "status_code": 404, "message": "ID non trouvé."}
+        return {"ok": False, "status_code": 404, "message": "ID not found."}
 
     db.execute(
         """

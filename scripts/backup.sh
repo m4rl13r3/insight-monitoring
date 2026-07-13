@@ -11,7 +11,7 @@ compose=(docker compose)
 
 if [ -n "$env_file" ]; then
     if [ ! -f "$env_file" ]; then
-        echo "Le fichier d’environnement ${env_file} est introuvable." >&2
+        echo "Environment file ${env_file} was not found." >&2
         exit 1
     fi
     compose+=(--env-file "$env_file")
@@ -22,12 +22,12 @@ if [ -n "$project_name" ]; then
 fi
 
 if ! "${compose[@]}" ps --services --status running | grep -qx db; then
-    echo "Le service MariaDB doit être démarré." >&2
+    echo "The MariaDB service must be running." >&2
     exit 1
 fi
 
 if ! "${compose[@]}" ps --services --status running | grep -qx php; then
-    echo "Le service PHP doit être démarré." >&2
+    echo "The PHP service must be running." >&2
     exit 1
 fi
 
@@ -52,11 +52,11 @@ if [ -f "$source_path" ]; then
 $source = new SQLite3($argv[1], SQLITE3_OPEN_READONLY);
 $target = new SQLite3($argv[2], SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE);
 if (!$source->backup($target)) {
-    fwrite(STDERR, "La sauvegarde de l’identité locale a échoué.\n");
+    fwrite(STDERR, "Local identity backup failed.\n");
     exit(1);
 }
 if ($target->querySingle("PRAGMA integrity_check") !== "ok") {
-    fwrite(STDERR, "La copie de l’identité locale est invalide.\n");
+    fwrite(STDERR, "The local identity copy is invalid.\n");
     exit(1);
 }
 '\'' "$source_path" "$export_dir/auth.sqlite"
@@ -71,9 +71,9 @@ tar -C "$export_dir" -cf - .
 
 created_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 printf '{"format":1,"application":"Insight","created_at":"%s"}\n' "$created_at" >"${temporary_dir}/metadata.json"
-printf '%s\n' 'Cette archive contient MariaDB et l’identité locale. Conservez aussi le fichier .env séparément et en lieu sûr.' >"${temporary_dir}/LISEZ-MOI.txt"
+printf '%s\n' 'This archive contains MariaDB and local identity data. Keep the .env file separately in a secure location.' >"${temporary_dir}/README.txt"
 
-tar -C "$temporary_dir" -czf "$output" database.sql auth.tar metadata.json LISEZ-MOI.txt
+tar -C "$temporary_dir" -czf "$output" database.sql auth.tar metadata.json README.txt
 
 if command -v shasum >/dev/null 2>&1; then
     checksum="$(shasum -a 256 "$output" | awk '{print $1}')"
@@ -82,5 +82,5 @@ else
 fi
 printf '%s  %s\n' "$checksum" "$(basename "$output")" >"${output}.sha256"
 
-echo "Sauvegarde créée : ${output}"
-echo "Empreinte créée : ${output}.sha256"
+echo "Backup created: ${output}"
+echo "Checksum created: ${output}.sha256"

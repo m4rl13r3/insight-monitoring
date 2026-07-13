@@ -15,7 +15,7 @@ $connection = @new mysqli(
     (int)($config['port'] ?? 3306)
 );
 if ($connection->connect_error) {
-    fwrite(STDERR, "Connexion MariaDB impossible.\n");
+    fwrite(STDERR, "Unable to connect to MariaDB.\n");
     exit(1);
 }
 $connection->set_charset('utf8mb4');
@@ -32,7 +32,7 @@ try {
         'service_name' => 'insight',
         'active_engine' => 'consensus',
         'monitor_last_ok' => 1,
-        'monitor_last_message' => 'Consensus distribué opérationnel.',
+        'monitor_last_message' => 'Distributed consensus is healthy.',
         'monitor_python_error' => null,
         'monitor_checked_by' => 'agents',
         'sites_checked' => count($results),
@@ -50,7 +50,7 @@ try {
         'service_name' => 'insight',
         'active_engine' => 'consensus',
         'monitor_last_ok' => 0,
-        'monitor_last_message' => 'Échec du consensus distribué.',
+        'monitor_last_message' => 'Distributed consensus failed.',
         'monitor_python_error' => $exception->getMessage(),
         'monitor_checked_by' => 'agents',
     ]);

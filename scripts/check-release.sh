@@ -10,13 +10,18 @@ if [ -d "$root/monitoring/.pydeps" ]; then
 fi
 
 if ! command -v rg >/dev/null 2>&1; then
-    echo "ripgrep (rg) est requis pour le contrôle de release." >&2
+    echo "ripgrep (rg) is required for the release check." >&2
     exit 1
 fi
 
 for required in LICENSE README.md SECURITY.md CONTRIBUTING.md CHANGELOG.md THIRD_PARTY_NOTICES.md .env.example docker-compose.yml database/schema.sql docs/production.md docs/updates.md scripts/production-check.sh scripts/backup-scheduled.sh scripts/migrate.sh scripts/update.sh scripts/install-auto-update.sh; do
     test -f "$required"
 done
+
+if rg -n -i "[àâäçéèêëîïôöùûüœ]|\\b(avec|pour|dans|ajouté|modifié|supprimé|sécurité|utilisez|aucun|erreur|échec|mise à jour)\\b" README.md CHANGELOG.md CONTRIBUTING.md SECURITY.md THIRD_PARTY_NOTICES.md docs monitoring public scripts src tests database docker .github package.json docker-compose.yml docker-compose.agent.yml --hidden --glob '!public/assets/**' --glob '!public/locales/fr.json' --glob '!database/migrations/003-notifications.sql' --glob '!database/migrations/005-english-notification-defaults.sql' --glob '!scripts/check-release.sh' --glob '!monitoring/.pydeps/**' --glob '!monitoring/logs/**' --glob '!public/logs/**' | rg -v 'sëcret-token|shared-sëcret'; then
+    echo "French source text remains outside approved localization and migration files." >&2
+    exit 1
+fi
 
 removed_engine_file="$(printf '%s%s' 'monitoring/php_' 'fallback.php')"
 removed_engine_symbol="$(printf '%s%s' 'php_' 'fallback')"
@@ -63,4 +68,4 @@ php tests/public_api.php
 php tests/distributed_consensus.php
 python3 -m unittest discover -s tests -p 'test_*.py' -v
 
-echo "Contrôle de release Insight ${package_version} réussi."
+echo "Insight ${package_version} release check passed."

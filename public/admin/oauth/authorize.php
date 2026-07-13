@@ -57,15 +57,15 @@ insight_admin_auth_topbar();
       <?php if (!($request['ok'] ?? false)): ?>
         <div class="admin-auth-heading">
           <span class="admin-auth-icon" aria-hidden="true"><i class="fa-solid fa-triangle-exclamation"></i></span>
-          <div><p class="admin-eyebrow">OpenID Connect</p><h1 id="oauth-consent-title" data-i18n="admin.oauth.invalidTitle">Demande invalide</h1></div>
+          <div><p class="admin-eyebrow">OpenID Connect</p><h1 id="oauth-consent-title" data-i18n="admin.oauth.invalidTitle">Invalid request</h1></div>
         </div>
-        <p class="admin-auth-intro" data-i18n="admin.oauth.invalidDescription">Le dashboard appelant n’a pas fourni une demande OAuth valide.</p>
+        <p class="admin-auth-intro" data-i18n="admin.oauth.invalidDescription">The requesting dashboard did not provide a valid OAuth request.</p>
       <?php else: ?>
         <div class="admin-auth-heading">
           <span class="admin-auth-icon" aria-hidden="true"><i class="fa-solid fa-link"></i></span>
-          <div><p class="admin-eyebrow">OpenID Connect</p><h1 id="oauth-consent-title" data-i18n="admin.oauth.consentTitle">Autoriser ce dashboard</h1></div>
+          <div><p class="admin-eyebrow">OpenID Connect</p><h1 id="oauth-consent-title" data-i18n="admin.oauth.consentTitle">Authorize this dashboard</h1></div>
         </div>
-        <p class="admin-auth-intro"><strong><?= insight_admin_escape((string)$request['client']['name']) ?></strong> <span data-i18n="admin.oauth.consentDescription">souhaite utiliser votre identité Insight.</span></p>
+        <p class="admin-auth-intro"><strong><?= insight_admin_escape((string)$request['client']['name']) ?></strong> <span data-i18n="admin.oauth.consentDescription">wants to use your Insight identity.</span></p>
         <ul class="admin-oauth-scope-list">
           <?php foreach ($request['scopes'] as $scope): ?>
             <li><i class="fa-solid fa-check" aria-hidden="true"></i><span data-i18n="<?= insight_admin_escape(insight_access_scope_i18n_key((string)$scope)) ?>"><?= insight_admin_escape((string)(insight_access_oauth_scope_catalog()[$scope] ?? $scope)) ?></span></li>
@@ -77,8 +77,8 @@ insight_admin_auth_topbar();
             <input type="hidden" name="<?= insight_admin_escape($field) ?>" value="<?= insight_admin_escape((string)$request[$field]) ?>">
           <?php endforeach; ?>
           <input type="hidden" name="response_type" value="code">
-          <button class="admin-secondary-button" type="submit" name="decision" value="deny" data-i18n="admin.oauth.deny">Refuser</button>
-          <button class="admin-primary-button" type="submit" name="decision" value="approve"><i class="fa-solid fa-check" aria-hidden="true"></i><span data-i18n="admin.oauth.approve">Autoriser</span></button>
+          <button class="admin-secondary-button" type="submit" name="decision" value="deny" data-i18n="admin.oauth.deny">Deny</button>
+          <button class="admin-primary-button" type="submit" name="decision" value="approve"><i class="fa-solid fa-check" aria-hidden="true"></i><span data-i18n="admin.oauth.approve">Authorize</span></button>
         </form>
       <?php endif; ?>
     </section>

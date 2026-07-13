@@ -55,7 +55,7 @@ function hourly_query_int($key, $default, $min, $max) {
 
 function hourly_incident_duration_label(?int $durationSeconds): string {
     if ($durationSeconds === null || $durationSeconds < 0) {
-        return 'durée inconnue';
+        return 'unknown duration';
     }
     if ($durationSeconds < 60) {
         return $durationSeconds . ' s';
@@ -79,13 +79,13 @@ function hourly_incident_confidence_fields(array $incident): array {
     $facts = [];
     if ($sourceMode === 'manual') {
         $score += 30;
-        $facts[] = 'source manuelle';
+        $facts[] = 'manual source';
     } elseif ($sourceMode === 'system') {
         $score += 25;
-        $facts[] = 'source système';
+        $facts[] = 'system source';
     } else {
         $score += 15;
-        $facts[] = 'source IA';
+        $facts[] = 'AI source';
     }
 
     $httpCode = isset($incident['http_code']) && is_numeric($incident['http_code']) ? (int)$incident['http_code'] : null;
@@ -100,7 +100,7 @@ function hourly_incident_confidence_fields(array $incident): array {
         $facts[] = 'code HTTP ' . $httpCode;
     } else {
         $score -= 5;
-        $facts[] = 'code HTTP absent';
+        $facts[] = 'missing HTTP code';
     }
 
     $startedTs = null;
@@ -130,13 +130,13 @@ function hourly_incident_confidence_fields(array $incident): array {
         } elseif ($durationSeconds >= 60) {
             $score += 5;
         }
-        $facts[] = 'durée ' . hourly_incident_duration_label($durationSeconds);
+        $facts[] = 'duration ' . hourly_incident_duration_label($durationSeconds);
     }
 
     $hasPostmortem = !empty($incident['has_postmortem']) || trim((string)($incident['postmortem'] ?? '')) !== '';
     if ($hasPostmortem) {
         $score += 10;
-        $facts[] = 'postmortem rédigé';
+        $facts[] = 'postmortem available';
     }
 
     $score = max(0, min(100, $score));

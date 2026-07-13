@@ -1,23 +1,23 @@
-# API et SSO
+# API and SSO
 
-Insight sépare trois usages : l’API headless par jetons, Insight comme fournisseur OpenID Connect pour un autre dashboard, et Insight comme client d’un fournisseur SSO externe. Les trois fonctions sont désactivées par défaut.
+Insight separates three use cases: the token-based headless API, Insight as an OpenID Connect provider for another dashboard, and Insight as a client of an external SSO provider. All three features are disabled by default.
 
-## API headless
+## Headless API
 
-Depuis **Administration → Accès**, activez l’API puis créez un jeton. Sa valeur n’est affichée qu’une fois et seul son hachage SHA-256 est conservé dans la base SQLite privée.
+From **Administration -> Access**, enable the API and create a token. Its value is displayed only once, and only its SHA-256 hash is stored in the private SQLite database.
 
-Permissions disponibles :
+Available permissions:
 
-| Permission | Accès |
+| Permission | Access |
 | --- | --- |
-| `status:read` | État global et moteur |
-| `monitors:read` | Liste des moniteurs |
-| `monitors:write` | Création, modification et suppression des moniteurs |
-| `incidents:read` | Liste des incidents |
-| `notifications:read` | Canaux et messages, avec secrets masqués |
-| `notifications:write` | Gestion et test des canaux et messages |
+| `status:read` | Global status and engine state |
+| `monitors:read` | Monitor list |
+| `monitors:write` | Monitor creation, editing, and deletion |
+| `incidents:read` | Incident list |
+| `notifications:read` | Channels and messages, with masked secrets |
+| `notifications:write` | Channel and message management and testing |
 
-Exemple :
+Example:
 
 ```bash
 curl \
@@ -25,35 +25,35 @@ curl \
   https://status.example.com/api/v1/status.php
 ```
 
-Les routes sont documentées dans `/api/v1/openapi.php` lorsque l’API est active. Pour un accès depuis un navigateur sur un autre domaine, ajoutez uniquement les origines nécessaires à `INSIGHT_API_ALLOWED_ORIGINS`.
+Routes are documented at `/api/v1/openapi.php` while the API is enabled. For browser access from another domain, add only the required origins to `INSIGHT_API_ALLOWED_ORIGINS`.
 
-## Insight comme fournisseur OpenID Connect
+## Insight as an OpenID Connect provider
 
-Activez **Dashboards connectés**, puis créez une application avec ses URI de retour exactes. Insight fournit :
+Enable **Connected dashboards**, then create an application with its exact redirect URIs. Insight provides:
 
-- découverte : `/.well-known/openid-configuration` ;
-- autorisation : `/admin/oauth/authorize.php` ;
-- échange de code : `/api/oauth/token.php` ;
-- profil : `/api/oauth/userinfo.php` ;
-- clés publiques : `/api/oauth/jwks.php`.
+- discovery: `/.well-known/openid-configuration`;
+- authorization: `/admin/oauth/authorize.php`;
+- code exchange: `/api/oauth/token.php`;
+- profile: `/api/oauth/userinfo.php`;
+- public keys: `/api/oauth/jwks.php`.
 
-Seul le flow Authorization Code est accepté. PKCE `S256`, `state` et `nonce` sont obligatoires. Les URI de retour sont comparées à l’identique. Les codes expirent après cinq minutes et ne peuvent être consommés qu’une fois. Les jetons d’accès expirent après une heure et les ID Tokens RS256 après cinq minutes.
+Only the Authorization Code flow is accepted. PKCE `S256`, `state`, and `nonce` are mandatory. Redirect URIs are compared exactly. Codes expire after five minutes and can be consumed only once. Access tokens expire after one hour and RS256 ID Tokens after five minutes.
 
-Le dashboard client doit utiliser la découverte, conserver son `client_secret` côté serveur, vérifier `state`, `nonce`, `iss`, `aud`, `exp` et la signature de l’ID Token, puis créer sa propre session sécurisée.
+The client dashboard must use discovery, keep its `client_secret` server-side, validate `state`, `nonce`, `iss`, `aud`, `exp`, and the ID Token signature, then create its own secure session.
 
-## Insight comme client SSO
+## Insight as an SSO client
 
-Créez d’abord l’administrateur local de secours, puis un client OIDC confidentiel chez le fournisseur d’identité. L’URI de retour est :
+First create the fallback local administrator, then register a confidential OIDC client with the identity provider. The redirect URI is:
 
 ```text
 https://status.example.com/admin/sso/callback.php
 ```
 
-Configuration minimale :
+Minimal configuration:
 
 ```dotenv
 INSIGHT_SSO_ENABLED=1
-INSIGHT_SSO_PROVIDER_NAME=Entreprise
+INSIGHT_SSO_PROVIDER_NAME=Company
 INSIGHT_SSO_ISSUER_URL=https://id.example.com
 INSIGHT_SSO_ALLOWED_ENDPOINT_HOSTS=
 INSIGHT_SSO_CLIENT_ID=insight
@@ -61,22 +61,22 @@ INSIGHT_SSO_CLIENT_SECRET=
 INSIGHT_SSO_ALLOWED_GROUPS=ops,status-admins
 ```
 
-Contrôle d’accès :
+Access control:
 
-- `INSIGHT_SSO_ALLOWED_EMAILS` accepte des e-mails exacts séparés par des virgules ;
-- `INSIGHT_SSO_REQUIRE_VERIFIED_EMAIL=1` exige par défaut le claim `email_verified=true` pour cette liste ;
-- `INSIGHT_SSO_ALLOWED_GROUPS` accepte les membres d’au moins un groupe ;
-- `INSIGHT_SSO_ADMIN_GROUPS` impose en plus l’appartenance à un groupe administrateur ;
-- `INSIGHT_SSO_ALLOW_ALL=1` délègue entièrement l’admission au fournisseur, ce qui est déconseillé sans affectation stricte de l’application côté IdP.
+- `INSIGHT_SSO_ALLOWED_EMAILS` accepts comma-separated exact email addresses;
+- `INSIGHT_SSO_REQUIRE_VERIFIED_EMAIL=1` requires the `email_verified=true` claim for this list by default;
+- `INSIGHT_SSO_ALLOWED_GROUPS` accepts members of at least one group;
+- `INSIGHT_SSO_ADMIN_GROUPS` additionally requires membership in an administrator group;
+- `INSIGHT_SSO_ALLOW_ALL=1` fully delegates admission to the provider, which is discouraged without strict application assignment at the IdP.
 
-Insight refuse d’activer le SSO sans politique d’admission. Il vérifie la découverte, TLS, la signature RS256, l’issuer, l’audience, le nonce et les dates avant d’enregistrer l’identité dans la base privée. `INSIGHT_SSO_AUTO_LOGIN=1` lance automatiquement le SSO. `INSIGHT_SSO_HIDE_LOCAL_LOGIN=1` masque le formulaire local, qui reste accessible comme accès de secours sur `/admin/login.php?local=1`.
+Insight refuses to enable SSO without an admission policy. It validates discovery, TLS, the RS256 signature, issuer, audience, nonce, and dates before storing the identity in the private database. `INSIGHT_SSO_AUTO_LOGIN=1` starts SSO automatically. `INSIGHT_SSO_HIDE_LOCAL_LOGIN=1` hides the local form, which remains available as fallback access at `/admin/login.php?local=1`.
 
-Les endpoints annoncés par la découverte doivent utiliser le même hôte que l’issuer. Pour un fournisseur qui sépare volontairement ses endpoints, ajoutez uniquement les hôtes officiels nécessaires à `INSIGHT_SSO_ALLOWED_ENDPOINT_HOSTS`.
+Endpoints advertised through discovery must use the same host as the issuer. For providers that intentionally separate endpoints, add only the required official hosts to `INSIGHT_SSO_ALLOWED_ENDPOINT_HOSTS`.
 
-## Exploitation
+## Operations
 
-- Utilisez HTTPS et une valeur canonique exacte pour `INSIGHT_PUBLIC_URL`.
-- Conservez le volume `insight_auth` avec les sauvegardes : il contient les comptes, les hachages de jetons, les clients et la clé privée de signature OIDC.
-- Ne copiez jamais un jeton ou un secret client dans une URL, un log ou du JavaScript public.
-- Donnez les permissions minimales et une expiration courte, puis révoquez immédiatement les accès retirés.
-- La version actuelle gère une seule clé OIDC active. Une rotation invalide les ID Tokens en circulation ; planifiez-la avec une courte fenêtre de jetons et un rafraîchissement immédiat du JWKS côté clients.
+- Use HTTPS and an exact canonical value for `INSIGHT_PUBLIC_URL`.
+- Include the `insight_auth` volume in backups: it contains accounts, token hashes, clients, and the OIDC signing private key.
+- Never copy a token or client secret into a URL, log, or public JavaScript.
+- Grant minimum permissions and short expirations, then immediately revoke removed access.
+- The current version supports one active OIDC key. Rotation invalidates outstanding ID Tokens; schedule it with a short token window and immediate client-side JWKS refresh.

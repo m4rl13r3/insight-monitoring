@@ -88,7 +88,7 @@ if (!function_exists('run_monitoring_python')) {
             return [
                 'ok' => false,
                 'status_code' => 500,
-                'message' => 'Script Python monitoring introuvable.',
+                'message' => 'Python monitoring script not found.',
             ];
         }
 
@@ -150,7 +150,7 @@ if (!function_exists('run_monitoring_python')) {
             return [
                 'ok' => false,
                 'status_code' => 500,
-                'message' => ($exitCode === 124 ? 'Timeout Python monitoring.' : 'Réponse Python invalide.'),
+                'message' => ($exitCode === 124 ? 'Python monitoring timeout.' : 'Invalid Python response.'),
                 'raw' => $raw,
                 'exit_code' => $exitCode,
             ];

@@ -12,10 +12,10 @@ require_once __DIR__ . '/_bootstrap.php';
 function insight_admin_supported_locales(): array
 {
     $locales = array_values(array_filter(
-        array_map('trim', explode(',', insight_admin_env('INSIGHT_SUPPORTED_LOCALES', 'fr,en'))),
+        array_map('trim', explode(',', insight_admin_env('INSIGHT_SUPPORTED_LOCALES', 'en,fr'))),
         static fn(string $locale): bool => preg_match('/^[a-z]{2}$/i', $locale) === 1
     ));
-    return $locales === [] ? ['fr', 'en'] : array_map('strtolower', $locales);
+    return $locales === [] ? ['en', 'fr'] : array_map('strtolower', $locales);
 }
 
 function insight_admin_page_start(
@@ -67,12 +67,12 @@ function insight_admin_auth_topbar(): void
     $appName = (string)($insightAdminConfig['app_name'] ?? 'Insight');
     ?>
   <header class="admin-auth-topbar">
-    <a class="admin-brand" href="/" aria-label="Accueil Insight" data-i18n-aria-label="common.home">
+    <a class="admin-brand" href="/" aria-label="Insight home" data-i18n-aria-label="common.home">
       <img src="/favicons/favicon.svg" alt="" width="30" height="30">
       <span><?= insight_admin_escape($appName) ?></span>
     </a>
     <div class="admin-auth-actions">
-      <a class="admin-icon-button" href="/" aria-label="Voir la page publique" title="Voir la page publique" data-i18n-aria-label="admin.publicStatus" data-i18n-title="admin.publicStatus">
+      <a class="admin-icon-button" href="/" aria-label="Public status page" title="Public status page" data-i18n-aria-label="admin.publicStatus" data-i18n-title="admin.publicStatus">
         <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
       </a>
       <div id="insight-controls-root"></div>

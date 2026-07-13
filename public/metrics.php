@@ -38,7 +38,7 @@ function insight_metrics_rows(mysqli $connection, string $query): array
 {
     $result = $connection->query($query);
     if (!$result instanceof mysqli_result) {
-        throw new RuntimeException('Lecture des métriques impossible.');
+        throw new RuntimeException('Unable to read metrics.');
     }
     $rows = $result->fetch_all(MYSQLI_ASSOC);
     $result->free();
@@ -133,14 +133,14 @@ try {
         ORDER BY s.id
     ");
 
-    echo "# HELP insight_metrics_available Disponibilité de l’exporteur Insight.\n";
+    echo "# HELP insight_metrics_available Availability of the Insight exporter.\n";
     echo "# TYPE insight_metrics_available gauge\n";
     echo "insight_metrics_available 1\n";
-    echo "# HELP insight_agent_up Présence récente d’un agent actif.\n";
+    echo "# HELP insight_agent_up Recent presence of an active agent.\n";
     echo "# TYPE insight_agent_up gauge\n";
-    echo "# HELP insight_agent_connectivity État de la connectivité locale déclarée par l’agent.\n";
+    echo "# HELP insight_agent_connectivity Local connectivity state reported by the agent.\n";
     echo "# TYPE insight_agent_connectivity gauge\n";
-    echo "# HELP insight_agent_clock_skew_seconds Décalage d’horloge observé entre l’agent et le hub.\n";
+    echo "# HELP insight_agent_clock_skew_seconds Observed clock skew between the agent and hub.\n";
     echo "# TYPE insight_agent_clock_skew_seconds gauge\n";
     foreach ($nodes as $node) {
         $labels = 'node="' . insight_metrics_label($node['node_key'])
@@ -155,11 +155,11 @@ try {
         echo 'insight_agent_clock_skew_seconds{' . $labels . '} ' . insight_metrics_number(((float)$node['clock_skew_ms']) / 1000) . "\n";
     }
 
-    echo "# HELP insight_probe_success Résultat de la dernière sonde brute par agent.\n";
+    echo "# HELP insight_probe_success Result of the latest raw probe by agent.\n";
     echo "# TYPE insight_probe_success gauge\n";
-    echo "# HELP insight_probe_duration_seconds Durée de la dernière sonde brute.\n";
+    echo "# HELP insight_probe_duration_seconds Duration of the latest raw probe.\n";
     echo "# TYPE insight_probe_duration_seconds gauge\n";
-    echo "# HELP insight_probe_http_status_code Code HTTP observé par la dernière sonde brute.\n";
+    echo "# HELP insight_probe_http_status_code HTTP code observed by the latest raw probe.\n";
     echo "# TYPE insight_probe_http_status_code gauge\n";
     foreach ($observations as $observation) {
         $labels = 'site_id="' . (int)$observation['site_id']
@@ -177,11 +177,11 @@ try {
         }
     }
 
-    echo "# HELP insight_consensus_status État agrégé courant d’une cible.\n";
+    echo "# HELP insight_consensus_status Current aggregated state of a target.\n";
     echo "# TYPE insight_consensus_status gauge\n";
-    echo "# HELP insight_consensus_confidence Ratio de nœuds soutenant le consensus.\n";
+    echo "# HELP insight_consensus_confidence Ratio of nodes supporting consensus.\n";
     echo "# TYPE insight_consensus_confidence gauge\n";
-    echo "# HELP insight_consensus_nodes Nombre de nœuds du consensus par catégorie.\n";
+    echo "# HELP insight_consensus_nodes Number of consensus nodes by category.\n";
     echo "# TYPE insight_consensus_nodes gauge\n";
     foreach ($consensus as $current) {
         $labels = 'site_id="' . (int)$current['site_id'] . '",site="' . insight_metrics_label($current['url']) . '"';

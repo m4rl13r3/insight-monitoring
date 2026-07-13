@@ -6,17 +6,17 @@ root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root_dir"
 
 if ! command -v docker >/dev/null 2>&1; then
-    echo "Docker est requis pour installer Insight." >&2
+    echo "Docker is required to install Insight." >&2
     exit 1
 fi
 
 if ! docker compose version >/dev/null 2>&1; then
-    echo "Le module Docker Compose est requis." >&2
+    echo "The Docker Compose plugin is required." >&2
     exit 1
 fi
 
 if ! command -v openssl >/dev/null 2>&1; then
-    echo "OpenSSL est requis pour générer les secrets de l’instance." >&2
+    echo "OpenSSL is required to generate instance secrets." >&2
     exit 1
 fi
 
@@ -31,7 +31,7 @@ if [ ! -f .env ]; then
     sed -i.bak "s/^INSIGHT_AGENT_MASTER_SECRET=.*/INSIGHT_AGENT_MASTER_SECRET=${agent_master_secret}/" .env
     sed -i.bak "s/^INSIGHT_NOTIFICATION_ENCRYPTION_KEY=.*/INSIGHT_NOTIFICATION_ENCRYPTION_KEY=${notification_encryption_key}/" .env
     rm -f .env.bak
-    echo "Configuration créée dans .env. Vérifiez l’URL publique, l’adresse de contact et le mode de monitoring."
+    echo "Configuration created in .env. Review the public URL, contact address, and monitoring mode."
 fi
 
 chmod 600 .env
@@ -40,5 +40,5 @@ docker compose up -d --build --wait --wait-timeout 180
 ./scripts/migrate.sh
 docker compose ps
 
-echo "Insight est démarré."
-echo "Avant l’ouverture publique, suivez docs/production.md puis lancez ./scripts/production-check.sh --strict."
+echo "Insight is running."
+echo "Before making it public, follow docs/production.md and run ./scripts/production-check.sh --strict."

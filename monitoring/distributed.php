@@ -38,7 +38,7 @@ function insight_dist_format_unix_milliseconds(float $timestamp): string
 {
     $date = DateTimeImmutable::createFromFormat('U.u', number_format($timestamp, 6, '.', ''));
     if (!$date instanceof DateTimeImmutable) {
-        throw new RuntimeException('Conversion d’horodatage distribuée impossible.');
+        throw new RuntimeException('Unable to convert distributed timestamp.');
     }
     return $date
         ->setTimezone(new DateTimeZone(date_default_timezone_get()))
@@ -49,7 +49,7 @@ function insight_dist_execute(mysqli $connection, string $sql, array $params = [
 {
     $statement = $connection->prepare($sql);
     if (!$statement) {
-        throw new RuntimeException('Préparation SQL distribuée impossible: ' . $connection->error);
+        throw new RuntimeException('Unable to prepare distributed SQL: ' . $connection->error);
     }
     if ($params !== []) {
         $types = '';
@@ -75,7 +75,7 @@ function insight_dist_execute(mysqli $connection, string $sql, array $params = [
     if (!$statement->execute()) {
         $message = $statement->error;
         $statement->close();
-        throw new RuntimeException('Exécution SQL distribuée impossible: ' . $message);
+        throw new RuntimeException('Unable to execute distributed SQL: ' . $message);
     }
     return $statement;
 }
@@ -224,7 +224,7 @@ function insight_dist_ensure_schema(mysqli $connection): void
     ];
     foreach ($queries as $query) {
         if (!$connection->query($query)) {
-            throw new RuntimeException('Création du schéma distribué impossible: ' . $connection->error);
+            throw new RuntimeException('Unable to create distributed schema: ' . $connection->error);
         }
     }
     $columns = [
@@ -235,7 +235,7 @@ function insight_dist_ensure_schema(mysqli $connection): void
     foreach ($columns as $column => $definition) {
         if (!insight_dist_column_exists($connection, 'sites', $column)) {
             if (!$connection->query("ALTER TABLE sites ADD COLUMN {$column} {$definition}")) {
-                throw new RuntimeException('Migration du schéma distribué impossible: ' . $connection->error);
+                throw new RuntimeException('Unable to migrate distributed schema: ' . $connection->error);
             }
         }
     }
@@ -245,7 +245,7 @@ function insight_dist_validate_node_key(string $nodeKey): string
 {
     $normalized = strtolower(trim($nodeKey));
     if (preg_match('/^[a-z0-9][a-z0-9._-]{2,63}$/', $normalized) !== 1) {
-        throw new InsightDistributedException('Identifiant de nœud invalide.', 400);
+        throw new InsightDistributedException('Invalid node identifier.', 400);
     }
     return $normalized;
 }
@@ -254,7 +254,7 @@ function insight_dist_master_secret(): string
 {
     $secret = insight_dist_env('INSIGHT_AGENT_MASTER_SECRET');
     if (strlen($secret) < 32) {
-        throw new InsightDistributedException('INSIGHT_AGENT_MASTER_SECRET doit contenir au moins 32 caractères.', 503);
+        throw new InsightDistributedException('INSIGHT_AGENT_MASTER_SECRET must contain at least 32 characters.', 503);
     }
     return $secret;
 }
@@ -284,22 +284,22 @@ function insight_dist_verify_signature(
 ): void {
     $key = insight_dist_validate_node_key($nodeKey);
     if (!ctype_digit($timestamp)) {
-        throw new InsightDistributedException('Horodatage agent invalide.', 401);
+        throw new InsightDistributedException('Invalid agent timestamp.', 401);
     }
     if (preg_match('/^[A-Za-z0-9._:-]{16,96}$/', $nonce) !== 1) {
-        throw new InsightDistributedException('Nonce agent invalide.', 401);
+        throw new InsightDistributedException('Invalid agent nonce.', 401);
     }
     if (preg_match('/^[a-f0-9]{64}$/i', $signature) !== 1) {
-        throw new InsightDistributedException('Signature agent invalide.', 401);
+        throw new InsightDistributedException('Invalid agent signature.', 401);
     }
     $window = insight_dist_env_int('INSIGHT_AGENT_HMAC_WINDOW_SEC', 300, 30, 3600);
     if (abs(time() - (int)$timestamp) > $window) {
-        throw new InsightDistributedException('Signature agent expirée.', 401);
+        throw new InsightDistributedException('Agent signature has expired.', 401);
     }
     $secret = insight_dist_derive_node_secret($key);
     $expected = hash_hmac('sha256', insight_dist_signature_payload($key, $timestamp, $nonce, $rawBody), $secret);
     if (!hash_equals($expected, strtolower($signature))) {
-        throw new InsightDistributedException('Signature agent invalide.', 401);
+        throw new InsightDistributedException('Invalid agent signature.', 401);
     }
 }
 
@@ -323,10 +323,10 @@ function insight_dist_register_node(mysqli $connection, string $nodeKey, array $
     $key = insight_dist_validate_node_key($nodeKey);
     $existing = insight_dist_query_one($connection, 'SELECT * FROM monitoring_nodes WHERE node_key = ? LIMIT 1', [$key]);
     if ($existing === null && !insight_dist_env_bool('INSIGHT_AGENT_AUTO_REGISTER', true)) {
-        throw new InsightDistributedException('Enregistrement automatique des nœuds désactivé.', 403);
+        throw new InsightDistributedException('Automatic node registration is disabled.', 403);
     }
     if (($existing['status'] ?? '') === 'revoked') {
-        throw new InsightDistributedException('Ce nœud a été révoqué.', 403);
+        throw new InsightDistributedException('This node has been revoked.', 403);
     }
     $node = isset($body['node']) && is_array($body['node']) ? $body['node'] : [];
     $displayName = insight_dist_clean_text($node['display_name'] ?? $key, 120) ?? $key;
@@ -368,7 +368,7 @@ function insight_dist_register_node(mysqli $connection, string $nodeKey, array $
     $statement->close();
     $registered = insight_dist_query_one($connection, 'SELECT * FROM monitoring_nodes WHERE node_key = ? LIMIT 1', [$key]);
     if ($registered === null) {
-        throw new RuntimeException('Enregistrement du nœud impossible.');
+        throw new RuntimeException('Unable to register node.');
     }
     return $registered;
 }
@@ -385,7 +385,7 @@ function insight_dist_remember_nonce(mysqli $connection, int $nodeId, string $no
         $statement->close();
     } catch (Throwable $exception) {
         if ((int)$connection->errno === 1062 || str_contains(strtolower($exception->getMessage()), 'duplicate')) {
-            throw new InsightDistributedException('Requête agent déjà reçue.', 409);
+            throw new InsightDistributedException('Agent request already received.', 409);
         }
         throw $exception;
     }
@@ -532,12 +532,12 @@ function insight_dist_parse_observed_at(mixed $value): string
     try {
         $date = new DateTimeImmutable($raw);
     } catch (Throwable) {
-        throw new InvalidArgumentException('Horodatage invalide.');
+        throw new InvalidArgumentException('Invalid timestamp.');
     }
     $timestamp = $date->getTimestamp();
     $maxAgeDays = insight_dist_env_int('INSIGHT_AGENT_MAX_SAMPLE_AGE_DAYS', 7, 1, 90);
     if ($timestamp < time() - ($maxAgeDays * 86400) || $timestamp > time() + 300) {
-        throw new InvalidArgumentException('Horodatage hors fenêtre.');
+        throw new InvalidArgumentException('Timestamp is outside the accepted window.');
     }
     return $date->setTimezone(new DateTimeZone(date_default_timezone_get()))->format('Y-m-d H:i:s.v');
 }
@@ -701,7 +701,7 @@ function insight_dist_evaluate_site(mysqli $connection, int $siteId): array
         [$siteId]
     );
     if ($site === null) {
-        throw new InvalidArgumentException('Site distribué introuvable.');
+        throw new InvalidArgumentException('Distributed site not found.');
     }
     $interval = max(10, (int)($site['probe_interval_sec'] ?? 60));
     $baseFreshness = insight_dist_env_int('INSIGHT_CONSENSUS_FRESHNESS_SEC', 180, 30, 86400);
@@ -846,11 +846,11 @@ function insight_dist_ingest_batch(
     $nodeId = (int)$node['id'];
     $batchId = strtolower(trim((string)($body['batch_id'] ?? '')));
     if (preg_match('/^[a-f0-9-]{16,64}$/', $batchId) !== 1) {
-        throw new InsightDistributedException('Identifiant de lot invalide.', 422);
+        throw new InsightDistributedException('Invalid batch identifier.', 422);
     }
     $observations = $body['observations'] ?? null;
     if (!is_array($observations)) {
-        throw new InsightDistributedException('Liste d’observations invalide.', 422);
+        throw new InsightDistributedException('Invalid observation list.', 422);
     }
     $maximum = insight_dist_env_int('INSIGHT_AGENT_BATCH_SIZE', 200, 1, 1000);
     if (count($observations) > $maximum) {
@@ -863,7 +863,7 @@ function insight_dist_ingest_batch(
     );
     if ($existing !== null) {
         if (!hash_equals((string)$existing['payload_sha256'], $payloadSha256)) {
-            throw new InsightDistributedException('Cet identifiant de lot désigne déjà un autre contenu.', 409);
+            throw new InsightDistributedException('This batch identifier already refers to different content.', 409);
         }
         return [
             'batch_id' => $batchId,
@@ -889,11 +889,11 @@ function insight_dist_ingest_batch(
         foreach ($observations as $index => $observation) {
             try {
                 if (!is_array($observation)) {
-                    throw new InvalidArgumentException('Observation non structurée.');
+                    throw new InvalidArgumentException('Observation is not structured.');
                 }
                 $sampleId = strtolower(trim((string)($observation['sample_id'] ?? '')));
                 if (preg_match('/^[a-z0-9-]{16,64}$/', $sampleId) !== 1) {
-                    throw new InvalidArgumentException('Identifiant d’échantillon invalide.');
+                    throw new InvalidArgumentException('Invalid sample identifier.');
                 }
                 $siteId = (int)($observation['site_id'] ?? 0);
                 if ($siteId <= 0 || !isset($validSites[$siteId])) {
@@ -901,7 +901,7 @@ function insight_dist_ingest_batch(
                 }
                 $status = strtolower(trim((string)($observation['status'] ?? 'unknown')));
                 if (!in_array($status, ['online', 'offline', 'degraded', 'unknown'], true)) {
-                    throw new InvalidArgumentException('Statut invalide.');
+                    throw new InvalidArgumentException('Invalid status.');
                 }
                 $observedAt = insight_dist_parse_observed_at($observation['observed_at'] ?? null);
                 $responseTime = is_numeric($observation['response_time_ms'] ?? null)

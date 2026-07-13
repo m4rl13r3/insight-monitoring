@@ -48,7 +48,7 @@ try {
     ] as $probe) {
         $created = insight_probes_create_database($config, $probe);
         if (!($created['ok'] ?? false)) {
-            throw new RuntimeException('Création MariaDB impossible.');
+            throw new RuntimeException('Unable to create MariaDB data.');
         }
         $createdIds[] = (int)$created['probe']['id'];
     }
@@ -58,16 +58,16 @@ try {
         'interval_sec' => 600,
     ]);
     if (!($updated['ok'] ?? false) || ($updated['probe']['url'] ?? '') !== 'integration-tcp.example.test:8443') {
-        throw new RuntimeException('Modification MariaDB impossible.');
+        throw new RuntimeException('Unable to update MariaDB data.');
     }
 } finally {
     foreach ($createdIds as $probeId) {
         $deleted = insight_probes_delete_database($config, $probeId);
         if (!($deleted['ok'] ?? false)) {
-            fwrite(STDERR, "Suppression MariaDB impossible pour {$probeId}.\n");
+            fwrite(STDERR, "Unable to delete MariaDB probe {$probeId}.\n");
             exit(1);
         }
     }
 }
 
-echo "Intégration MariaDB réussie.\n";
+echo "MariaDB integration passed.\n";

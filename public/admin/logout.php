@@ -12,13 +12,13 @@ if (insight_auth_dev_bypass_enabled()) {
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
     header('Allow: POST');
     http_response_code(405);
-    echo 'Méthode non autorisée.';
+    echo 'Method not allowed.';
     exit;
 }
 
 if (!insight_auth_csrf_valid($_POST['csrf_token'] ?? null)) {
     http_response_code(400);
-    echo 'Session expirée.';
+    echo 'Session expired.';
     exit;
 }
 

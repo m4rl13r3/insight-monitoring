@@ -23,13 +23,13 @@ if (!function_exists('public_state_db_connect')) {
 
         $cfgFile = __DIR__ . '/config/config.php';
         if (!is_file($cfgFile)) {
-            public_state_log('Configuration absente : config/config.php');
+            public_state_log('Missing configuration: config/config.php');
             return null;
         }
 
         $cfg = require $cfgFile;
         if (!is_array($cfg)) {
-            public_state_log('Configuration invalide : tableau attendu');
+            public_state_log('Invalid configuration: expected an array');
             return null;
         }
 
@@ -42,12 +42,12 @@ if (!function_exists('public_state_db_connect')) {
                 isset($cfg['port']) && is_numeric((string)$cfg['port']) ? (int)$cfg['port'] : 3306
             );
         } catch (Throwable $exception) {
-            public_state_log('Connexion à la base échouée : ' . $exception->getMessage());
+            public_state_log('Database connection failed: ' . $exception->getMessage());
             return null;
         }
 
         if ($conn->connect_errno) {
-            public_state_log('Connexion à la base échouée : ' . $conn->connect_error);
+            public_state_log('Database connection failed: ' . $conn->connect_error);
             return null;
         }
 
@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS monitoring_public_runtime_state (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SQL;
         if (!$conn->query($sql)) {
-            public_state_log('Création de la table échouée : ' . $conn->error);
+            public_state_log('Table creation failed: ' . $conn->error);
         }
     }
 }
@@ -112,7 +112,7 @@ if (!function_exists('public_state_upsert')) {
     {
         $conn = public_state_db_connect();
         if (!$conn) {
-            public_state_log('Mise à jour ignorée : base indisponible.');
+            public_state_log('Update skipped: database unavailable.');
             return false;
         }
 
@@ -162,14 +162,14 @@ if (!function_exists('public_state_upsert')) {
             $sql = 'UPDATE monitoring_public_runtime_state SET ' . implode(', ', $assignments) . ', updated_at = CURRENT_TIMESTAMP WHERE singleton_id = 1';
             $stmt = $conn->prepare($sql);
             if (!$stmt) {
-                public_state_log('Préparation de la mise à jour échouée : ' . $conn->error);
+                public_state_log('Update preparation failed: ' . $conn->error);
                 $conn->close();
                 return false;
             }
             public_state_bind($stmt, $types, $values);
             $ok = $stmt->execute();
             if (!$ok) {
-                public_state_log('Mise à jour de l’état échouée : ' . $stmt->error);
+                public_state_log('State update failed: ' . $stmt->error);
             }
             $stmt->close();
         }
@@ -185,7 +185,7 @@ END
 WHERE singleton_id = 1
 SQL;
         if (!$conn->query($degradedSql)) {
-            public_state_log('Calcul de l’état dégradé échoué : ' . $conn->error);
+            public_state_log('Degraded state calculation failed: ' . $conn->error);
             $ok = false;
         }
 

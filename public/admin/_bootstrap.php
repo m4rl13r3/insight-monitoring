@@ -106,7 +106,7 @@ function insight_admin_prepare_storage(): array
     $sessionsPath = $directory . '/sessions';
     foreach ([$directory, $sessionsPath] as $path) {
         if (!is_dir($path) && !mkdir($path, 0700, true) && !is_dir($path)) {
-            throw new RuntimeException('Le stockage local de l’administration ne peut pas être créé.');
+            throw new RuntimeException('Unable to create local administration storage.');
         }
         @chmod($path, 0700);
     }
@@ -141,7 +141,7 @@ function insight_auth_db(): PDO
     }
     $path = insight_admin_auth_path();
     if (!extension_loaded('pdo_sqlite')) {
-        throw new RuntimeException('L’extension PHP pdo_sqlite est requise pour l’administration locale.');
+        throw new RuntimeException('The PHP pdo_sqlite extension is required for local administration.');
     }
     $connection = new PDO('sqlite:' . $path, null, null, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -153,7 +153,7 @@ function insight_auth_db(): PDO
     $connection->exec('PRAGMA busy_timeout = 5000');
     $schema = file_get_contents(dirname(__DIR__, 2) . '/database/auth-schema.sql');
     if (!is_string($schema)) {
-        throw new RuntimeException('Le schéma de l’administration locale est introuvable.');
+        throw new RuntimeException('The local administration schema was not found.');
     }
     $connection->exec($schema);
     $statement = $connection->prepare('INSERT OR IGNORE INTO auth_meta (key, value) VALUES (:key, :value)');
@@ -547,18 +547,18 @@ function insight_auth_login(string $username, string $password, bool $remember):
 function insight_auth_error_message(?string $key): string
 {
     return match ($key) {
-        'admin.auth.errorCsrf' => 'La session a expiré. Rechargez la page puis réessayez.',
-        'admin.auth.errorUsername' => 'Utilisez 3 à 64 lettres, chiffres, points, tirets ou tirets bas.',
-        'admin.auth.errorPasswordLength' => 'Le mot de passe doit contenir au moins 12 caractères.',
-        'admin.auth.errorPasswordMatch' => 'Les deux mots de passe ne correspondent pas.',
-        'admin.auth.errorAlreadyConfigured' => 'Cette instance possède déjà un compte administrateur.',
-        'admin.auth.errorSetup' => 'Le compte administrateur n’a pas pu être créé.',
-        'admin.auth.errorRateLimit' => 'Trop de tentatives. Réessayez dans quelques minutes.',
-        'admin.auth.errorInvalid' => 'Identifiant ou mot de passe incorrect.',
-        'admin.sso.errorConfiguration' => 'La configuration SSO est incomplète ou non sécurisée.',
-        'admin.sso.errorDenied' => 'Votre identité SSO n’est pas autorisée sur cette instance.',
-        'admin.sso.errorSession' => 'La demande SSO a expiré. Recommencez la connexion.',
-        'admin.sso.errorGeneric' => 'La connexion SSO n’a pas pu être vérifiée.',
+        'admin.auth.errorCsrf' => 'The session expired. Reload the page and try again.',
+        'admin.auth.errorUsername' => 'Use 3 to 64 letters, digits, periods, hyphens, or underscores.',
+        'admin.auth.errorPasswordLength' => 'The password must contain at least 12 characters.',
+        'admin.auth.errorPasswordMatch' => 'The passwords do not match.',
+        'admin.auth.errorAlreadyConfigured' => 'This instance already has an administrator account.',
+        'admin.auth.errorSetup' => 'The administrator account could not be created.',
+        'admin.auth.errorRateLimit' => 'Too many attempts. Try again in a few minutes.',
+        'admin.auth.errorInvalid' => 'Incorrect username or password.',
+        'admin.sso.errorConfiguration' => 'The SSO configuration is incomplete or insecure.',
+        'admin.sso.errorDenied' => 'Your SSO identity is not allowed on this instance.',
+        'admin.sso.errorSession' => 'The SSO request expired. Start the login again.',
+        'admin.sso.errorGeneric' => 'The SSO login could not be verified.',
         default => '',
     };
 }

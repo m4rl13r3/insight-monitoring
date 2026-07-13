@@ -241,16 +241,16 @@ function insight_oauth_sign_jwt(array $claims): string
 function insight_oauth_exchange_code(): array
 {
     if (!insight_access_feature_enabled('oauth_provider_enabled')) {
-        insight_oauth_error('invalid_request', 'Le fournisseur OpenID Connect est désactivé.', 404);
+        insight_oauth_error('invalid_request', 'The OpenID Connect provider is disabled.', 404);
     }
     if ((string)($_POST['grant_type'] ?? '') !== 'authorization_code') {
-        insight_oauth_error('unsupported_grant_type', 'Seul authorization_code est accepté.');
+        insight_oauth_error('unsupported_grant_type', 'Only authorization_code is accepted.');
     }
     [$clientId, $clientSecret] = insight_oauth_client_credentials();
     $rate = insight_auth_rate_limit('oauth-client:' . $clientId);
     if ($rate['blocked']) {
         header('Retry-After: ' . (string)$rate['retry_after']);
-        insight_oauth_error('temporarily_unavailable', 'Trop de tentatives pour ce client.', 429);
+        insight_oauth_error('temporarily_unavailable', 'Too many attempts for this client.', 429);
     }
     $client = insight_oauth_client($clientId);
     if ($client === null || $clientSecret === '' || !password_verify($clientSecret, (string)$client['client_secret_hash'])) {
@@ -262,13 +262,13 @@ function insight_oauth_exchange_code(): array
     $grantRate = insight_auth_rate_limit('oauth-grant:' . $clientId);
     if ($grantRate['blocked']) {
         header('Retry-After: ' . (string)$grantRate['retry_after']);
-        insight_oauth_error('temporarily_unavailable', 'Trop de codes invalides pour ce client.', 429);
+        insight_oauth_error('temporarily_unavailable', 'Too many invalid codes for this client.', 429);
     }
     $code = (string)($_POST['code'] ?? '');
     $redirectUri = (string)($_POST['redirect_uri'] ?? '');
     $verifier = (string)($_POST['code_verifier'] ?? '');
     if (preg_match('/^[A-Za-z0-9._~-]{43,128}$/', $verifier) !== 1 || $code === '' || $redirectUri === '') {
-        insight_oauth_error('invalid_grant', 'Code, URI de retour ou vérificateur PKCE invalide.');
+        insight_oauth_error('invalid_grant', 'Invalid code, redirect URI, or PKCE verifier.');
     }
     insight_oauth_key_details();
     $database = insight_auth_db();
@@ -289,7 +289,7 @@ function insight_oauth_exchange_code(): array
         ) {
             $database->exec('ROLLBACK');
             insight_auth_record_attempt('oauth-grant:' . $clientId, false);
-            insight_oauth_error('invalid_grant', 'Le code est invalide, expiré ou déjà utilisé.');
+            insight_oauth_error('invalid_grant', 'The code is invalid, expired, or already used.');
         }
         insight_auth_record_attempt('oauth-grant:' . $clientId, true);
         $scopes = insight_access_json_array($authorization['scopes_json']);
@@ -343,7 +343,7 @@ function insight_oauth_exchange_code(): array
         if ($database->inTransaction()) {
             $database->exec('ROLLBACK');
         }
-        insight_oauth_error('server_error', 'Le jeton n’a pas pu être délivré.', 500);
+        insight_oauth_error('server_error', 'The token could not be issued.', 500);
     }
 }
 

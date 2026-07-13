@@ -1,34 +1,34 @@
-# Sécurité
+# Security
 
-## Versions prises en charge
+## Supported versions
 
-Les correctifs de sécurité ciblent la dernière version publiée d’Insight.
+Security fixes target the latest published Insight release.
 
-## Signaler une vulnérabilité
+## Reporting a vulnerability
 
-N’ouvrez pas de ticket public pour une vulnérabilité exploitable. Utilisez le signalement privé **Security → Advisories → Report a vulnerability** du dépôt. Le mainteneur doit activer cette fonctionnalité avant de rendre le dépôt public.
+Do not open a public issue for an exploitable vulnerability. Use the repository's private **Security -> Advisories -> Report a vulnerability** flow. The maintainer must enable this feature before making the repository public.
 
-Indiquez la version concernée, les conditions de reproduction, l’impact estimé et, si possible, une proposition de correction. Évitez d’inclure des secrets, des données personnelles ou des données de production dans le rapport.
+Include the affected version, reproduction conditions, estimated impact, and a proposed fix when possible. Do not include secrets, personal information, or production data in the report.
 
-## Bonnes pratiques de déploiement
+## Deployment best practices
 
-- Remplacez tous les mots de passe fournis en exemple avant le premier déploiement public.
-- Conservez `.env` hors du contrôle de version et limitez ses permissions.
-- Exposez uniquement le service `web`, jamais MariaDB ni PHP-FPM directement.
-- Utilisez HTTPS devant Nginx et limitez `INSIGHT_ALLOWED_ORIGINS` à vos domaines.
-- Créez le premier compte depuis un réseau de confiance, utilisez un mot de passe unique et sauvegardez le volume privé `insight_auth`.
-- Ne placez jamais `INSIGHT_AUTH_DB_PATH` sous le dossier public et laissez `INSIGHT_AUTH_COOKIE_SECURE=auto` ou activez-le explicitement derrière HTTPS.
-- Laissez `INSIGHT_AUTH_COOKIE_SAMESITE=Lax` avec un SSO externe : le callback OIDC est une navigation intersite. Utilisez `Strict` uniquement si ce mode est désactivé.
-- Ne définissez jamais `INSIGHT_DEV_AUTH_BYPASS=1` hors d’un environnement local éphémère. Ce réglage supprime entièrement la protection du dashboard.
-- Activez l’API headless uniquement si elle est utilisée, limitez `INSIGHT_API_ALLOWED_ORIGINS`, donnez les permissions minimales et révoquez les jetons inutiles.
-- Conservez les jetons API et secrets OAuth côté serveur. Ne les placez jamais dans une URL, un bundle JavaScript, une capture ou un log.
-- Pour le SSO, gardez une politique locale par e-mails vérifiés ou groupes et conservez le compte local comme accès de secours. `INSIGHT_SSO_ALLOW_ALL=1` suppose une affectation stricte de l’application chez le fournisseur.
-- Sauvegardez le volume `insight_auth` avec sa clé privée OIDC. Une perte ou rotation non planifiée invalide les ID Tokens en circulation.
-- Pour les agents distribués, générez un `INSIGHT_AGENT_MASTER_SECRET` aléatoire, imposez HTTPS et ne transmettez à chaque serveur que son secret dérivé.
-- Donnez une clé unique à chaque agent, révoquez immédiatement un nœud retiré et désactivez l’enregistrement automatique après l’enrôlement si votre parc est fixe.
-- Protégez `/metrics` avec `INSIGHT_METRICS_TOKEN` ou laissez l’endpoint désactivé.
-- Ne placez pas de jeton, mot de passe ni donnée sensible dans les URL surveillées : les cibles apparaissent dans le dashboard, les métriques et les observations.
-- Laissez les notifications et l’ingestion désactivées tant qu’elles ne sont pas configurées.
-- Générez `INSIGHT_NOTIFICATION_ENCRYPTION_KEY` avec `openssl rand -hex 32`, sauvegardez-la avec la base et ne la placez jamais dans MariaDB. Sans cette clé, les secrets des canaux sont irrécupérables.
-- Ne changez pas la clé de chiffrement sans procédure de migration. Une simple substitution rend toutes les configurations de notification existantes illisibles.
-- Traitez les URL Apprise, URL de webhook et en-têtes d’autorisation comme des secrets. Insight les masque dans l’API, mais leur destination peut toujours recevoir le contenu des alertes.
+- Replace all example passwords before the first public deployment.
+- Keep `.env` outside version control and restrict its permissions.
+- Expose only the `web` service, never MariaDB or PHP-FPM directly.
+- Use HTTPS in front of Nginx and restrict `INSIGHT_ALLOWED_ORIGINS` to your domains.
+- Create the first account from a trusted network, use a unique password, and back up the private `insight_auth` volume.
+- Never place `INSIGHT_AUTH_DB_PATH` under the public directory. Keep `INSIGHT_AUTH_COOKIE_SECURE=auto` or explicitly enable it behind HTTPS.
+- Keep `INSIGHT_AUTH_COOKIE_SAMESITE=Lax` with external SSO because the OIDC callback is a cross-site navigation. Use `Strict` only when external SSO is disabled.
+- Never set `INSIGHT_DEV_AUTH_BYPASS=1` outside an ephemeral local environment. This setting completely removes dashboard protection.
+- Enable the headless API only when needed, restrict `INSIGHT_API_ALLOWED_ORIGINS`, grant minimum permissions, and revoke unused tokens.
+- Keep API tokens and OAuth secrets on the server. Never place them in a URL, JavaScript bundle, screenshot, or log.
+- For SSO, maintain a local policy based on verified emails or groups, and keep the local account as fallback access. `INSIGHT_SSO_ALLOW_ALL=1` assumes strict application assignment at the identity provider.
+- Back up the `insight_auth` volume with its OIDC private key. Losing or unexpectedly rotating it invalidates outstanding ID Tokens.
+- For distributed agents, generate a random `INSIGHT_AGENT_MASTER_SECRET`, enforce HTTPS, and provide each server only with its derived secret.
+- Give each agent a unique key, immediately revoke removed nodes, and disable automatic registration after enrollment when your fleet is fixed.
+- Protect `/metrics` with `INSIGHT_METRICS_TOKEN` or leave the endpoint disabled.
+- Never put tokens, passwords, or sensitive data in monitored URLs: targets appear in the dashboard, metrics, and observations.
+- Keep notifications and ingestion disabled until they are configured.
+- Generate `INSIGHT_NOTIFICATION_ENCRYPTION_KEY` with `openssl rand -hex 32`, back it up with the database, and never store it in MariaDB. Channel secrets cannot be recovered without this key.
+- Do not replace the encryption key without a migration procedure. A direct substitution makes every existing notification configuration unreadable.
+- Treat Apprise URLs, webhook URLs, and authorization headers as secrets. Insight masks them in the API, but their destinations can still receive alert content.

@@ -1,9 +1,9 @@
 (function () {
     const config = window.INSIGHT_CONFIG || {};
-    const fallbackLocale = "fr";
+    const fallbackLocale = "en";
     const storageKey = "insight.locale";
     const catalogVersion = String(config.localeVersion || "insight-i18n-6");
-    const configuredLocales = Array.isArray(config.supportedLocales) ? config.supportedLocales : ["fr", "en"];
+    const configuredLocales = Array.isArray(config.supportedLocales) ? config.supportedLocales : ["en", "fr"];
     const supportedLocales = Array.from(new Set(configuredLocales.map(normalizeLocale).filter(Boolean)));
     if (!supportedLocales.includes(fallbackLocale)) {
         supportedLocales.unshift(fallbackLocale);

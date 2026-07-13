@@ -39,47 +39,47 @@ insight_admin_auth_topbar();
       <div class="admin-auth-heading">
         <span class="admin-auth-icon" aria-hidden="true"><i class="fa-solid fa-user-shield"></i></span>
         <div>
-          <p class="admin-eyebrow" data-i18n="admin.setup.eyebrow">Configuration locale</p>
-          <h1 id="admin-setup-title" data-i18n="admin.setup.title">Créer l’administrateur</h1>
+          <p class="admin-eyebrow" data-i18n="admin.setup.eyebrow">Local setup</p>
+          <h1 id="admin-setup-title" data-i18n="admin.setup.title">Create the administrator</h1>
         </div>
       </div>
-      <p class="admin-auth-intro" data-i18n="admin.setup.description">Ce compte reste sur cette instance et protège uniquement le dashboard Insight.</p>
+      <p class="admin-auth-intro" data-i18n="admin.setup.description">This account remains on this instance and only protects the Insight dashboard.</p>
       <?php if ($errorKey !== null): ?>
         <div class="admin-auth-error" role="alert" data-auth-error="<?= insight_admin_escape($errorKey) ?>"><?= insight_admin_escape(insight_auth_error_message($errorKey)) ?></div>
       <?php endif; ?>
       <form class="admin-auth-form" method="post" action="/admin/setup.php">
         <input type="hidden" name="csrf_token" value="<?= insight_admin_escape(insight_auth_csrf_token()) ?>">
         <label class="admin-field">
-          <span data-i18n="admin.auth.username">Identifiant</span>
+          <span data-i18n="admin.auth.username">Username</span>
           <span class="admin-input-wrap">
             <i class="fa-regular fa-user" aria-hidden="true"></i>
             <input name="username" type="text" value="<?= insight_admin_escape($username) ?>" autocomplete="username" minlength="3" maxlength="64" pattern="[A-Za-z0-9._-]+" required autofocus data-i18n-placeholder="admin.auth.usernamePlaceholder" placeholder="admin">
           </span>
         </label>
         <label class="admin-field">
-          <span data-i18n="admin.auth.password">Mot de passe</span>
+          <span data-i18n="admin.auth.password">Password</span>
           <span class="admin-input-wrap">
             <i class="fa-solid fa-key" aria-hidden="true"></i>
-            <input name="password" type="password" autocomplete="new-password" minlength="12" maxlength="1024" required data-i18n-placeholder="admin.auth.passwordPlaceholder" placeholder="12 caractères minimum">
-            <button class="admin-password-toggle" type="button" aria-label="Afficher le mot de passe" title="Afficher le mot de passe" data-i18n-aria-label="admin.auth.showPassword" data-i18n-title="admin.auth.showPassword"><i class="fa-regular fa-eye" aria-hidden="true"></i></button>
+            <input name="password" type="password" autocomplete="new-password" minlength="12" maxlength="1024" required data-i18n-placeholder="admin.auth.passwordPlaceholder" placeholder="12 characters minimum">
+            <button class="admin-password-toggle" type="button" aria-label="Show password" title="Show password" data-i18n-aria-label="admin.auth.showPassword" data-i18n-title="admin.auth.showPassword"><i class="fa-regular fa-eye" aria-hidden="true"></i></button>
           </span>
         </label>
         <label class="admin-field">
-          <span data-i18n="admin.auth.passwordConfirmation">Confirmer le mot de passe</span>
+          <span data-i18n="admin.auth.passwordConfirmation">Confirm password</span>
           <span class="admin-input-wrap">
             <i class="fa-solid fa-key" aria-hidden="true"></i>
-            <input name="password_confirmation" type="password" autocomplete="new-password" minlength="12" maxlength="1024" required data-i18n-placeholder="admin.auth.passwordConfirmationPlaceholder" placeholder="Répétez le mot de passe">
-            <button class="admin-password-toggle" type="button" aria-label="Afficher le mot de passe" title="Afficher le mot de passe" data-i18n-aria-label="admin.auth.showPassword" data-i18n-title="admin.auth.showPassword"><i class="fa-regular fa-eye" aria-hidden="true"></i></button>
+            <input name="password_confirmation" type="password" autocomplete="new-password" minlength="12" maxlength="1024" required data-i18n-placeholder="admin.auth.passwordConfirmationPlaceholder" placeholder="Repeat the password">
+            <button class="admin-password-toggle" type="button" aria-label="Show password" title="Show password" data-i18n-aria-label="admin.auth.showPassword" data-i18n-title="admin.auth.showPassword"><i class="fa-regular fa-eye" aria-hidden="true"></i></button>
           </span>
         </label>
-        <p class="admin-field-hint"><i class="fa-solid fa-lock" aria-hidden="true"></i><span data-i18n="admin.setup.passwordHint">Utilisez au moins 12 caractères. Le mot de passe est haché localement.</span></p>
+        <p class="admin-field-hint"><i class="fa-solid fa-lock" aria-hidden="true"></i><span data-i18n="admin.setup.passwordHint">Use at least 12 characters. The password is hashed locally.</span></p>
         <label class="admin-checkbox">
           <input name="remember" type="checkbox" value="1"<?= $remember ? ' checked' : '' ?>>
-          <span data-i18n="admin.auth.remember">Garder la session ouverte sur cet appareil</span>
+          <span data-i18n="admin.auth.remember">Keep this session open on this device</span>
         </label>
-        <button class="admin-primary-button" type="submit"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i><span data-i18n="admin.setup.submit">Créer le compte et continuer</span></button>
+        <button class="admin-primary-button" type="submit"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i><span data-i18n="admin.setup.submit">Create account and continue</span></button>
       </form>
-      <p class="admin-auth-footnote"><i class="fa-solid fa-database" aria-hidden="true"></i><span data-i18n="admin.setup.storage">Les identifiants sont stockés dans la base locale privée de cette instance.</span></p>
+      <p class="admin-auth-footnote"><i class="fa-solid fa-database" aria-hidden="true"></i><span data-i18n="admin.setup.storage">Credentials are stored in this instance’s private local database.</span></p>
     </section>
   </main>
 <?php insight_admin_page_end(); ?>

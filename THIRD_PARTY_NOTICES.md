@@ -2,24 +2,24 @@
 
 ## Font Awesome Free
 
-Insight distribue Font Awesome Free 7.3.0 pour ses icônes d’interface.
+Insight distributes Font Awesome Free 7.3.0 for its interface icons.
 
 - Copyright 2026 Fonticons, Inc.
-- Icônes : Creative Commons Attribution 4.0 International.
-- Fontes : SIL Open Font License 1.1.
-- Code CSS : licence MIT.
+- Icons: Creative Commons Attribution 4.0 International.
+- Fonts: SIL Open Font License 1.1.
+- CSS code: MIT License.
 
-Le texte complet est distribué dans `licenses/FONT-AWESOME-FREE.txt` et reste également disponible sur https://fontawesome.com/license/free.
+The full text is distributed in `licenses/FONT-AWESOME-FREE.txt` and remains available at https://fontawesome.com/license/free.
 
 ## Prometheus Blackbox Exporter
 
-Le profil Docker facultatif référence Prometheus Blackbox Exporter 0.28.0, distribué sous licence Apache 2.0. Son code n’est pas inclus dans le paquet Insight et l’image est récupérée depuis `quay.io/prometheus/blackbox-exporter` lors du déploiement du profil.
+The optional Docker profile references Prometheus Blackbox Exporter 0.28.0, distributed under the Apache 2.0 License. Its source code is not included in the Insight package; the image is pulled from `quay.io/prometheus/blackbox-exporter` when deploying the profile.
 
-Projet et licence : https://github.com/prometheus/blackbox_exporter
+Project and license: https://github.com/prometheus/blackbox_exporter
 
-## Dépendances JavaScript directes
+## Direct JavaScript dependencies
 
-| Paquet | Version | Licence |
+| Package | Version | License |
 | --- | --- | --- |
 | `@tailwindcss/vite` | 4.3.2 | MIT |
 | `@types/node` | 26.1.1 | MIT |
@@ -39,18 +39,18 @@ Projet et licence : https://github.com/prometheus/blackbox_exporter
 | `typescript` | 7.0.2 | Apache-2.0 |
 | `vite` | 8.1.4 | MIT |
 
-Les textes correspondants sont conservés dans `licenses/npm`. Les dépendances transitives et leurs métadonnées de licence restent décrites de manière reproductible dans `package-lock.json`.
+The corresponding license texts are stored in `licenses/npm`. Transitive dependencies and their license metadata remain reproducibly described in `package-lock.json`.
 
-## Connecteur MariaDB Python
+## Python MariaDB connector
 
-Insight installe `PyMySQL` 1.2.0, distribué sous licence MIT, depuis PyPI dans l’image applicative. Son texte de licence est conservé dans `licenses/python/PyMySQL.txt`.
+Insight installs `PyMySQL` 1.2.0 from PyPI in the application image. It is distributed under the MIT License, and its license text is stored in `licenses/python/PyMySQL.txt`.
 
-## Notifications Python
+## Python notifications
 
-| Paquet | Version | Licence | Rôle |
+| Package | Version | License | Purpose |
 | --- | --- | --- | --- |
-| `Apprise` | 1.12.0 | BSD-2-Clause | Passerelle vers plus de 138 services de notification |
-| `PyNaCl` | 1.6.2 | Apache-2.0 | Chiffrement SecretBox compatible avec libsodium |
-| `python-liquid` | 2.3.0 | MIT | Rendu des messages d’alerte personnalisés |
+| `Apprise` | 1.12.0 | BSD-2-Clause | Gateway to more than 138 notification services |
+| `PyNaCl` | 1.6.2 | Apache-2.0 | SecretBox encryption compatible with libsodium |
+| `python-liquid` | 2.3.0 | MIT | Rendering custom alert messages |
 
-Les textes complets sont conservés dans `licenses/python/Apprise.txt`, `licenses/python/PyNaCl.txt` et `licenses/python/python-liquid.txt`.
+The full texts are stored in `licenses/python/Apprise.txt`, `licenses/python/PyNaCl.txt`, and `licenses/python/python-liquid.txt`.

@@ -41,7 +41,7 @@ require dirname(__DIR__) . '/public/admin/_oidc.php';
 
 $socket = stream_socket_server('tcp://127.0.0.1:0', $socketError, $socketMessage);
 if (!is_resource($socket)) {
-    fwrite(STDERR, "Impossible de réserver un port pour le test SSO.\n");
+    fwrite(STDERR, "Unable to reserve a port for the SSO test.\n");
     exit(1);
 }
 $address = (string)stream_socket_get_name($socket, false);
@@ -96,7 +96,7 @@ if (!is_array($environment)) {
 $environment['INSIGHT_OIDC_TEST_CONFIG'] = $configPath;
 $process = proc_open([PHP_BINARY, '-S', '127.0.0.1:' . $port, $router], $descriptors, $pipes, __DIR__, $environment);
 if (!is_resource($process)) {
-    fwrite(STDERR, "Le fournisseur OIDC de test n’a pas démarré.\n");
+    fwrite(STDERR, "The test OIDC provider did not start.\n");
     exit(1);
 }
 fclose($pipes[0]);
@@ -112,7 +112,7 @@ try {
         }
         usleep(20000);
     }
-    insight_test_sso_assert($ready, 'Le fournisseur OIDC de test ne répond pas.');
+    insight_test_sso_assert($ready, 'The test OIDC provider is not responding.');
 
     putenv('INSIGHT_SSO_ENABLED=1');
     putenv('INSIGHT_SSO_PROVIDER_NAME=Fournisseur de test');
@@ -123,9 +123,9 @@ try {
     putenv('INSIGHT_SSO_ADMIN_GROUPS=status-admins');
 
     $config = insight_oidc_config();
-    insight_test_sso_assert(($config['valid'] ?? false) === true, 'La configuration SSO valide a été refusée.');
+    insight_test_sso_assert(($config['valid'] ?? false) === true, 'A valid SSO configuration was rejected.');
     $discovery = insight_oidc_discovery($config);
-    insight_test_sso_assert(($discovery['issuer'] ?? '') === $issuer, 'La découverte OIDC est invalide.');
+    insight_test_sso_assert(($discovery['issuer'] ?? '') === $issuer, 'OIDC discovery is invalid.');
 
     $_SESSION['oidc_login'] = [
         'state' => $state,
@@ -135,11 +135,11 @@ try {
         'created_at' => time(),
     ];
     $result = insight_oidc_callback(['state' => $state, 'code' => $code]);
-    insight_test_sso_assert(($result['next'] ?? '') === '/admin/#account', 'La destination SSO a été perdue.');
+    insight_test_sso_assert(($result['next'] ?? '') === '/admin/#account', 'The SSO destination was lost.');
     $user = insight_auth_current_user();
     insight_test_sso_assert(
         ($user['username'] ?? '') === 'sso-admin' && ($user['source'] ?? '') === 'oidc',
-        'La session SSO complète n’a pas été ouverte.'
+        'The complete SSO session was not opened.'
     );
 
     $denied = false;
@@ -152,12 +152,12 @@ try {
     } catch (RuntimeException $exception) {
         $denied = $exception->getMessage() === 'oidc_access_denied';
     }
-    insight_test_sso_assert($denied, 'Une identité hors politique a été acceptée.');
+    insight_test_sso_assert($denied, 'An identity outside policy was accepted.');
 
     putenv('INSIGHT_SSO_ENABLED=0');
-    insight_test_sso_assert(insight_auth_current_user() === null, 'La désactivation SSO n’a pas fermé la session fédérée.');
+    insight_test_sso_assert(insight_auth_current_user() === null, 'Disabling SSO did not close the federated session.');
 
-    echo "Connexion SSO OIDC validée.\n";
+    echo "OIDC SSO login validated.\n";
 } finally {
     proc_terminate($process);
     proc_close($process);

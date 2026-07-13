@@ -16,14 +16,14 @@ require_once dirname(__DIR__, 2) . '/monitoring/distributed.php';
 if (strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) !== 'GET') {
     header('Allow: GET');
     http_response_code(405);
-    echo json_encode(['ok' => false, 'message' => 'Méthode non autorisée.'], JSON_UNESCAPED_UNICODE);
+    echo json_encode(['ok' => false, 'message' => 'Method not allowed.'], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
 $connection = mysqli_init();
 if (!$connection instanceof mysqli) {
     http_response_code(503);
-    echo json_encode(['ok' => false, 'message' => 'État distribué indisponible.'], JSON_UNESCAPED_UNICODE);
+    echo json_encode(['ok' => false, 'message' => 'Distributed state unavailable.'], JSON_UNESCAPED_UNICODE);
     exit;
 }
 $connection->options(MYSQLI_OPT_CONNECT_TIMEOUT, 3);
@@ -37,7 +37,7 @@ $connected = @$connection->real_connect(
 if (!$connected) {
     $connection->close();
     http_response_code(503);
-    echo json_encode(['ok' => false, 'message' => 'État distribué indisponible.'], JSON_UNESCAPED_UNICODE);
+    echo json_encode(['ok' => false, 'message' => 'Distributed state unavailable.'], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -54,7 +54,7 @@ try {
     http_response_code(503);
     echo json_encode([
         'ok' => false,
-        'message' => 'Le monitoring distribué n’est pas encore initialisé.',
+        'message' => 'Distributed monitoring is not initialized yet.',
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } finally {
     $connection->close();

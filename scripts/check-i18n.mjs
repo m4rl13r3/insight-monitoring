@@ -33,14 +33,14 @@ for (const file of localeFiles) {
 
 const fallbackKeys = catalogs.get("fr")
 if (!fallbackKeys) {
-  throw new Error("Le catalogue français de repli est absent.")
+  throw new Error("The French fallback catalogue is missing.")
 }
 
 for (const [locale, keys] of catalogs) {
   const missing = [...fallbackKeys].filter((key) => !keys.has(key))
   const extra = [...keys].filter((key) => !fallbackKeys.has(key))
   if (missing.length || extra.length) {
-    throw new Error(`${locale}: clés manquantes [${missing.join(", ")}], clés supplémentaires [${extra.join(", ")}]`)
+    throw new Error(`${locale}: missing keys [${missing.join(", ")}], extra keys [${extra.join(", ")}]`)
   }
 }
 
@@ -67,7 +67,7 @@ const missingReferences = [...referencedKeys].filter((key) => {
   return !fallbackKeys.has(key) && !(fallbackKeys.has(`${key}.one`) && fallbackKeys.has(`${key}.other`))
 })
 if (missingReferences.length) {
-  throw new Error(`Clés i18n introuvables : ${missingReferences.sort().join(", ")}`)
+  throw new Error(`Missing i18n keys: ${missingReferences.sort().join(", ")}`)
 }
 
-console.log(`${catalogs.size} catalogues, ${fallbackKeys.size} clés et ${referencedKeys.size} références validés.`)
+console.log(`${catalogs.size} catalogues, ${fallbackKeys.size} keys, and ${referencedKeys.size} references validated.`)

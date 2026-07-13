@@ -1,67 +1,75 @@
 # Changelog
 
-Toutes les modifications notables d’Insight sont documentées dans ce fichier.
+All notable changes to Insight are documented in this file.
 
-Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le projet utilise [Semantic Versioning](https://semver.org/lang/fr/).
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/).
+
+## [0.1.3] - 2026-07-13
+
+### Changed
+
+- Public documentation, contribution guidance, source comments, operational output, API descriptions, and test diagnostics now use English.
+- English is now the source fallback for translatable interface markup while the complete French catalogue remains available.
+- Default notification templates now use English; the migration preserves every customized template.
 
 ## [0.1.2] - 2026-07-13
 
-### Ajouté
+### Added
 
-- Mise à jour manuelle ou planifiée depuis les tags Git stables, sans recréer la configuration ni les volumes.
-- Sauvegarde préalable, migrations SQL idempotentes, contrôle de santé et retour automatique au code précédent.
-- Timer systemd utilisateur optionnel et guide d’exploitation dédié.
+- Manual or scheduled updates from stable Git tags without recreating configuration or volumes.
+- Pre-update backup, idempotent SQL migrations, health checks, and automatic rollback to the previous code.
+- Optional user-level systemd timer and dedicated operations guide.
 
 ## [0.1.1] - 2026-07-13
 
-### Ajouté
+### Added
 
-- Watermarks d’agrégation incrémentale et rétention configurable des sondes, statistiques et contrôles TLS.
-- Conservation explicite du temps sans observation dans les agrégats horaires et journaliers.
-- Test MariaDB de précision, purge et suppression en cascade des données de monitoring.
+- Incremental aggregation watermarks and configurable retention for probes, statistics, and TLS checks.
+- Explicit preservation of time without observations in hourly and daily aggregates.
+- MariaDB tests for precision, cleanup, and cascading deletion of monitoring data.
 
-### Modifié
+### Changed
 
-- Les agrégations recalculent une fenêtre récente ou la période écoulée depuis le dernier passage réussi au lieu de rescanner tout l’historique.
-- La purge travaille par lots et reste bloquée si les agrégations sources ne sont pas à jour.
+- Aggregations recalculate a recent window or the period since the last successful run instead of rescanning the entire history.
+- Cleanup works in batches and remains blocked when source aggregations are not current.
 
 ## [0.1.0] - 2026-07-13
 
-### Ajouté
+### Added
 
-- Page de statut publique bilingue avec thèmes clair, sombre et système.
-- Sondes HTTP, ICMP et TCP avec statistiques horaires et quotidiennes.
-- Incidents automatiques, maintenances planifiées et suivi TLS.
-- Administration locale avec authentification, création, modification et suppression des sondes.
-- Alertes multicanales chiffrées avec SMTP, webhooks, Free Mobile et plus de 138 services Apprise.
-- Modèles de notification Liquid personnalisables et historique des livraisons.
-- Mode distribué hub/agent avec observations signées et consensus configurable.
-- Déploiement Docker Compose, smoke test et CI de contrôle.
-- Sauvegarde et restauration contrôlées de MariaDB et de l’identité locale.
-- Export de release reproductible sans historique Git ni données d’exécution.
-- API headless versionnée avec jetons à permissions, expiration et révocation.
-- Fournisseur OpenID Connect pour authentifier des dashboards tiers.
-- Connexion du dashboard par SSO OIDC externe avec politiques par e-mails et groupes.
-- Écran Accès et guide d’intégration API, OAuth 2.0 et SSO.
-- Contrôle strict de mise en production et sauvegardes planifiées avec rétention et copie rclone optionnelle.
+- Bilingual public status page with light, dark, and system themes.
+- HTTP, ICMP, and TCP probes with hourly and daily statistics.
+- Automatic incidents, scheduled maintenance, and TLS tracking.
+- Local administration with authentication and monitor creation, editing, and deletion.
+- Encrypted multi-channel alerts with SMTP, webhooks, Free Mobile, and more than 138 Apprise services.
+- Customizable Liquid notification templates and delivery history.
+- Distributed hub/agent mode with signed observations and configurable consensus.
+- Docker Compose deployment, smoke tests, and CI validation.
+- Controlled backup and restore for MariaDB and local identity data.
+- Reproducible release export without Git history or runtime data.
+- Versioned headless API with scoped, expiring, and revocable tokens.
+- OpenID Connect provider for authenticating third-party dashboards.
+- Dashboard login through external OIDC SSO with email and group policies.
+- Access screen and integration guide for API, OAuth 2.0, and SSO.
+- Strict production validation and scheduled backups with retention and optional rclone copies.
 
-### Modifié
+### Changed
 
-- Le moteur Python est désormais l’unique moteur de supervision local.
-- Le consensus distribué publie directement son état dans l’API publique.
-- Les tâches monitor, horaire et journalière conservent indépendamment leur dernier état.
+- Python is now the only local monitoring engine.
+- Distributed consensus publishes its state directly to the public API.
+- Monitor, hourly, and daily tasks independently preserve their latest state.
 
-### Supprimé
+### Removed
 
-- Ancien moteur de secours PHP et ses variables de configuration.
+- Legacy PHP fallback engine and its configuration variables.
 
-### Sécurité
+### Security
 
-- Secrets exclusivement fournis par variables d’environnement.
-- API d’administration protégée par session et jeton CSRF.
-- Agents distribués signés, protégés contre le rejeu et limités à HTTPS par défaut.
-- Conteneurs applicatifs exécutés sans privilèges root.
-- Image agent autonome avec ses dépendances Python verrouillées.
-- Secrets des canaux chiffrés avec libsodium SecretBox et masqués dans l’API d’administration.
-- Authorization Code avec PKCE S256, URI de retour exactes, codes à usage unique et ID Tokens RS256.
-- Secrets API et OAuth affichés une fois puis uniquement conservés sous forme de hachage.
+- Secrets supplied exclusively through environment variables.
+- Administration API protected by sessions and CSRF tokens.
+- Signed distributed agents with replay protection and HTTPS enforcement by default.
+- Application containers run without root privileges.
+- Standalone agent image with pinned Python dependencies.
+- Channel secrets encrypted with libsodium SecretBox and masked in the administration API.
+- Authorization Code with PKCE S256, exact redirect URIs, single-use codes, and RS256 ID Tokens.
+- API and OAuth secrets shown once and then stored only as hashes.

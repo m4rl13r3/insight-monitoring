@@ -50,7 +50,6 @@ function insight_workflow_request(string $url, ?array $fields = null, string $co
     insight_workflow_expect(is_string($response), 'The workflow HTTP request failed.');
     $status = (int)curl_getinfo($request, CURLINFO_RESPONSE_CODE);
     $headerSize = (int)curl_getinfo($request, CURLINFO_HEADER_SIZE);
-    curl_close($request);
     return [
         'status' => $status,
         'headers' => substr($response, 0, $headerSize),

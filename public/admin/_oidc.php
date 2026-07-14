@@ -134,7 +134,6 @@ function insight_oidc_http_json(string $url, ?array $form = null, ?array $basic 
     $body = curl_exec($curl);
     $status = (int)curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
     $error = curl_errno($curl);
-    curl_close($curl);
     if (!is_string($body) || $error !== 0 || $status < 200 || $status >= 300 || strlen($body) > 1048576) {
         throw new RuntimeException('oidc_request_failed');
     }

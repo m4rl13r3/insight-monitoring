@@ -27,6 +27,9 @@ if ($method === 'GET') {
     $result = insight_notifications_state($insightAdminConfig);
     insight_notifications_api_response($result, (int)($result['status_code'] ?? 500));
 }
+if (!insight_auth_can($user, 'notifications:write')) {
+    insight_notifications_api_response(['ok' => false, 'error' => 'admin.auth.errorForbidden'], 403);
+}
 
 if (!insight_auth_csrf_valid($_SERVER['HTTP_X_CSRF_TOKEN'] ?? null)) {
     insight_notifications_api_response(['ok' => false, 'error' => 'admin.auth.errorCsrf'], 403);

@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
 @import "tw-animate-css";
 @import "@fortawesome/fontawesome-free/css/fontawesome.css";
 @import "@fortawesome/fontawesome-free/css/solid.css";
@@ -6,9 +6,13 @@
 @import "./styles/styles.css";
 @import "./styles/insight-theme.css";
 
+@source "./**/*.ts";
+@source "./**/*.tsx";
 @source "../public/index.html";
 @source "../public/*.php";
 @source "../public/js/**/*.js";
+@source "../public/admin/**/*.php";
+@source "../public/admin/**/*.js";
 @source "../public/script.js";
 
 @custom-variant dark (&:is(.dark *));

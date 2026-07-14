@@ -23,6 +23,9 @@ if (!in_array($method, ['POST', 'PATCH', 'DELETE'], true)) {
     header('Allow: POST, PATCH, DELETE');
     insight_probes_api_response(['ok' => false, 'error' => 'method_not_allowed'], 405);
 }
+if (!insight_auth_can($user, 'monitors:write')) {
+    insight_probes_api_response(['ok' => false, 'error' => 'admin.auth.errorForbidden'], 403);
+}
 
 if (!insight_auth_csrf_valid($_SERVER['HTTP_X_CSRF_TOKEN'] ?? null)) {
     insight_probes_api_response(['ok' => false, 'error' => 'admin.auth.errorCsrf'], 403);

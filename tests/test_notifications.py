@@ -14,11 +14,13 @@ from pathlib import Path
 from unittest.mock import patch
 
 from monitoring.python_monitoring.notifications import (
+    _dispatch_subscribers,
     decrypt_config,
     dispatch_event,
     encrypt_config,
     render_templates,
     send_channel,
+    subscriber_smtp_config,
 )
 from monitoring.python_monitoring.monitor import NotificationBatch
 
@@ -36,10 +38,24 @@ class NotificationDatabase:
         return [self.channel]
 
     def query_one(self, query: str, params: tuple = ()) -> dict:
+        if "FROM notification_channels" in query:
+            return {"config_ciphertext": self.channel["config_ciphertext"]}
         return {
             "title_template": "[{{ app_name }}] {{ domain }}",
             "body_template": "{{ count }} service(s) : {{ sites }}",
         }
+
+
+class SubscriberDatabase:
+    def __init__(self) -> None:
+        self.queries: list[tuple[str, tuple]] = []
+
+    def query_all(self, query: str, params: tuple = ()) -> list[dict]:
+        self.queries.append((query, params))
+        return []
+
+    def execute(self, _query: str, _params: tuple = ()) -> int:
+        return 1
 
 
 class WebhookHandler(BaseHTTPRequestHandler):
@@ -175,6 +191,44 @@ class NotificationTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertEqual(1, result["sent"])
         self.assertTrue(any("INSERT INTO notification_deliveries" in query for query, _ in database.executed))
+
+    def test_internal_escalation_does_not_target_public_subscribers(self) -> None:
+        result = _dispatch_subscribers(
+            object(),
+            {"status_subscriptions_enabled": "1"},
+            "incident_open",
+            {"notify_subscribers": False},
+            "oncall:42",
+        )
+        self.assertEqual({"targeted": 0, "sent": 0, "failed": 0}, result)
+
+    def test_status_subscribers_reuse_a_tested_smtp_channel(self) -> None:
+        config = {
+            "host": "smtp.example.test",
+            "port": 465,
+            "username": "alerts@example.test",
+            "password": "secret",
+            "encryption": "ssl",
+            "from_name": "Insight",
+            "from_email": "alerts@example.test",
+            "to": "operations@example.test",
+        }
+        database = NotificationDatabase({"config_ciphertext": encrypt_config(config)})
+        self.assertEqual(config, subscriber_smtp_config(database, {}))
+
+    def test_empty_custom_status_page_does_not_receive_unrelated_events(self) -> None:
+        database = SubscriberDatabase()
+        with patch("monitoring.python_monitoring.notifications.subscriber_smtp_config", return_value={"host": "smtp.example.test"}):
+            result = _dispatch_subscribers(
+                database,
+                {"status_subscriptions_enabled": "1"},
+                "incident_open",
+                {"site_ids": [42]},
+                "incident:81:open",
+            )
+        self.assertEqual(0, result["targeted"])
+        subscriber_query = next(query for query, _ in database.queries if "FROM status_page_subscribers" in query)
+        self.assertIn("p.slug='default'", subscriber_query)
 
     def test_monitor_batch_maps_every_status_to_a_notification_event(self) -> None:
         batch = NotificationBatch()

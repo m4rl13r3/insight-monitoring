@@ -132,6 +132,14 @@ try {
         INNER JOIN sites s ON s.id = c.site_id
         ORDER BY s.id
     ");
+    $reinforced = insight_metrics_rows($connection, "
+        SELECT s.id AS site_id, s.url, rw.ends_at, rw.interval_sec,
+               GREATEST(0, TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP(3), rw.ends_at)) AS remaining_seconds
+        FROM monitoring_reinforced_watch rw
+        INNER JOIN sites s ON s.id = rw.site_id
+        WHERE rw.ends_at > CURRENT_TIMESTAMP(3)
+        ORDER BY s.id
+    ");
 
     echo "# HELP insight_metrics_available Availability of the Insight exporter.\n";
     echo "# TYPE insight_metrics_available gauge\n";
@@ -192,6 +200,19 @@ try {
             $column = 'nodes_' . $kind;
             echo 'insight_consensus_nodes{' . $labels . ',kind="' . $kind . '"} ' . (int)($current[$column] ?? 0) . "\n";
         }
+    }
+
+    echo "# HELP insight_reinforced_monitoring_active Whether post-recovery reinforced monitoring is active.\n";
+    echo "# TYPE insight_reinforced_monitoring_active gauge\n";
+    echo "# HELP insight_reinforced_monitoring_remaining_seconds Remaining reinforced monitoring duration.\n";
+    echo "# TYPE insight_reinforced_monitoring_remaining_seconds gauge\n";
+    echo "# HELP insight_reinforced_monitoring_interval_seconds Current reinforced probe interval.\n";
+    echo "# TYPE insight_reinforced_monitoring_interval_seconds gauge\n";
+    foreach ($reinforced as $watch) {
+        $labels = 'site_id="' . (int)$watch['site_id'] . '",site="' . insight_metrics_label($watch['url']) . '"';
+        echo "insight_reinforced_monitoring_active{{$labels}} 1\n";
+        echo 'insight_reinforced_monitoring_remaining_seconds{' . $labels . '} ' . (int)$watch['remaining_seconds'] . "\n";
+        echo 'insight_reinforced_monitoring_interval_seconds{' . $labels . '} ' . (int)$watch['interval_sec'] . "\n";
     }
 } catch (Throwable) {
     http_response_code(503);

@@ -44,6 +44,7 @@ class Database:
         self.cfg = cfg
         self.driver_name, driver = _import_driver()
         self._conn = None
+        self._in_transaction = False
 
         socket_candidates = []
         if str(cfg.socket).strip():
@@ -143,10 +144,11 @@ class Database:
         cur = self._cursor()
         try:
             cur.execute(sql, tuple(params))
-            try:
-                self._conn.commit()
-            except Exception:
-                pass
+            if not self._in_transaction:
+                try:
+                    self._conn.commit()
+                except Exception:
+                    pass
             return int(getattr(cur, "rowcount", 0) or 0)
         finally:
             cur.close()
@@ -155,10 +157,47 @@ class Database:
         cur = self._cursor()
         try:
             cur.executemany(sql, list(items))
-            try:
-                self._conn.commit()
-            except Exception:
-                pass
+            if not self._in_transaction:
+                try:
+                    self._conn.commit()
+                except Exception:
+                    pass
             return int(getattr(cur, "rowcount", 0) or 0)
         finally:
             cur.close()
+
+    def insert(self, sql: str, params: Sequence[Any] = ()) -> int:
+        cur = self._cursor()
+        try:
+            cur.execute(sql, tuple(params))
+            inserted_id = int(getattr(cur, "lastrowid", 0) or 0)
+            if not self._in_transaction:
+                try:
+                    self._conn.commit()
+                except Exception:
+                    pass
+            return inserted_id
+        finally:
+            cur.close()
+
+    def begin(self) -> None:
+        if self._in_transaction:
+            return
+        self._conn.begin()
+        self._in_transaction = True
+
+    def commit(self) -> None:
+        self._conn.commit()
+        self._in_transaction = False
+
+    def rollback(self) -> None:
+        self._conn.rollback()
+        self._in_transaction = False
+
+    def acquire_advisory_lock(self, name: str, timeout_sec: int = 0) -> bool:
+        row = self.query_one("SELECT GET_LOCK(%s, %s) AS acquired", (name[:64], max(0, timeout_sec)))
+        return int((row or {}).get("acquired") or 0) == 1
+
+    def release_advisory_lock(self, name: str) -> bool:
+        row = self.query_one("SELECT RELEASE_LOCK(%s) AS released", (name[:64],))
+        return int((row or {}).get("released") or 0) == 1

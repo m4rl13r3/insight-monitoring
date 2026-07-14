@@ -11,7 +11,7 @@ require_once __DIR__ . '/_bootstrap.php';
 
 function insight_notifications_events(): array
 {
-    return ['monitor_down', 'monitor_up', 'incident_open', 'incident_resolved'];
+    return ['monitor_down', 'monitor_up', 'incident_open', 'incident_update', 'incident_acknowledged', 'incident_resolved', 'tls_expiring', 'tls_invalid', 'maintenance_started', 'maintenance_ended'];
 }
 
 function insight_notifications_templates(): array
@@ -36,6 +36,30 @@ function insight_notifications_templates(): array
         'incident_resolved' => [
             'title' => '[{{ app_name }}] Incident resolved - {{ domain }}',
             'body' => 'The incident affecting {{ sites }} is resolved. {{ message }}',
+        ],
+        'incident_update' => [
+            'title' => '[{{ app_name }}] Incident update - {{ domain }}',
+            'body' => 'A new update was published for {{ sites }}. {{ message }}',
+        ],
+        'incident_acknowledged' => [
+            'title' => '[{{ app_name }}] Incident acknowledged - {{ domain }}',
+            'body' => 'The incident affecting {{ sites }} was acknowledged. {{ message }}',
+        ],
+        'tls_expiring' => [
+            'title' => '[{{ app_name }}] TLS certificate expires soon - {{ domain }}',
+            'body' => 'The TLS certificate for {{ sites }} expires in {{ days_remaining }} days. {{ message }}',
+        ],
+        'tls_invalid' => [
+            'title' => '[{{ app_name }}] Invalid TLS certificate - {{ domain }}',
+            'body' => 'The TLS certificate for {{ sites }} is invalid. {{ message }}',
+        ],
+        'maintenance_started' => [
+            'title' => '[{{ app_name }}] Maintenance started - {{ domain }}',
+            'body' => 'Scheduled maintenance has started for {{ sites }}. {{ message }}',
+        ],
+        'maintenance_ended' => [
+            'title' => '[{{ app_name }}] Maintenance completed - {{ domain }}',
+            'body' => 'Scheduled maintenance has completed for {{ sites }}. {{ message }}',
         ],
     ];
 }
@@ -67,7 +91,7 @@ function insight_notifications_provider_catalog(): array
         ['id' => 'opsgenie', 'label' => 'Opsgenie', 'icon' => 'fa-solid fa-wand-magic-sparkles', 'mode' => 'apprise', 'group' => 'on_call'],
         ['id' => 'home_assistant', 'label' => 'Home Assistant', 'icon' => 'fa-solid fa-house-signal', 'mode' => 'apprise', 'group' => 'automation'],
         ['id' => 'power_automate', 'label' => 'Power Automate', 'icon' => 'fa-solid fa-gears', 'mode' => 'apprise', 'group' => 'automation'],
-        ['id' => 'sms', 'label' => 'SMS · passerelles Apprise', 'icon' => 'fa-solid fa-comment-sms', 'mode' => 'apprise', 'group' => 'telecom'],
+        ['id' => 'sms', 'label' => 'SMS · Apprise gateways', 'icon' => 'fa-solid fa-comment-sms', 'mode' => 'apprise', 'group' => 'telecom'],
         ['id' => 'twilio', 'label' => 'Twilio', 'icon' => 'fa-solid fa-phone', 'mode' => 'apprise', 'group' => 'telecom'],
         ['id' => 'mailgun', 'label' => 'Mailgun', 'icon' => 'fa-solid fa-at', 'mode' => 'apprise', 'group' => 'email'],
         ['id' => 'sendgrid', 'label' => 'SendGrid', 'icon' => 'fa-solid fa-envelope-open-text', 'mode' => 'apprise', 'group' => 'email'],
@@ -361,6 +385,8 @@ function insight_notifications_public_channel(array $channel): array
         'provider_mode' => (string)($catalog['mode'] ?? 'apprise'),
         'enabled' => (int)($channel['enabled'] ?? 0) === 1,
         'events' => insight_notifications_events_from_value($channel['events_json'] ?? []),
+        'minimum_severity' => (string)($channel['minimum_severity'] ?? 'info'),
+        'site_ids' => array_values(array_filter(array_map('intval', explode(',', (string)($channel['site_ids_csv'] ?? ''))))),
         'config' => insight_notifications_config_summary($provider, $config),
         'last_test_at' => $channel['last_test_at'] ?? null,
         'last_status' => (string)($channel['last_status'] ?? 'unknown'),
@@ -402,6 +428,17 @@ function insight_notifications_validate(array $input, array $previousConfig = []
     if ($events === []) {
         return ['ok' => false, 'error' => 'admin.notifications.errorEvents'];
     }
+    $minimumSeverity = strtolower(insight_notifications_string($input['minimum_severity'] ?? 'info', 16));
+    if (!in_array($minimumSeverity, ['info', 'minor', 'major', 'critical'], true)) {
+        return ['ok' => false, 'error' => 'admin.notifications.errorSeverity'];
+    }
+    $siteIds = [];
+    foreach ((array)($input['site_ids'] ?? []) as $value) {
+        $siteId = filter_var($value, FILTER_VALIDATE_INT);
+        if ($siteId !== false && (int)$siteId > 0) {
+            $siteIds[(int)$siteId] = (int)$siteId;
+        }
+    }
     $configInput = is_array($input['config'] ?? null) ? $input['config'] : [];
     $mode = (string)$catalog['mode'];
     $config = [];
@@ -441,7 +478,7 @@ function insight_notifications_validate(array $input, array $previousConfig = []
         }
         if ($headers !== '') {
             $decodedHeaders = json_decode($headers, true);
-            if (!is_array($decodedHeaders) || array_is_list($decodedHeaders)) {
+            if (!is_array($decodedHeaders) || ($decodedHeaders !== [] && array_is_list($decodedHeaders))) {
                 return ['ok' => false, 'error' => 'admin.notifications.errorHeaders'];
             }
         }
@@ -470,6 +507,8 @@ function insight_notifications_validate(array $input, array $previousConfig = []
         'provider' => $provider,
         'enabled' => filter_var($input['enabled'] ?? true, FILTER_VALIDATE_BOOLEAN),
         'events' => $events,
+        'minimum_severity' => $minimumSeverity,
+        'site_ids' => array_values($siteIds),
         'config' => $config,
     ];
 }
@@ -479,8 +518,8 @@ function insight_notifications_python(string $action, array $payload): array
     if (!function_exists('proc_open')) {
         return ['ok' => false, 'error' => 'admin.notifications.errorPython'];
     }
-    require_once dirname(__DIR__, 2) . '/monitoring/python_bridge.php';
-    $python = function_exists('resolve_python_bin') ? resolve_python_bin() : 'python3';
+    require_once dirname(__DIR__) . '/_python_engine.php';
+    $python = insight_python_binary();
     $script = dirname(__DIR__, 2) . '/monitoring/python_monitoring/notification_cli.py';
     $command = [$python, $script, $action, '--root', dirname(__DIR__, 2) . '/monitoring'];
     $descriptors = [
@@ -492,7 +531,7 @@ function insight_notifications_python(string $action, array $payload): array
     if (!is_array($environment)) {
         $environment = [];
     }
-    $pythonPath = function_exists('resolve_python_path') ? resolve_python_path() : '';
+    $pythonPath = insight_python_path(dirname(__DIR__, 2));
     if ($pythonPath !== '') {
         $environment['PYTHONPATH'] = $pythonPath
             . (isset($environment['PYTHONPATH']) && $environment['PYTHONPATH'] !== '' ? PATH_SEPARATOR . $environment['PYTHONPATH'] : '');
@@ -620,7 +659,7 @@ function insight_notifications_validate_webhook_payload(array $config, array $ch
 function insight_notifications_database_state(array $config): array
 {
     $database = insight_notifications_database($config);
-    $channelsResult = $database->query('SELECT * FROM notification_channels ORDER BY enabled DESC, name ASC, id ASC');
+    $channelsResult = $database->query("SELECT channel.*,GROUP_CONCAT(route.site_id ORDER BY route.site_id SEPARATOR ',') AS site_ids_csv FROM notification_channels channel LEFT JOIN notification_channel_sites route ON route.channel_id=channel.id GROUP BY channel.id ORDER BY channel.enabled DESC,channel.name ASC,channel.id ASC");
     $templatesResult = $database->query('SELECT event_key, title_template, body_template, updated_at FROM notification_templates ORDER BY event_key');
     $deliveriesResult = $database->query(
         'SELECT d.id, d.channel_id, COALESCE(c.name, "Deleted channel") AS channel_name, d.event_key, d.status, d.title_rendered, d.error_message, d.attempted_at
@@ -698,11 +737,39 @@ function insight_notifications_state(array $config): array
     ];
 }
 
+function insight_notifications_store_sites(mysqli $database, int $channelId, array $siteIds): void
+{
+    $delete = $database->prepare('DELETE FROM notification_channel_sites WHERE channel_id=?');
+    if (!$delete instanceof mysqli_stmt) {
+        throw new RuntimeException('database_prepare_failed');
+    }
+    $delete->bind_param('i', $channelId);
+    $delete->execute();
+    $delete->close();
+    if ($siteIds === []) {
+        return;
+    }
+    $insert = $database->prepare('INSERT INTO notification_channel_sites (channel_id,site_id) SELECT ?,id FROM sites WHERE id=?');
+    if (!$insert instanceof mysqli_stmt) {
+        throw new RuntimeException('database_prepare_failed');
+    }
+    foreach ($siteIds as $siteId) {
+        $insert->bind_param('ii', $channelId, $siteId);
+        $insert->execute();
+        if ($insert->affected_rows !== 1) {
+            $insert->close();
+            throw new InvalidArgumentException('admin.notifications.errorSite');
+        }
+    }
+    $insert->close();
+}
+
 function insight_notifications_create_database(array $config, array $channel): array
 {
     $database = insight_notifications_database($config);
+    $database->begin_transaction();
     $statement = $database->prepare(
-        'INSERT INTO notification_channels (name, provider, enabled, config_ciphertext, events_json) VALUES (?, ?, ?, ?, ?)'
+        'INSERT INTO notification_channels (name, provider, enabled, config_ciphertext, events_json, minimum_severity) VALUES (?, ?, ?, ?, ?, ?)'
     );
     if (!$statement instanceof mysqli_stmt) {
         $database->close();
@@ -713,7 +780,8 @@ function insight_notifications_create_database(array $config, array $channel): a
     $enabled = $channel['enabled'] ? 1 : 0;
     $ciphertext = insight_notifications_encrypt($channel['config']);
     $events = json_encode($channel['events'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
-    $statement->bind_param('ssiss', $name, $provider, $enabled, $ciphertext, $events);
+    $minimumSeverity = $channel['minimum_severity'];
+    $statement->bind_param('ssisss', $name, $provider, $enabled, $ciphertext, $events, $minimumSeverity);
     if (!$statement->execute()) {
         $statement->close();
         $database->close();
@@ -721,6 +789,8 @@ function insight_notifications_create_database(array $config, array $channel): a
     }
     $id = (int)$statement->insert_id;
     $statement->close();
+    insight_notifications_store_sites($database, $id, $channel['site_ids']);
+    $database->commit();
     $database->close();
     return ['ok' => true, 'status_code' => 201, 'id' => $id, 'mode' => 'database'];
 }
@@ -738,6 +808,8 @@ function insight_notifications_create_preview(array $channel): array
         'enabled' => $channel['enabled'] ? 1 : 0,
         'config_ciphertext' => insight_notifications_encrypt($channel['config']),
         'events_json' => $channel['events'],
+        'minimum_severity' => $channel['minimum_severity'],
+        'site_ids_csv' => implode(',', $channel['site_ids']),
         'last_test_at' => null,
         'last_status' => 'unknown',
         'last_error' => null,
@@ -818,8 +890,9 @@ function insight_notifications_find(array $config, int $id): array
 function insight_notifications_update_database(array $config, int $id, array $channel): array
 {
     $database = insight_notifications_database($config);
+    $database->begin_transaction();
     $statement = $database->prepare(
-        'UPDATE notification_channels SET name = ?, provider = ?, enabled = ?, config_ciphertext = ?, events_json = ? WHERE id = ?'
+        'UPDATE notification_channels SET name = ?, provider = ?, enabled = ?, config_ciphertext = ?, events_json = ?, minimum_severity = ? WHERE id = ?'
     );
     if (!$statement instanceof mysqli_stmt) {
         $database->close();
@@ -830,13 +903,16 @@ function insight_notifications_update_database(array $config, int $id, array $ch
     $enabled = $channel['enabled'] ? 1 : 0;
     $ciphertext = insight_notifications_encrypt($channel['config']);
     $events = json_encode($channel['events'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
-    $statement->bind_param('ssissi', $name, $provider, $enabled, $ciphertext, $events, $id);
+    $minimumSeverity = $channel['minimum_severity'];
+    $statement->bind_param('ssisssi', $name, $provider, $enabled, $ciphertext, $events, $minimumSeverity, $id);
     if (!$statement->execute()) {
         $statement->close();
         $database->close();
         throw new RuntimeException('database_update_failed');
     }
     $statement->close();
+    insight_notifications_store_sites($database, $id, $channel['site_ids']);
+    $database->commit();
     $database->close();
     return ['ok' => true, 'status_code' => 200, 'id' => $id, 'mode' => 'database'];
 }
@@ -854,6 +930,8 @@ function insight_notifications_update_preview(int $id, array $channel): array
             'enabled' => $channel['enabled'] ? 1 : 0,
             'config_ciphertext' => insight_notifications_encrypt($channel['config']),
             'events_json' => $channel['events'],
+            'minimum_severity' => $channel['minimum_severity'],
+            'site_ids_csv' => implode(',', $channel['site_ids']),
             'updated_at' => (new DateTimeImmutable())->format('Y-m-d H:i:s'),
         ]);
         insight_notifications_preview_write($state);

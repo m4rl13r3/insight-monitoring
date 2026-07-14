@@ -555,6 +555,8 @@ function hourly_handle_stats_mode(array $ctx) {
     $includeSitesFallback = $ctx['includeSitesFallback'];
     $includeDailyData = $ctx['includeDailyData'];
     $includeIncidents = $ctx['includeIncidents'];
+    $restrictSiteUrls = !empty($ctx['restrictSiteUrls']);
+    $allowedSiteUrls = array_fill_keys(array_map(static fn($url): string => (string)$url, (array)($ctx['siteUrls'] ?? [])), true);
 
     $currentDate = date('Y-m-d');
     $currentHour = (int)date('G');
@@ -684,6 +686,9 @@ function hourly_handle_stats_mode(array $ctx) {
     while ($row = $result->fetch_assoc()) {
         $url = (string)($row['url'] ?? '');
         if ($url === '') {
+            continue;
+        }
+        if ($restrictSiteUrls && !isset($allowedSiteUrls[$url])) {
             continue;
         }
         $siteId = (int)($row['site_id'] ?? 0);
@@ -1166,16 +1171,17 @@ function hourly_handle_stats_mode(array $ctx) {
                     $incidentCodeProbe->free();
                 }
                 $hasIncidentUpdatedAt = hourly_has_column($conn, 'incidents', 'updated_at');
-                $sourceModeSelect = $hasSourceMode ? ', source_mode' : ', NULL AS source_mode';
-                $incidentCodeSelect = $hasIncidentCode ? ', incident_code' : ', NULL AS incident_code';
-                $incidentUpdatedAtSelect = $hasIncidentUpdatedAt ? ', updated_at' : ', NULL AS updated_at';
+                $sourceModeSelect = $hasSourceMode ? ', i.source_mode' : ', NULL AS source_mode';
+                $incidentCodeSelect = $hasIncidentCode ? ', i.incident_code' : ', NULL AS incident_code';
+                $incidentUpdatedAtSelect = $hasIncidentUpdatedAt ? ', i.updated_at' : ', NULL AS updated_at';
                 $incidentsSql = "
-                    SELECT site_id, id, started_at, ended_at, http_code, postmortem, ai_created
+                    SELECT COALESCE(mapping.site_id, i.site_id) AS site_id, i.id, i.started_at, i.ended_at, i.http_code, i.postmortem, i.ai_created
                     $incidentCodeSelect
                     $sourceModeSelect
                     $incidentUpdatedAtSelect
-                    FROM incidents
-                    WHERE site_id IN ($placeholders)
+                    FROM incidents i
+                    LEFT JOIN incident_sites mapping ON mapping.incident_id=i.id
+                    WHERE i.published=1 AND COALESCE(mapping.site_id, i.site_id) IN ($placeholders)
                     ORDER BY site_id ASC, started_at DESC
                 ";
                 $incidentsStmt = $conn->prepare($incidentsSql);

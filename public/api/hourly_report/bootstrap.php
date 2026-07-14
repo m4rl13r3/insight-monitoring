@@ -74,7 +74,7 @@ function hourly_bootstrap_context() {
     $includeIncidents = hourly_query_bool('include_incidents', true);
     $incidentsLimit = hourly_query_int('incidents_limit', 50, 1, 200);
     $incidentsOffset = hourly_query_int('incidents_offset', 0, 0, 1000000);
-    $includeSitesFallback = isset($_GET['with_sites']) && $_GET['with_sites'] === '1';
+    $includeSitesFallback = !isset($_GET['with_sites']) || $_GET['with_sites'] !== '0';
 
     $requestedDate = null;
     if (isset($_GET['date']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$_GET['date'])) {
@@ -84,6 +84,7 @@ function hourly_bootstrap_context() {
         }
     }
 
+    $restrictSiteUrls = array_key_exists('site_urls', $_GET);
     $requestedSiteUrls = isset($_GET['site_urls']) ? $_GET['site_urls'] : [];
     if (!is_array($requestedSiteUrls)) {
         $requestedSiteUrls = [];
@@ -107,6 +108,7 @@ function hourly_bootstrap_context() {
     $ctx['includeSitesFallback'] = $includeSitesFallback;
     $ctx['requestedDate'] = $requestedDate;
     $ctx['siteUrls'] = $siteUrls;
+    $ctx['restrictSiteUrls'] = $restrictSiteUrls;
 
     $configPath = $rootDir . '/config/config.php';
     $config = null;
@@ -150,6 +152,40 @@ function hourly_bootstrap_context() {
     $conn->set_charset("utf8");
     hourly_log($ctx, "Connected to database");
     $ctx['conn'] = $conn;
+    $statusPageHelper = $rootDir . '/_status_page.php';
+    if (is_file($statusPageHelper)) {
+        require_once $statusPageHelper;
+        $page = insight_status_page_resolve($config, $conn);
+        if (!insight_status_page_authorized($page)) {
+            hourly_send_api_response($ctx, $mode, [], 401, ['code' => 'status_page_private', 'message' => 'Authentication is required for this status page.']);
+            exit;
+        }
+        $historyDays = max(1, min(365, (int)($page['history_days'] ?? 90)));
+        if ($requestedDate !== null) {
+            try {
+                $zone = new DateTimeZone((string)($config['timezone'] ?? 'UTC'));
+            } catch (Throwable) {
+                $zone = new DateTimeZone('UTC');
+            }
+            $earliestDate = (new DateTimeImmutable('today', $zone))->modify('-' . ($historyDays - 1) . ' days')->format('Y-m-d');
+            if ($requestedDate < $earliestDate) {
+                hourly_send_api_response($ctx, $mode, [], 422, ['code' => 'history_limit', 'message' => 'The requested date is outside this status page history.']);
+                exit;
+            }
+        }
+        $allowedPageUrls = insight_status_page_site_urls($conn, $page);
+        $ctx['statusPage'] = [
+            'id' => (int)($page['id'] ?? 0),
+            'slug' => (string)($page['slug'] ?? 'default'),
+            'name' => (string)($page['name'] ?? 'Insight'),
+            'history_days' => $historyDays,
+        ];
+        $ctx['siteUrls'] = $siteUrls === []
+            ? $allowedPageUrls
+            : array_values(array_intersect($siteUrls, $allowedPageUrls));
+        $ctx['restrictSiteUrls'] = true;
+        $ctx['includeSitesFallback'] = false;
+    }
 
     return $ctx;
 }

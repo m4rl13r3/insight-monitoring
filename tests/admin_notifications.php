@@ -32,6 +32,22 @@ if (!($validated['ok'] ?? false)) {
     fwrite(STDERR, "Webhook validation failed.\n");
     exit(1);
 }
+$emptyHeaders = insight_notifications_validate([
+    'name' => 'Webhook without headers',
+    'provider' => 'webhook',
+    'enabled' => false,
+    'events' => ['monitor_down'],
+    'config' => [
+        'url' => 'https://hooks.example.test/empty',
+        'method' => 'POST',
+        'headers' => '{}',
+        'payload_template' => '{"message":"{{ body }}"}',
+    ],
+]);
+if (!($emptyHeaders['ok'] ?? false)) {
+    fwrite(STDERR, "An empty webhook header object was rejected.\n");
+    exit(1);
+}
 $payloadValidation = insight_notifications_validate_webhook_payload($insightAdminConfig, $validated);
 if (!($payloadValidation['ok'] ?? false)) {
     $details = trim((string)($payloadValidation['details'] ?? $payloadValidation['error'] ?? ''));

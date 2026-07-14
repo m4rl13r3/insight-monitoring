@@ -13,6 +13,7 @@ import secrets
 import socket
 import sqlite3
 import ssl
+import subprocess
 import sys
 import time
 import uuid
@@ -27,6 +28,16 @@ from urllib.request import Request, urlopen
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from python_monitoring.monitor import run_manual_check
+from python_monitoring.advanced_probes import (
+    check_grpc_status,
+    check_mqtt_status,
+    check_rabbitmq_status,
+    check_redis_status,
+    check_smtp_status,
+    check_snmp_status,
+    check_sql_status,
+    check_websocket_status,
+)
 
 
 VERSION = "0.1.3"
@@ -369,7 +380,9 @@ class InsightAgent:
         self.load_cached_config()
 
     def node_payload(self) -> dict[str, Any]:
-        probe_types = ["http", "icmp", "tcp", "dns", "grpc"] if self.blackbox_url else ["http", "icmp", "tcp"]
+        probe_types = ["http", "icmp", "tcp", "dns", "grpc", "websocket", "mqtt", "sql", "redis", "smtp", "rabbitmq", "snmp"]
+        if self.service_checks_enabled:
+            probe_types.append("service")
         return {
             "capabilities": {
                 "adapters": ["native", "blackbox"] if self.blackbox_url else ["native"],
@@ -381,6 +394,41 @@ class InsightAgent:
             "region": self.region or None,
             "version": VERSION,
             "zone": self.zone or None,
+        }
+
+    @property
+    def service_checks_enabled(self) -> bool:
+        return env_bool("INSIGHT_AGENT_ENABLE_SERVICE_CHECKS", False)
+
+    def service_probe(self, target: dict[str, Any]) -> dict[str, Any]:
+        started = time.perf_counter()
+        parsed = urlsplit(str(target.get("url") or ""))
+        service_kind, _, service_name = parsed.path.strip("/").partition("/")
+        if not self.service_checks_enabled:
+            raise RuntimeError("agent_service_checks_disabled")
+        if parsed.hostname != self.node_key or service_kind not in {"systemd", "pm2"} or re.fullmatch(r"[A-Za-z0-9@_.:-]{1,160}", service_name) is None:
+            raise RuntimeError("invalid_agent_service_target")
+        allowlist = {item.strip() for item in (os.getenv("INSIGHT_AGENT_SERVICE_ALLOWLIST") or "").split(",") if item.strip()}
+        if service_name not in allowlist:
+            raise RuntimeError("agent_service_not_allowed")
+        if service_kind == "systemd":
+            command = ["systemctl", "is-active", "--quiet", service_name]
+        else:
+            command = ["pm2", "jlist"]
+        completed = subprocess.run(command, capture_output=True, text=True, timeout=env_int("INSIGHT_AGENT_PROBE_TIMEOUT_SEC", 15, 1, 120), check=False)
+        if service_kind == "pm2":
+            try:
+                processes = json.loads(completed.stdout or "[]")
+            except json.JSONDecodeError as exc:
+                raise RuntimeError("pm2_invalid_response") from exc
+            active = any(str(item.get("name") or "") == service_name and str((item.get("pm2_env") or {}).get("status") or "") == "online" for item in processes if isinstance(item, dict))
+        else:
+            active = completed.returncode == 0
+        return {
+            "http_code": None,
+            "metadata": {"adapter": "agent_service", "service": service_name, "kind": service_kind},
+            "response_time_ms": round((time.perf_counter() - started) * 1000, 3),
+            "status": "online" if active else "offline",
         }
 
     def load_cached_config(self) -> None:
@@ -504,9 +552,50 @@ class InsightAgent:
             "http_primary_method": method,
             "http_primary_redirect": redirect,
             "http_redirect_modes": redirect,
+            "timeout_sec": str(target.get("timeout_sec") or 10),
+            "retry_count": str(target.get("retry_count") or 0),
+            "accepted_status_codes": str(target.get("accepted_status_codes") or "200-399"),
+            "keyword_text": str(target.get("keyword_text") or ""),
+            "keyword_mode": str(target.get("keyword_mode") or "none"),
+            "json_path": str(target.get("json_path") or ""),
+            "json_expected_value": str(target.get("json_expected_value") or ""),
+            "request_headers_json": str(target.get("request_headers_json") or ""),
+            "request_body": str(target.get("request_body") or ""),
+            "basic_auth_username": str(target.get("basic_auth_username") or ""),
+            "basic_auth_password": str(target.get("basic_auth_password") or ""),
+            "tls_verify": "1" if target.get("tls_verify", True) else "0",
+            "dns_record_type": str(target.get("dns_record_type") or "A"),
+            "dns_expected_value": str(target.get("dns_expected_value") or ""),
         }
         probe_type = str(target.get("probe_type") or "http").lower()
-        if probe_type not in {"http", "icmp", "ping", "tcp"}:
+        advanced_callbacks = {
+            "grpc": check_grpc_status,
+            "websocket": check_websocket_status,
+            "mqtt": check_mqtt_status,
+            "sql": check_sql_status,
+            "redis": check_redis_status,
+            "smtp": check_smtp_status,
+            "rabbitmq": check_rabbitmq_status,
+            "snmp": check_snmp_status,
+        }
+        if probe_type == "service":
+            return self.service_probe(target)
+        if probe_type in advanced_callbacks:
+            result = advanced_callbacks[probe_type](
+                str(target.get("url") or ""),
+                {
+                    "timeout_sec": target.get("timeout_sec") or 10,
+                    "tls_verify": target.get("tls_verify", True),
+                    "probe_config_ciphertext": target.get("probe_config") or {},
+                },
+            )
+            return {
+                "http_code": result.get("http_code"),
+                "metadata": {"adapter": "native", "diagnostic": result.get("diagnostic") or {}},
+                "response_time_ms": result.get("response_time"),
+                "status": str(result.get("status") or "unknown"),
+            }
+        if probe_type not in {"http", "icmp", "ping", "tcp", "dns"}:
             raise RuntimeError(f"The {probe_type} probe requires Blackbox Exporter.")
         manual = run_manual_check(str(target.get("url") or ""), probe_type, config)
         if not manual.get("ok"):
@@ -524,12 +613,16 @@ class InsightAgent:
         }
 
     def probe_once(self, target: dict[str, Any]) -> dict[str, Any]:
-        if not self.blackbox_url:
+        probe_type = str(target.get("probe_type") or "").lower()
+        advanced_http = probe_type == "http" and any(
+            str(target.get(key) or "").strip()
+            for key in ("keyword_text", "json_path", "request_headers_json", "request_body", "basic_auth_username")
+        )
+        if not self.blackbox_url or advanced_http or probe_type in {"grpc", "websocket", "mqtt", "sql", "redis", "smtp", "rabbitmq", "snmp", "service"}:
             return self.native_probe(target)
         try:
             return self.blackbox_probe(target)
         except Exception as blackbox_error:
-            probe_type = str(target.get("probe_type") or "http").lower()
             if not self.blackbox_fallback or probe_type not in {"http", "icmp", "ping", "tcp"}:
                 raise
             result = self.native_probe(target)

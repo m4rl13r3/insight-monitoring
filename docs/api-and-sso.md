@@ -14,8 +14,13 @@ Available permissions:
 | `monitors:read` | Monitor list |
 | `monitors:write` | Monitor creation, editing, and deletion |
 | `incidents:read` | Incident list |
+| `incidents:write` | Incident creation, updates, acknowledgement, and resolution |
+| `maintenances:read` | Scheduled maintenance list |
+| `maintenances:write` | Scheduled maintenance management |
+| `status-pages:read` | Status page settings |
+| `status-pages:write` | Status page management |
 | `notifications:read` | Channels and messages, with masked secrets |
-| `notifications:write` | Channel and message management and testing |
+| `notifications:write` | Channel, message, testing, and on-call management |
 
 Example:
 
@@ -26,6 +31,8 @@ curl \
 ```
 
 Routes are documented at `/api/v1/openapi.php` while the API is enabled. For browser access from another domain, add only the required origins to `INSIGHT_API_ALLOWED_ORIGINS`.
+
+The API exposes `/status.php`, `/monitors.php`, `/incidents.php`, `/maintenances.php`, `/status-pages.php`, `/notifications.php`, and `/oncall.php`. Write routes use `POST`, `PATCH`, and `DELETE` with the same JSON fields and validation rules as the dashboard.
 
 ## Insight as an OpenID Connect provider
 

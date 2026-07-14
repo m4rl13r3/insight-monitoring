@@ -1,7 +1,7 @@
 FROM python:3.12-slim-bookworm
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates iputils-ping \
+    && apt-get install -y --no-install-recommends ca-certificates iputils-ping snmp \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 10001 insight-agent \
     && mkdir -p /var/lib/insight-agent \

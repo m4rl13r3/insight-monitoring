@@ -17,6 +17,9 @@ function insight_access_api_state(): array
 
 $user = insight_auth_require_user();
 $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+if (!insight_auth_can($user, 'access:write')) {
+    insight_access_json_response(['ok' => false, 'error' => 'admin.auth.errorForbidden'], 403);
+}
 
 if (!in_array($method, ['GET', 'POST', 'DELETE'], true)) {
     header('Allow: GET, POST, DELETE');

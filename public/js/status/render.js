@@ -49,6 +49,87 @@ function destroyStatusCharts(container) {
     });
 }
 
+function normalizeStatusPageSiteUrl(value) {
+    return String(value || "").trim().replace(/\/$/, "");
+}
+
+function selectStatusPageSites(data, siteUrls) {
+    const allowed = new Set((Array.isArray(siteUrls) ? siteUrls : []).map(normalizeStatusPageSiteUrl));
+    return (Array.isArray(data) ? data : []).filter((site) => allowed.has(normalizeStatusPageSiteUrl(site?.url)));
+}
+
+function appendStatusSummaryCards(container, data) {
+    const domains = organizeByDomain(Array.isArray(data) ? data : []);
+    for (const [mainDomain, subdomains] of Object.entries(domains)) {
+        container.appendChild(createSummaryCard(mainDomain, subdomains));
+    }
+}
+
+function createStatusPageGroup(group, data, index) {
+    const section = document.createElement("section");
+    section.className = "status-page-group";
+    const groupId = `status-page-group-${index}`;
+    const collapsed = group?.collapsed === true;
+    const button = document.createElement("button");
+    button.className = "status-page-group-toggle";
+    button.type = "button";
+    button.setAttribute("aria-controls", groupId);
+    button.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    const heading = document.createElement("span");
+    heading.className = "status-page-group-name";
+    heading.textContent = String(group?.name || insightT("common.services"));
+    const meta = document.createElement("span");
+    meta.className = "status-page-group-meta";
+    const count = document.createElement("span");
+    count.textContent = insightT(data.length === 1 ? "statusGroup.monitorCountOne" : "statusGroup.monitorCount", { count: data.length });
+    const chevron = document.createElement("i");
+    chevron.className = `fa-solid ${collapsed ? "fa-chevron-down" : "fa-chevron-up"}`;
+    chevron.setAttribute("aria-hidden", "true");
+    meta.append(count, chevron);
+    button.append(heading, meta);
+    const panel = document.createElement("div");
+    panel.id = groupId;
+    panel.className = "status-page-group-grid";
+    panel.hidden = collapsed;
+    appendStatusSummaryCards(panel, data);
+    const updateLabel = () => {
+        const expanded = button.getAttribute("aria-expanded") === "true";
+        button.setAttribute("aria-label", insightT(expanded ? "statusGroup.collapse" : "statusGroup.expand", { name: heading.textContent }));
+    };
+    updateLabel();
+    button.addEventListener("click", () => {
+        const expanded = button.getAttribute("aria-expanded") === "true";
+        button.setAttribute("aria-expanded", expanded ? "false" : "true");
+        panel.hidden = expanded;
+        chevron.className = `fa-solid ${expanded ? "fa-chevron-down" : "fa-chevron-up"}`;
+        updateLabel();
+        if (typeof window.syncStatusGrid === "function") {
+            window.syncStatusGrid();
+        }
+    });
+    section.append(button, panel);
+    return section;
+}
+
+function renderStatusPageLayout(container, data) {
+    const layout = window.INSIGHT_CONFIG?.statusPageLayout;
+    const groups = Array.isArray(layout?.groups) ? layout.groups : [];
+    const ungroupedUrls = Array.isArray(layout?.ungrouped) ? layout.ungrouped : [];
+    const hasConfiguredLayout = groups.some((group) => Array.isArray(group?.site_urls) && group.site_urls.length > 0) || ungroupedUrls.length > 0;
+    if (!hasConfiguredLayout) {
+        appendStatusSummaryCards(container, data);
+        return;
+    }
+    const ungrouped = selectStatusPageSites(data, ungroupedUrls);
+    appendStatusSummaryCards(container, ungrouped);
+    groups.forEach((group, index) => {
+        const sites = selectStatusPageSites(data, group?.site_urls);
+        if (sites.length > 0) {
+            container.appendChild(createStatusPageGroup(group, sites, index));
+        }
+    });
+}
+
 function updatePage(data) {
     resetBreadcrumb();
     formattedSitesData = data;
@@ -61,11 +142,7 @@ function updatePage(data) {
         reportIncidentSection.classList.remove("hidden");
     }
     statusCardsContainer.classList.add("summary-grid");
-    const domains = organizeByDomain(data);
-    for (const [mainDomain, subdomains] of Object.entries(domains)) {
-        const summaryCard = createSummaryCard(mainDomain, subdomains);
-        statusCardsContainer.appendChild(summaryCard);
-    }
+    renderStatusPageLayout(statusCardsContainer, data);
     renderPlannedMaintenancesSection(data);
     if (typeof window.syncStatusGrid === "function") {
         window.syncStatusGrid();
@@ -270,7 +347,15 @@ function formatDateReadable(dateStr) {
 }
 
 function getDomainSubdomainsByDate(mainDomain, dateKey) {
-    const effectiveDateKey = (dateKey && !isTodayKey(dateKey)) ? dateKey : null;
+    const isCurrentDay = !dateKey || isTodayKey(dateKey);
+    if (isCurrentDay) {
+        const currentDomains = organizeByDomain(formattedSitesData || []);
+        const currentSubdomains = currentDomains[mainDomain] || [];
+        if (currentSubdomains.length > 0) {
+            return Promise.resolve(currentSubdomains);
+        }
+    }
+    const effectiveDateKey = isCurrentDay ? null : dateKey;
     return fetchStatsData({
         dateKey: effectiveDateKey,
         withSitesFallback: true,
@@ -307,23 +392,24 @@ function buildUnknownSubdomains(mainDomain) {
 
 function createDetailDateNav(mainDomain) {
     const nav = document.createElement("div");
-    nav.className = "relative shrink-0";
+    nav.className = "detail-settings-control";
     const today = formatDateKey(new Date());
-    const canGoNext = detailDateKey !== today;
+    const canGoNext = detailDateKey < today;
+    const canGoPrevious = detailDateKey > getEarliestStatusDateKey();
     nav.innerHTML = `
-        <button type="button" class="detail-settings-btn inline-flex items-center gap-2 px-3 py-2 rounded-[0.5em] bg-blue-600 hover:bg-blue-700 shadow-md transition text-white text-sm" aria-expanded="false" aria-label="${escapeHtml(insightT("detail.settingsAria"))}">
-            <i class="fa-solid fa-sliders text-xs" aria-hidden="true"></i>
+        <button type="button" class="detail-settings-btn" aria-expanded="false" aria-controls="detailDateSettingsPanel" aria-label="${escapeHtml(insightT("detail.settingsAria"))}">
+            <i class="fa-solid fa-sliders" aria-hidden="true"></i>
             <span>${escapeHtml(insightT("detail.settings"))}</span>
         </button>
-        <div class="detail-settings-panel hidden absolute right-0 top-full mt-2 w-[320px] max-w-[85vw] glass-container glass-noise z-20">
-            <p class="text-xs text-gray-300 mb-2">${escapeHtml(insightT("detail.displayedDate"))}</p>
-            <div class="flex items-center justify-between gap-2">
-                <button type="button" class="detail-prev inline-flex items-center justify-center h-8 w-8 rounded-full border border-white/20 bg-white/10 hover:bg-white/20 transition" aria-label="${escapeHtml(insightT("detail.previousDay"))}">
-                    <i class="fa-solid fa-chevron-left text-xs text-white" aria-hidden="true"></i>
+        <div id="detailDateSettingsPanel" class="detail-settings-panel hidden glass-container" role="dialog" aria-label="${escapeHtml(insightT("detail.displayedDate"))}" aria-hidden="true">
+            <p class="detail-settings-label">${escapeHtml(insightT("detail.displayedDate"))}</p>
+            <div class="detail-settings-nav">
+                <button type="button" class="detail-date-button detail-prev" aria-label="${escapeHtml(insightT("detail.previousDay"))}" ${canGoPrevious ? "" : "disabled"}>
+                    <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
                 </button>
-                <span class="text-xs text-gray-300 min-w-[190px] text-center">${getDateLabel(detailDateKey)}</span>
-                <button type="button" class="detail-next inline-flex items-center justify-center h-8 w-8 rounded-full border border-white/20 bg-white/10 hover:bg-white/20 transition ${canGoNext ? "" : "opacity-40 cursor-not-allowed"}" aria-label="${escapeHtml(insightT("detail.nextDay"))}" ${canGoNext ? "" : "disabled"}>
-                    <i class="fa-solid fa-chevron-right text-xs text-white" aria-hidden="true"></i>
+                <span class="detail-date-label">${getDateLabel(detailDateKey)}</span>
+                <button type="button" class="detail-date-button detail-next" aria-label="${escapeHtml(insightT("detail.nextDay"))}" ${canGoNext ? "" : "disabled"}>
+                    <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
                 </button>
             </div>
         </div>
@@ -333,27 +419,41 @@ function createDetailDateNav(mainDomain) {
     const settingsPanel = nav.querySelector(".detail-settings-panel");
     const prevBtn = nav.querySelector(".detail-prev");
     const nextBtn = nav.querySelector(".detail-next");
-    decorateStatusCardElement(settingsPanel);
+
+    function handleOutsidePointer(event) {
+        if (!nav.contains(event.target)) {
+            closePanel();
+        }
+    }
+
+    function handleEscape(event) {
+        if (event.key === "Escape") {
+            closePanel();
+            settingsBtn.focus();
+        }
+    }
 
     function openPanel() {
         detailSettingsOpen = true;
         settingsBtn.setAttribute("aria-expanded", "true");
         settingsPanel.classList.remove("hidden");
+        settingsPanel.setAttribute("aria-hidden", "false");
+        document.addEventListener("pointerdown", handleOutsidePointer);
+        document.addEventListener("keydown", handleEscape);
     }
 
     function closePanel() {
         detailSettingsOpen = false;
         settingsBtn.setAttribute("aria-expanded", "false");
         settingsPanel.classList.add("hidden");
+        settingsPanel.setAttribute("aria-hidden", "true");
+        document.removeEventListener("pointerdown", handleOutsidePointer);
+        document.removeEventListener("keydown", handleEscape);
     }
 
-    if (detailSettingsOpen) {
-        openPanel();
-    }
+    detailSettingsOpen = false;
+    nav.closeDetailSettingsPanel = closePanel;
 
-    nav.addEventListener("mouseenter", openPanel);
-    nav.addEventListener("mouseleave", closePanel);
-    settingsBtn.addEventListener("focus", openPanel);
     settingsBtn.addEventListener("click", () => {
         if (detailSettingsOpen) {
             closePanel();
@@ -363,7 +463,10 @@ function createDetailDateNav(mainDomain) {
     });
 
     prevBtn.addEventListener("click", async () => {
-        detailSettingsOpen = true;
+        if (prevBtn.disabled) {
+            return;
+        }
+        closePanel();
         detailDateKey = shiftDateKey(detailDateKey, -1);
         detailDateUserSet = true;
         const subdomains = await getDomainSubdomainsByDate(mainDomain, detailDateKey);
@@ -373,9 +476,9 @@ function createDetailDateNav(mainDomain) {
         if (nextBtn.disabled) {
             return;
         }
-        detailSettingsOpen = true;
+        closePanel();
         detailDateKey = shiftDateKey(detailDateKey, 1);
-        detailDateUserSet = true;
+        detailDateUserSet = !isTodayKey(detailDateKey);
         const subdomains = await getDomainSubdomainsByDate(mainDomain, detailDateKey);
         showDomainDetail(mainDomain, subdomains.length > 0 ? subdomains : buildUnknownSubdomains(mainDomain));
     });
@@ -470,6 +573,10 @@ function resetDetailActions() {
         sectionTitle.textContent = insightT("common.services");
     }
     if (actions) {
+        const settingsControl = actions.querySelector(".detail-settings-control");
+        if (settingsControl && typeof settingsControl.closeDetailSettingsPanel === "function") {
+            settingsControl.closeDetailSettingsPanel();
+        }
         actions.textContent = "";
     }
     if (backButton) {
@@ -491,6 +598,10 @@ function renderDetailActions(mainDomain) {
         sectionTitle.textContent = mainDomain;
     }
     if (actions) {
+        const settingsControl = actions.querySelector(".detail-settings-control");
+        if (settingsControl && typeof settingsControl.closeDetailSettingsPanel === "function") {
+            settingsControl.closeDetailSettingsPanel();
+        }
         actions.textContent = "";
         actions.appendChild(createCopyStatusLinkButton());
         actions.appendChild(createDetailDateNav(mainDomain));
@@ -562,7 +673,7 @@ function showDomainDetail(mainDomain, subdomains, options = {}) {
     const monitorCards = subdomains.map((sd, index) => {
         const [headerEl, contentEl] = createStatusCard(sd, {
             index,
-            expanded: index === 0
+            expanded: false
         });
         statusCardsContainer.appendChild(headerEl);
         statusCardsContainer.appendChild(contentEl);
@@ -930,37 +1041,6 @@ function displayUrlWithoutProtocol(url) {
     return String(url || "").replace(/^https?:\/\//, "");
 }
 
-function getIncidentConfidenceView(inc, durationMs) {
-    const raw = typeof inc.incident_confidence === "string" ? inc.incident_confidence.trim().toLowerCase() : "";
-    const score = Number.isFinite(Number(inc.incident_confidence_score)) ? Number(inc.incident_confidence_score) : null;
-    const fallbackConfidence = score !== null
-        ? (score >= 75 ? "high" : (score >= 50 ? "medium" : "low"))
-        : (durationMs >= 5 * 60 * 1000 ? "medium" : "low");
-    const confidence = ["high", "medium", "low"].includes(raw) ? raw : fallbackConfidence;
-    const labels = {
-        high: insightT("incident.confidenceHigh"),
-        medium: insightT("incident.confidenceMedium"),
-        low: insightT("incident.confidenceLow")
-    };
-    const icons = {
-        high: "fa-circle-check",
-        medium: "fa-shield-halved",
-        low: "fa-circle-question"
-    };
-    const reason = typeof inc.reason === "string" && inc.reason.trim() !== ""
-        ? inc.reason.trim()
-        : insightT("incident.confidenceFallback");
-    return {
-        confidence,
-        label: labels[confidence],
-        icon: icons[confidence],
-        score,
-        reason,
-        sourceCount: Number.isFinite(Number(inc.source_count)) ? Number(inc.source_count) : 1,
-        lastSeenAt: typeof inc.last_seen_at === "string" ? inc.last_seen_at : ""
-    };
-}
-
 function buildIncidentCard(inc) {
     const startedAt = typeof inc.started_at === "string" ? inc.started_at : "";
     const endedAt = typeof inc.ended_at === "string" ? inc.ended_at : null;
@@ -984,20 +1064,62 @@ function buildIncidentCard(inc) {
     const statusLine = isResolved
         ? insightT("incident.resolvedDuration", { duration: durationText })
         : insightT("incident.ongoingDuration", { duration: durationText });
-    const confidenceView = getIncidentConfidenceView(inc, durationMs);
-    const confidenceScoreLabel = confidenceView.score !== null ? ` · ${confidenceView.score}/100` : "";
-    const lastSeenLabel = confidenceView.lastSeenAt ? formatDateReadable(confidenceView.lastSeenAt) : "";
-    const sourceMode = typeof inc.source_mode === "string" ? inc.source_mode.trim().toLowerCase() : "";
-    const byAdmin = sourceMode === "manual" || sourceMode === "ai";
-    let authorLabel = byAdmin ? insightT("incident.authorAdmin") : insightT("incident.authorSystem");
-    const isAiEnhanced = Boolean(inc.ai_created);
-    if (isAiEnhanced) {
-        authorLabel = insightT("incident.authorAi");
-    }
-    const postmortem = inc.postmortem ? `${String(inc.postmortem)} ${authorLabel}` : insightT("incident.noPostmortem");
-    const sourceLabel = insightT("incident.sources", { count: confidenceView.sourceCount });
-    const lastTraceLabel = lastSeenLabel ? insightT("incident.lastTrace", { date: lastSeenLabel }) : "";
     const serviceUrl = displayUrlWithoutProtocol(inc.url);
+    const title = typeof inc.title === "string" && inc.title.trim() !== ""
+        ? inc.title.trim()
+        : insightT("incident.defaultTitle", { service: serviceUrl });
+    const summary = typeof inc.summary === "string" ? inc.summary.trim() : "";
+    const severity = ["info", "minor", "major", "critical"].includes(String(inc.severity || "").toLowerCase())
+        ? String(inc.severity).toLowerCase()
+        : "major";
+    const affectedSites = Array.isArray(inc.affected_sites)
+        ? [...new Set(inc.affected_sites.map(displayUrlWithoutProtocol).filter(Boolean))]
+        : [];
+    const updates = Array.isArray(inc.updates) ? inc.updates : [];
+    const updateStatuses = {
+        started: insightT("incident.update.started"),
+        acknowledged: insightT("incident.update.acknowledged"),
+        monitoring: insightT("incident.update.monitoring"),
+        resolved: insightT("incident.update.resolved")
+    };
+    const updatesMarkup = updates.map((update) => {
+        const updateStatus = String(update.status || "started").toLowerCase();
+        const statusLabel = updateStatuses[updateStatus] || updateStatuses.started;
+        const updateDate = update.created_at ? formatDateReadable(String(update.created_at)) : insightT("incident.unknownDate");
+        const author = typeof update.author_name === "string" ? update.author_name.trim() : "";
+        return `
+            <li class="incident-update incident-update--${escapeHtml(updateStatus)}">
+                <span class="incident-update-marker" aria-hidden="true"></span>
+                <div>
+                    <p class="incident-update-meta">
+                        <strong>${escapeHtml(statusLabel)}</strong>
+                        <time>${escapeHtml(updateDate)}</time>
+                    </p>
+                    <p class="incident-update-message">${escapeHtml(String(update.message || ""))}</p>
+                    ${author ? `<p class="incident-update-author">${escapeHtml(author)}</p>` : ""}
+                </div>
+            </li>
+        `;
+    }).join("");
+    const affectedMarkup = affectedSites.length > 1
+        ? `<div class="incident-affected-sites">
+            <span>${escapeHtml(insightT("incident.affectedServices"))}</span>
+            <div>${affectedSites.map((site) => `<span>${escapeHtml(site)}</span>`).join("")}</div>
+        </div>`
+        : "";
+    const timelineMarkup = updatesMarkup
+        ? `<section class="incident-timeline" aria-label="${escapeHtml(insightT("incident.timeline"))}">
+            <h4>${escapeHtml(insightT("incident.timeline"))}</h4>
+            <ol>${updatesMarkup}</ol>
+        </section>`
+        : "";
+    const postmortemText = typeof inc.postmortem === "string" ? inc.postmortem.trim() : "";
+    const postmortemMarkup = postmortemText
+        ? `<section class="incident-postmortem">
+            <h4>${escapeHtml(insightT("incident.postmortem"))}</h4>
+            <p>${escapeHtml(postmortemText)}</p>
+        </section>`
+        : "";
     const incCard = document.createElement("article");
     incCard.className = `incident-card ${cardStateClass} glass-container glass-noise status-grid-card`;
     incCard.innerHTML = `
@@ -1005,8 +1127,11 @@ function buildIncidentCard(inc) {
         ${incidentTreeConnectorMarkup}
         <button type="button" class="incident-card-header" aria-expanded="false">
             <span class="incident-card-main">
-                <span class="incident-code">${escapeHtml(incidentCode)}</span>
-                <span class="incident-service"><i class="fa-solid fa-link" aria-hidden="true"></i>${escapeHtml(serviceUrl)}</span>
+                <strong class="incident-title">${escapeHtml(title)}</strong>
+                <span class="incident-identity">
+                    <span class="incident-code">${escapeHtml(incidentCode)}</span>
+                    <span class="incident-service"><i class="fa-solid fa-link" aria-hidden="true"></i>${escapeHtml(serviceUrl)}</span>
+                </span>
             </span>
             <span class="incident-card-side">
                 <span class="incident-badge ${statusClass}">
@@ -1018,19 +1143,17 @@ function buildIncidentCard(inc) {
         </button>
         <div class="incident-card-summary">
             <span><i class="fa-solid fa-clock" aria-hidden="true"></i>${escapeHtml(startFormatted)}</span>
-            <span><i class="fa-solid fa-server" aria-hidden="true"></i>${escapeHtml(insightT("incident.code", { code }))}</span>
             <span><i class="fa-solid fa-stopwatch" aria-hidden="true"></i>${escapeHtml(statusLine)}</span>
-            <span class="incident-confidence incident-confidence-${escapeHtml(confidenceView.confidence)}">
-                <i class="fa-solid ${escapeHtml(confidenceView.icon)}" aria-hidden="true"></i>
-                ${escapeHtml(confidenceView.label)}
+            <span class="incident-severity incident-severity-${escapeHtml(severity)}">
+                <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+                ${escapeHtml(insightT(`incident.severity.${severity}`))}
             </span>
         </div>
         <div class="incident-details hidden">
-            <p class="${isAiEnhanced ? "ai-enhanced" : ""}">${escapeHtml(postmortem)}</p>
-            <p class="incident-confidence-reason">
-                <i class="fa-solid ${escapeHtml(confidenceView.icon)}" aria-hidden="true"></i>
-                <span>${escapeHtml(confidenceView.label + confidenceScoreLabel)} · ${escapeHtml(confidenceView.reason)} · ${escapeHtml(sourceLabel)}${lastTraceLabel ? ` · ${escapeHtml(lastTraceLabel)}` : ""}</span>
-            </p>
+            ${summary ? `<p class="incident-public-summary">${escapeHtml(summary)}</p>` : ""}
+            ${affectedMarkup}
+            ${timelineMarkup}
+            ${postmortemMarkup}
         </div>
     `;
 

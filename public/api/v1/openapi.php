@@ -38,12 +38,35 @@ insight_access_json_response([
             'patch' => ['summary' => 'Edit a monitor', 'x-insight-scope' => 'monitors:write', 'responses' => $responses],
             'delete' => ['summary' => 'Delete a monitor', 'x-insight-scope' => 'monitors:write', 'responses' => $responses],
         ],
-        '/incidents.php' => ['get' => ['summary' => 'List incidents', 'x-insight-scope' => 'incidents:read', 'responses' => $responses]],
+        '/incidents.php' => [
+            'get' => ['summary' => 'List incidents', 'x-insight-scope' => 'incidents:read', 'responses' => $responses],
+            'post' => ['summary' => 'Create an incident', 'x-insight-scope' => 'incidents:write', 'responses' => $responses],
+            'patch' => ['summary' => 'Edit or advance an incident', 'x-insight-scope' => 'incidents:write', 'responses' => $responses],
+            'delete' => ['summary' => 'Delete an incident', 'x-insight-scope' => 'incidents:write', 'responses' => $responses],
+        ],
+        '/maintenances.php' => [
+            'get' => ['summary' => 'List scheduled maintenance', 'x-insight-scope' => 'maintenances:read', 'responses' => $responses],
+            'post' => ['summary' => 'Create scheduled maintenance', 'x-insight-scope' => 'maintenances:write', 'responses' => $responses],
+            'patch' => ['summary' => 'Edit scheduled maintenance', 'x-insight-scope' => 'maintenances:write', 'responses' => $responses],
+            'delete' => ['summary' => 'Delete scheduled maintenance', 'x-insight-scope' => 'maintenances:write', 'responses' => $responses],
+        ],
+        '/status-pages.php' => [
+            'get' => ['summary' => 'List status pages', 'x-insight-scope' => 'status-pages:read', 'responses' => $responses],
+            'post' => ['summary' => 'Create a status page', 'x-insight-scope' => 'status-pages:write', 'responses' => $responses],
+            'patch' => ['summary' => 'Edit a status page', 'x-insight-scope' => 'status-pages:write', 'responses' => $responses],
+            'delete' => ['summary' => 'Delete a status page', 'x-insight-scope' => 'status-pages:write', 'responses' => $responses],
+        ],
         '/notifications.php' => [
             'get' => ['summary' => 'List alerts', 'x-insight-scope' => 'notifications:read', 'responses' => $responses],
             'post' => ['summary' => 'Create or test a channel', 'x-insight-scope' => 'notifications:write', 'responses' => $responses],
             'patch' => ['summary' => 'Edit a channel or message', 'x-insight-scope' => 'notifications:write', 'responses' => $responses],
             'delete' => ['summary' => 'Delete a channel', 'x-insight-scope' => 'notifications:write', 'responses' => $responses],
+        ],
+        '/oncall.php' => [
+            'get' => ['summary' => 'List on-call rotations', 'x-insight-scope' => 'notifications:read', 'responses' => $responses],
+            'post' => ['summary' => 'Create an on-call rotation', 'x-insight-scope' => 'notifications:write', 'responses' => $responses],
+            'patch' => ['summary' => 'Edit an on-call rotation', 'x-insight-scope' => 'notifications:write', 'responses' => $responses],
+            'delete' => ['summary' => 'Delete an on-call rotation', 'x-insight-scope' => 'notifications:write', 'responses' => $responses],
         ],
     ],
 ]);

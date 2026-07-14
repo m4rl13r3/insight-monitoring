@@ -10,7 +10,7 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, max-age=0');
 header('X-Content-Type-Options: nosniff');
 
-require_once dirname(__DIR__, 2) . '/monitoring/distributed.php';
+require_once dirname(__DIR__) . '/_python_engine.php';
 
 function insight_agent_response(int $statusCode, array $payload): never
 {
@@ -26,27 +26,17 @@ function insight_agent_response(int $statusCode, array $payload): never
     exit;
 }
 
-function insight_agent_connect(): mysqli
+function insight_agent_env_bool(string $name, bool $default = false): bool
 {
-    $config = require dirname(__DIR__) . '/config/config.php';
-    mysqli_report(MYSQLI_REPORT_OFF);
-    $connection = mysqli_init();
-    if (!$connection instanceof mysqli) {
-        throw new RuntimeException('Unable to initialize MariaDB.');
-    }
-    $connection->options(MYSQLI_OPT_CONNECT_TIMEOUT, 5);
-    $connected = @$connection->real_connect(
-        (string)($config['servername'] ?? 'db'),
-        (string)($config['username'] ?? ''),
-        (string)($config['password'] ?? ''),
-        (string)($config['dbname'] ?? ''),
-        (int)($config['port'] ?? 3306)
-    );
-    if (!$connected) {
-        throw new RuntimeException('Unable to connect to MariaDB.');
-    }
-    $connection->set_charset('utf8mb4');
-    return $connection;
+    $raw = getenv($name);
+    $value = strtolower(trim($raw === false || trim((string)$raw) === '' ? ($default ? '1' : '0') : (string)$raw));
+    return in_array($value, ['1', 'true', 'yes', 'on'], true);
+}
+
+function insight_agent_env_int(string $name, int $default, int $minimum, int $maximum): int
+{
+    $value = filter_var(getenv($name), FILTER_VALIDATE_INT);
+    return $value === false ? $default : max($minimum, min($maximum, (int)$value));
 }
 
 function insight_agent_is_https(): bool
@@ -65,10 +55,10 @@ if ($method !== 'POST') {
     header('Allow: POST');
     insight_agent_response(405, ['status' => 'error', 'message' => 'Method not allowed.']);
 }
-if (insight_dist_env_bool('INSIGHT_AGENT_REQUIRE_HTTPS') && !insight_agent_is_https()) {
+if (insight_agent_env_bool('INSIGHT_AGENT_REQUIRE_HTTPS', true) && !insight_agent_is_https()) {
     insight_agent_response(426, ['status' => 'error', 'message' => 'HTTPS is required for agents.']);
 }
-$maximumBody = insight_dist_env_int('INSIGHT_AGENT_MAX_BODY_BYTES', 1048576, 16384, 10485760);
+$maximumBody = insight_agent_env_int('INSIGHT_AGENT_MAX_BODY_BYTES', 1048576, 16384, 10485760);
 $contentLength = filter_var($_SERVER['CONTENT_LENGTH'] ?? null, FILTER_VALIDATE_INT);
 if ($contentLength !== false && $contentLength !== null && $contentLength > $maximumBody) {
     insight_agent_response(413, ['status' => 'error', 'message' => 'Agent request is too large.']);
@@ -77,69 +67,23 @@ $rawBody = file_get_contents('php://input');
 if (!is_string($rawBody) || $rawBody === '' || strlen($rawBody) > $maximumBody) {
     insight_agent_response(400, ['status' => 'error', 'message' => 'Invalid agent request body.']);
 }
-$body = json_decode($rawBody, true);
-if (!is_array($body)) {
-    insight_agent_response(400, ['status' => 'error', 'message' => 'Invalid agent JSON.']);
-}
-$action = strtolower(trim((string)($body['action'] ?? '')));
-if (!in_array($action, ['heartbeat', 'config', 'ingest'], true)) {
-    insight_agent_response(400, ['status' => 'error', 'message' => 'Invalid agent action.']);
-}
-$nodeKey = trim((string)($_SERVER['HTTP_X_INSIGHT_NODE'] ?? ''));
-$timestamp = trim((string)($_SERVER['HTTP_X_INSIGHT_TIMESTAMP'] ?? ''));
-$nonce = trim((string)($_SERVER['HTTP_X_INSIGHT_NONCE'] ?? ''));
-$signature = trim((string)($_SERVER['HTTP_X_INSIGHT_SIGNATURE'] ?? ''));
-
-$connection = null;
-try {
-    insight_dist_verify_signature($nodeKey, $timestamp, $nonce, $signature, $rawBody);
-    $connection = insight_agent_connect();
-    insight_dist_ensure_schema($connection);
-    $node = insight_dist_register_node($connection, $nodeKey, $body);
-    insight_dist_remember_nonce($connection, (int)$node['id'], $nonce);
-    if ($action === 'heartbeat') {
-        insight_agent_response(200, [
-            'status' => 'success',
-            'message' => 'Heartbeat received.',
-            'node' => [
-                'node_key' => (string)$node['node_key'],
-                'status' => (string)$node['status'],
-            ],
-            'summary' => insight_dist_summary($connection),
-        ]);
-    }
-    if ($action === 'config') {
-        insight_agent_response(200, [
-            'status' => 'success',
-            'message' => 'Distributed configuration generated.',
-            'node' => [
-                'node_key' => (string)$node['node_key'],
-                'status' => (string)$node['status'],
-            ],
-            'config' => insight_dist_config_for_node($connection, $node),
-        ]);
-    }
-    $result = insight_dist_ingest_batch($connection, $node, $body, hash('sha256', $rawBody));
-    insight_agent_response(200, [
-        'status' => 'success',
-        'message' => 'Agent batch processed.',
-        'result' => $result,
-    ]);
-} catch (InsightDistributedException $exception) {
-    insight_agent_response($exception->statusCode, [
+$result = insight_python_engine([
+    'agent-request',
+    '--node-key',
+    trim((string)($_SERVER['HTTP_X_INSIGHT_NODE'] ?? '')),
+    '--timestamp',
+    trim((string)($_SERVER['HTTP_X_INSIGHT_TIMESTAMP'] ?? '')),
+    '--nonce',
+    trim((string)($_SERVER['HTTP_X_INSIGHT_NONCE'] ?? '')),
+    '--signature',
+    trim((string)($_SERVER['HTTP_X_INSIGHT_SIGNATURE'] ?? '')),
+    '--remote-address',
+    trim((string)($_SERVER['REMOTE_ADDR'] ?? 'unknown')),
+], $rawBody, 60);
+if (!($result['ok'] ?? false)) {
+    insight_agent_response((int)($result['status_code'] ?? 500), [
         'status' => 'error',
-        'message' => $exception->getMessage(),
+        'message' => (string)($result['message'] ?? 'Internal distributed ingestion error.'),
     ]);
-} catch (Throwable $exception) {
-    $errorId = bin2hex(random_bytes(6));
-    error_log('Insight agent API [' . $errorId . ']: ' . $exception->getMessage());
-    insight_agent_response(500, [
-        'status' => 'error',
-        'message' => 'Internal distributed ingestion error.',
-        'error_id' => $errorId,
-    ]);
-} finally {
-    if ($connection instanceof mysqli) {
-        $connection->close();
-    }
 }
+insight_agent_response((int)($result['status_code'] ?? 200), (array)($result['payload'] ?? []));

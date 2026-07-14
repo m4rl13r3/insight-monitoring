@@ -9,6 +9,8 @@ if (realpath((string)($_SERVER['SCRIPT_FILENAME'] ?? '')) === __FILE__) {
 
 require_once __DIR__ . '/_access.php';
 require_once __DIR__ . '/_probes.php';
+require_once __DIR__ . '/_incidents.php';
+require_once __DIR__ . '/_maintenances.php';
 
 function insight_headless_database(array $config): ?mysqli
 {
@@ -44,8 +46,30 @@ function insight_headless_monitors(array $config): array
             SELECT
                 s.id,
                 s.url AS target,
+                s.name,
                 s.probe_type,
+                s.active,
                 s.probe_interval_sec AS interval_sec,
+                s.timeout_sec,
+                s.retry_count,
+                s.failure_threshold,
+                s.recovery_threshold,
+                s.accepted_status_codes,
+                s.keyword_text,
+                s.keyword_mode,
+                s.json_path,
+                s.json_expected_value,
+                s.request_headers_json,
+                s.request_body,
+                s.basic_auth_username,
+                IF(s.basic_auth_password_ciphertext IS NULL OR s.basic_auth_password_ciphertext = \'\', 0, 1) AS has_basic_auth_password,
+                s.tls_verify,
+                s.tls_expiry_threshold_days,
+                s.dns_record_type,
+                s.dns_expected_value,
+                s.heartbeat_grace_sec,
+                s.slo_target_percent,
+                s.public_visible,
                 COALESCE(p.status, \'unknown\') AS status,
                 p.response_time,
                 p.http_code,
@@ -78,18 +102,37 @@ function insight_headless_incidents(array $config, int $limit = 100): array
             SELECT
                 i.id,
                 i.incident_code,
+                i.title,
+                i.summary,
+                i.severity,
+                i.lifecycle_status,
                 COALESCE(s.url, i.site_label, 'Service') AS target,
                 i.started_at,
                 i.ended_at,
+                i.acknowledged_at,
+                i.acknowledged_by,
+                i.resolved_by,
+                i.published,
                 i.http_code,
                 i.postmortem,
                 COALESCE(i.source_mode, 'system') AS source,
-                IF(i.ended_at IS NULL AND (i.resolved IS NULL OR i.resolved = 0), 'open', 'resolved') AS status
+                IF(i.ended_at IS NULL AND (i.resolved IS NULL OR i.resolved = 0), 'open', 'resolved') AS status,
+                GROUP_CONCAT(DISTINCT affected.id ORDER BY affected.id) AS site_ids_csv,
+                GROUP_CONCAT(DISTINCT affected.url ORDER BY affected.id SEPARATOR ', ') AS affected_sites
             FROM incidents i
             LEFT JOIN sites s ON s.id = i.site_id
+            LEFT JOIN incident_sites mapping ON mapping.incident_id = i.id
+            LEFT JOIN sites affected ON affected.id = mapping.site_id
+            GROUP BY i.id
             ORDER BY i.started_at DESC
             LIMIT {$limit}
         ");
+        foreach ($rows as $index => $row) {
+            $rows[$index]['site_ids'] = array_values(array_filter(array_map('intval', explode(',', (string)($row['site_ids_csv'] ?? '')))));
+            unset($rows[$index]['site_ids_csv']);
+            $incidentId = (int)$row['id'];
+            $rows[$index]['updates'] = insight_headless_rows($database, "SELECT id, lifecycle_status AS status, message, is_public, author_name, created_at FROM incident_updates WHERE incident_id = {$incidentId} ORDER BY created_at ASC, id ASC");
+        }
         return ['ok' => true, 'data' => $rows];
     } catch (Throwable) {
         return ['ok' => false, 'status_code' => 503, 'error' => 'database_unavailable'];

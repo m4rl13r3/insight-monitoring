@@ -9,11 +9,20 @@ import "@/index.css"
 
 const root = document.getElementById("insight-controls-root")
 
+function configuredTheme() {
+  const value = String(window.INSIGHT_CONFIG?.statusPageTheme || "system")
+  return value === "light" || value === "dark" ? value : "system"
+}
+
+function configuredThemeStorageKey() {
+  return String(window.INSIGHT_CONFIG?.statusPageThemeStorageKey || "insight-ui-theme")
+}
+
 function renderControls() {
   if (root) {
     createRoot(root).render(
       <StrictMode>
-        <ThemeProvider defaultTheme="system" storageKey="insight-ui-theme">
+        <ThemeProvider defaultTheme={configuredTheme()} storageKey={configuredThemeStorageKey()}>
           <LocaleToggle />
           <ModeToggle />
         </ThemeProvider>

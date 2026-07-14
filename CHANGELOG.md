@@ -6,11 +6,34 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [0.1.3] - 2026-07-13
 
+### Added
+
+- Persistent post-recovery reinforced monitoring with faster local and distributed probes, shorter consensus windows, dashboard visibility, runtime state, and Prometheus metrics.
+- Multi-page public publishing with monitor groups, custom domains, private password access, and confirmed email subscriptions.
+- Scheduled maintenance recurrence, full incident lifecycle updates, publication controls, and postmortem management.
+- Thirty-day service objectives with weighted availability and remaining error budgets.
+- Timezone-aware on-call rotations with monitor routing, severity thresholds, bounded repeats, retries, and delivery history.
+- Headless API coverage for maintenance, status pages, and on-call rotations.
+
 ### Changed
 
 - Public documentation, contribution guidance, source comments, operational output, API descriptions, and test diagnostics now use English.
 - English is now the source fallback for translatable interface markup while the complete French catalogue remains available.
 - Default notification templates now use English; the migration preserves every customized template.
+- Monitor management, local checks, distributed consensus, hourly and daily aggregation, retention, and runtime state now execute directly in Python.
+- Newly created monitors appear in the public API before their first hourly aggregation.
+- Distributed agents accept observations only for their active assignments, and consensus creates the same incidents and notifications as standalone monitoring.
+- Public data is strictly scoped to the selected status page and excludes unpublished incidents, internal updates, and private maintenance announcements.
+
+### Removed
+
+- Obsolete PHP monitoring wrappers, duplicated report code, shadow comparison tables, and the shell scheduler.
+
+### Security
+
+- Private status page sessions are signed, expire server-side, are invalidated by password changes, and have independent brute-force protection.
+- Internal on-call escalations cannot notify public subscribers.
+- Upgraded distributed installations now enforce the same cascading foreign keys as fresh databases.
 
 ## [0.1.2] - 2026-07-13
 

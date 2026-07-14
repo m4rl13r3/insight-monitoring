@@ -244,7 +244,7 @@ fi
 
 backup_path=""
 if [ "$backup_enabled" = "1" ]; then
-    backup_path="${root_dir}/backups/avant-mise-a-jour-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"
+    backup_path="${root_dir}/backups/before-update-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"
     INSIGHT_COMPOSE_ENV_FILE="$env_file" INSIGHT_COMPOSE_PROJECT_NAME="$project_name" ./scripts/backup.sh "$backup_path"
 fi
 

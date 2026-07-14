@@ -1,0 +1,6 @@
+services:
+  worker:
+    group_add:
+      - "${INSIGHT_DOCKER_SOCKET_GID:?Set INSIGHT_DOCKER_SOCKET_GID in .env}"
+    volumes:
+      - "${INSIGHT_DOCKER_SOCKET_PATH:-/var/run/docker.sock}:${INSIGHT_DOCKER_SOCKET_PATH:-/var/run/docker.sock}:ro"

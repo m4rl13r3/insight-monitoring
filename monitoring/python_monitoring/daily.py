@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import timedelta
 
 from .aggregation_state import aggregation_cutoff, aggregation_job_name, mark_aggregation_success
@@ -17,8 +18,10 @@ def _ensure_daily_stats_calc_columns(db: Database, daily_table: str) -> None:
         "sample_count": "INT NOT NULL DEFAULT 0",
         "response_time_sum": "DECIMAL(16,3) NOT NULL DEFAULT 0",
         "availability_ratio": "DECIMAL(7,4) NULL",
+        "availability_basis_seconds": "INT NOT NULL DEFAULT 0",
         "health_score": "DECIMAL(7,4) NULL",
         "calc_method": "VARCHAR(24) NULL",
+        "method_details": "JSON NULL",
     }
     for column, ddl in definitions.items():
         exists = db.query_one(
@@ -54,16 +57,18 @@ def upsert_daily_stats(
     sample_count: int,
     response_time_sum: float,
     availability_ratio: float | None,
+    availability_basis_seconds: int,
     health_score: float | None,
     calc_method: str,
+    method_details: dict,
     *,
     daily_table_sql: str,
 ) -> None:
     db.execute(
         f"""
         INSERT INTO {daily_table_sql}
-            (site_id, date, avg_response_time, minutes_offline, total_seconds, offline_seconds, degraded_seconds, maintenance_seconds, unknown_seconds, sample_count, response_time_sum, availability_ratio, health_score, calc_method, created_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            (site_id, date, avg_response_time, minutes_offline, total_seconds, offline_seconds, degraded_seconds, maintenance_seconds, unknown_seconds, sample_count, response_time_sum, availability_ratio, availability_basis_seconds, health_score, calc_method, method_details, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
         ON DUPLICATE KEY UPDATE
             avg_response_time = VALUES(avg_response_time),
             minutes_offline = VALUES(minutes_offline),
@@ -75,8 +80,10 @@ def upsert_daily_stats(
             sample_count = VALUES(sample_count),
             response_time_sum = VALUES(response_time_sum),
             availability_ratio = VALUES(availability_ratio),
+            availability_basis_seconds = VALUES(availability_basis_seconds),
             health_score = VALUES(health_score),
             calc_method = VALUES(calc_method),
+            method_details = VALUES(method_details),
             created_at = NOW()
         """,
         (
@@ -92,8 +99,10 @@ def upsert_daily_stats(
             int(sample_count),
             float(response_time_sum),
             availability_ratio,
+            int(availability_basis_seconds),
             health_score,
             calc_method,
+            json.dumps(method_details, ensure_ascii=False, separators=(",", ":")),
         ),
     )
 
@@ -159,20 +168,33 @@ def run_daily_job(db: Database, cfg: dict | None = None) -> dict:
                     SUM(COALESCE(degraded_seconds, 0)) AS degraded_seconds,
                     SUM(COALESCE(maintenance_seconds, 0)) AS maintenance_seconds,
                     SUM(COALESCE(unknown_seconds, 0)) AS unknown_seconds,
-                    SUM(CASE WHEN COALESCE(calc_method, 'legacy') = 'time_weighted' THEN 1 ELSE 0 END) AS weighted_rows,
+                    COUNT(DISTINCT COALESCE(calc_method, 'legacy')) AS method_count,
+                    MIN(COALESCE(calc_method, 'legacy')) AS single_method,
                     COUNT(*) AS row_count,
                     SUM(
                         CASE
-                            WHEN health_score IS NULL THEN 0
-                            ELSE health_score * GREATEST(0, COALESCE(total_seconds, 3600) - COALESCE(maintenance_seconds, 0) - COALESCE(unknown_seconds, 0))
+                            WHEN availability_ratio IS NULL THEN 0
+                            ELSE availability_ratio * COALESCE(NULLIF(availability_basis_seconds, 0), GREATEST(0, COALESCE(total_seconds, 3600) - COALESCE(maintenance_seconds, 0) - COALESCE(unknown_seconds, 0)))
                         END
-                    ) AS weighted_health_numerator,
+                    ) AS availability_numerator,
+                    SUM(
+                        CASE
+                            WHEN availability_ratio IS NULL THEN 0
+                            ELSE COALESCE(NULLIF(availability_basis_seconds, 0), GREATEST(0, COALESCE(total_seconds, 3600) - COALESCE(maintenance_seconds, 0) - COALESCE(unknown_seconds, 0)))
+                        END
+                    ) AS availability_basis_seconds,
                     SUM(
                         CASE
                             WHEN health_score IS NULL THEN 0
-                            ELSE GREATEST(0, COALESCE(total_seconds, 3600) - COALESCE(maintenance_seconds, 0) - COALESCE(unknown_seconds, 0))
+                            ELSE health_score * COALESCE(NULLIF(availability_basis_seconds, 0), GREATEST(0, COALESCE(total_seconds, 3600) - COALESCE(maintenance_seconds, 0) - COALESCE(unknown_seconds, 0)))
                         END
-                    ) AS weighted_health_denominator
+                    ) AS health_numerator,
+                    SUM(
+                        CASE
+                            WHEN health_score IS NULL THEN 0
+                            ELSE COALESCE(NULLIF(availability_basis_seconds, 0), GREATEST(0, COALESCE(total_seconds, 3600) - COALESCE(maintenance_seconds, 0) - COALESCE(unknown_seconds, 0)))
+                        END
+                    ) AS health_basis
                 FROM {hourly_table_sql}
                 WHERE site_id = %s AND DATE(date) = %s
                 """,
@@ -191,29 +213,31 @@ def run_daily_job(db: Database, cfg: dict | None = None) -> dict:
             degraded_seconds = int(agg.get("degraded_seconds") or 0)
             maintenance_seconds = int(agg.get("maintenance_seconds") or 0)
             unknown_seconds = int(agg.get("unknown_seconds") or 0)
-            weighted_rows = int(agg.get("weighted_rows") or 0)
+            method_count = int(agg.get("method_count") or 0)
+            single_method = str(agg.get("single_method") or "legacy")
             row_count = int(agg.get("row_count") or 0)
-            weighted_health_numerator = float(agg.get("weighted_health_numerator") or 0.0)
-            weighted_health_denominator = float(agg.get("weighted_health_denominator") or 0.0)
+            availability_numerator = float(agg.get("availability_numerator") or 0.0)
+            availability_basis_seconds = int(agg.get("availability_basis_seconds") or 0)
+            health_numerator = float(agg.get("health_numerator") or 0.0)
+            health_basis = float(agg.get("health_basis") or 0.0)
 
             if total_seconds <= 0 and row_count > 0:
                 total_seconds = row_count * 3600
 
-            denominator = total_seconds - maintenance_seconds - unknown_seconds
-            if denominator <= 0:
+            if availability_basis_seconds <= 0:
                 availability_ratio = None
-                health_score = None
             else:
-                availability_ratio = round(max(0.0, min(1.0, (denominator - offline_seconds) / denominator)), 4)
+                availability_ratio = round(max(0.0, min(1.0, availability_numerator / availability_basis_seconds)), 4)
 
-            if weighted_health_denominator > 0:
-                health_score = round(max(0.0, min(1.0, weighted_health_numerator / weighted_health_denominator)), 4)
-            elif denominator <= 0:
+            if health_basis > 0:
+                health_score = round(max(0.0, min(1.0, health_numerator / health_basis)), 4)
+            elif availability_basis_seconds <= 0:
                 health_score = None
             else:
                 health_score = availability_ratio
 
-            calc_method = "time_weighted" if weighted_rows > 0 else "legacy"
+            calc_method = single_method if method_count == 1 else "mixed"
+            method_details = {"version": 1, "hour_count": row_count, "method_count": method_count}
             if total_minutes_offline <= 0 and offline_seconds > 0:
                 total_minutes_offline = int(round(offline_seconds / 60.0))
 
@@ -232,8 +256,10 @@ def run_daily_job(db: Database, cfg: dict | None = None) -> dict:
                     sample_count,
                     response_time_sum,
                     availability_ratio,
+                    availability_basis_seconds,
                     health_score,
                     calc_method,
+                    method_details,
                     daily_table_sql=daily_table_sql,
                 )
                 processed += 1

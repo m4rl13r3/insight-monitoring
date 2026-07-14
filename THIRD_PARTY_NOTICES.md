@@ -52,5 +52,22 @@ Insight installs `PyMySQL` 1.2.0 from PyPI in the application image. It is distr
 | `Apprise` | 1.12.0 | BSD-2-Clause | Gateway to more than 138 notification services |
 | `PyNaCl` | 1.6.2 | Apache-2.0 | SecretBox encryption compatible with libsodium |
 | `python-liquid` | 2.3.0 | MIT | Rendering custom alert messages |
+| `dnspython` | 2.8.0 | ISC | DNS record resolution |
 
-The full texts are stored in `licenses/python/Apprise.txt`, `licenses/python/PyNaCl.txt`, and `licenses/python/python-liquid.txt`.
+The full texts are stored in `licenses/python/Apprise.txt`, `licenses/python/PyNaCl.txt`, `licenses/python/python-liquid.txt`, and `licenses/python/dnspython.txt`.
+
+## Python probe and configuration runtimes
+
+| Package | Version | License | Purpose |
+| --- | --- | --- | --- |
+| `playwright` | 1.61.0 | Apache-2.0 | Declarative Chromium probes |
+| `websocket-client` | 1.9.0 | Apache-2.0 | WebSocket probes |
+| `paho-mqtt` | 2.1.0 | EDL-1.0 | MQTT probes |
+| `psycopg` and `psycopg-binary` | 3.3.4 | LGPL-3.0-only | PostgreSQL probes |
+| `docker` | 7.2.0 | Apache-2.0 | Docker Engine probes |
+| `grpcio` and `grpcio-health-checking` | 1.82.1 | Apache-2.0 | gRPC Health Checking probes |
+| `redis` | 8.0.1 | MIT | Redis PING probes |
+| `pika` | 1.4.1 | BSD-3-Clause | RabbitMQ AMQP probes |
+| `PyYAML` | 6.0.3 | MIT | Declarative configuration files |
+
+The Apache 2.0 text is stored in `licenses/python/PyNaCl.txt`. The additional texts are stored in `licenses/python/paho-mqtt.txt`, `licenses/python/psycopg.txt`, `licenses/python/PyYAML.txt`, `licenses/python/redis.txt`, and `licenses/python/pika.txt`.

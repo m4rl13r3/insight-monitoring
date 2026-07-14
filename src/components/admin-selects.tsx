@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select"
 
 type NativeOption = {
+  description: string
   disabled: boolean
   label: string
   value: string
@@ -19,6 +20,7 @@ function readOptions(select: HTMLSelectElement): NativeOption[] {
   return Array.from(select.options)
     .filter((option) => option.value !== "")
     .map((option) => ({
+      description: option.dataset.description?.trim() || "",
       disabled: option.disabled,
       label: option.textContent?.trim() || option.label || option.value,
       value: option.value,
@@ -40,6 +42,8 @@ function AdminSelect({ nativeSelect }: { nativeSelect: HTMLSelectElement }) {
   const [value, setValue] = useState(() => nativeSelect.value)
   const [disabled, setDisabled] = useState(() => nativeSelect.disabled)
   const [label, setLabel] = useState(() => readLabel(nativeSelect))
+  const [open, setOpen] = useState(false)
+  const selectedOption = options.find((option) => option.value === value)
 
   useEffect(() => {
     const sync = () => {
@@ -77,6 +81,18 @@ function AdminSelect({ nativeSelect }: { nativeSelect: HTMLSelectElement }) {
     }
   }, [nativeSelect])
 
+  useEffect(() => {
+    const close = () => setOpen(false)
+    window.addEventListener("insight:admin-route-changed", close)
+    window.addEventListener("resize", close)
+    window.addEventListener("blur", close)
+    return () => {
+      window.removeEventListener("insight:admin-route-changed", close)
+      window.removeEventListener("resize", close)
+      window.removeEventListener("blur", close)
+    }
+  }, [])
+
   function updateValue(nextValue: string) {
     nativeSelect.value = nextValue
     setValue(nextValue)
@@ -85,12 +101,12 @@ function AdminSelect({ nativeSelect }: { nativeSelect: HTMLSelectElement }) {
   }
 
   return (
-    <Select value={value || undefined} onValueChange={updateValue} disabled={disabled}>
+    <Select open={open} onOpenChange={setOpen} value={value || undefined} onValueChange={updateValue} disabled={disabled}>
       <SelectTrigger
         aria-label={label}
         className="insight-admin-select-trigger h-10 w-full min-w-0 border-0 bg-transparent px-0 py-0 text-foreground shadow-none focus-visible:ring-0 dark:bg-transparent dark:hover:bg-transparent"
       >
-        <SelectValue />
+        <SelectValue>{selectedOption?.label}</SelectValue>
       </SelectTrigger>
       <SelectContent
         position="popper"
@@ -103,9 +119,12 @@ function AdminSelect({ nativeSelect }: { nativeSelect: HTMLSelectElement }) {
             key={option.value}
             value={option.value}
             disabled={option.disabled}
-            className="insight-admin-select-item"
+            className={`insight-admin-select-item${option.description ? " has-description" : ""}`}
           >
-            {option.label}
+            <span className="insight-admin-select-option">
+              <span className="insight-admin-select-option-label">{option.label}</span>
+              {option.description ? <span className="insight-admin-select-option-description">{option.description}</span> : null}
+            </span>
           </SelectItem>
         ))}
       </SelectContent>

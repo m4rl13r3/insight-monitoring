@@ -31,6 +31,8 @@ Each agent has:
 
 The hub stores raw observations separately from the canonical result. Only consensus feeds `probes`, hourly statistics, incidents, and the public page.
 
+The hub accepts observations only for targets currently assigned to the authenticated node. A valid node signature therefore cannot be reused to inject results for another node or an unassigned target.
+
 ## Assignment and quorum
 
 Targets are distributed through rendezvous hashing. Assignment remains deterministic when agent order changes and moves only a portion of targets when an agent is added or removed.
@@ -74,12 +76,12 @@ openssl rand -hex 32
 docker compose up -d --build
 ```
 
-The worker then runs `monitoring/distributed_consensus.php` instead of central probes. Hourly and daily aggregation continues normally.
+The Python worker then evaluates distributed consensus instead of running central probes. Hourly and daily aggregation continues normally.
 
-For an existing Insight database, hub mode automatically applies missing tables. The migration can also be run explicitly:
+For an existing Insight database, apply the distributed monitoring migration before enabling hub mode:
 
 ```bash
-docker compose exec -T db sh -lc 'mariadb -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" "$MARIADB_DATABASE"' < database/migrations/002-distributed-monitoring.sql
+./scripts/migrate.sh
 ```
 
 ## Deploy an agent
@@ -87,7 +89,7 @@ docker compose exec -T db sh -lc 'mariadb -u"$MARIADB_USER" -p"$MARIADB_PASSWORD
 Choose a unique lowercase key, then derive its secret from the hub:
 
 ```bash
-docker compose exec php php scripts/agent-key.php paris-1
+docker compose exec worker python3 monitoring/python_monitoring/cli.py node-secret --node-key paris-1
 ```
 
 On the remote server:
@@ -127,7 +129,7 @@ python3 monitoring/agent/agent.py --once
 
 ## Blackbox Exporter
 
-The native agent is sufficient for HTTP, ICMP, and TCP. Blackbox Exporter additionally provides DNS, gRPC, finer TLS checks, and configurable HTTP scenarios.
+The native agent handles HTTP, ICMP, TCP, DNS, gRPC Health, WebSocket, MQTT, SQL, Redis, SMTP, RabbitMQ, and SNMP. Blackbox Exporter remains useful for additional TLS diagnostics and Prometheus-compatible probe modules.
 
 In `.env.agent`:
 
@@ -140,6 +142,17 @@ INSIGHT_AGENT_BLACKBOX_DNS_MODULE=dns
 INSIGHT_AGENT_BLACKBOX_GRPC_MODULE=grpc
 INSIGHT_AGENT_BLACKBOX_FALLBACK_NATIVE=1
 ```
+
+## Local service checks
+
+Use a local service monitor only when the agent runs directly on the host that owns the service. It is disabled by default and only checks an exact allowlist, never a command received from the hub:
+
+```bash
+INSIGHT_AGENT_ENABLE_SERVICE_CHECKS=1
+INSIGHT_AGENT_SERVICE_ALLOWLIST=nginx.service,api
+```
+
+Create the matching monitor with `agent://<node-key>/systemd/<unit>` or `agent://<node-key>/pm2/<process>`. The hub sends it only to that node. The Docker agent deliberately has no access to host systemd; run `monitoring/agent/agent.py` as a dedicated host service when this capability is required.
 
 Then start the provided profile:
 
@@ -168,15 +181,15 @@ Leave the variable empty to run probes without this safeguard.
 List agents and their assignments:
 
 ```bash
-docker compose exec php php scripts/node-admin.php list
+docker compose exec worker python3 monitoring/python_monitoring/cli.py nodes list
 ```
 
 Change their state:
 
 ```bash
-docker compose exec php php scripts/node-admin.php pause paris-1
-docker compose exec php php scripts/node-admin.php activate paris-1
-docker compose exec php php scripts/node-admin.php revoke paris-1
+docker compose exec worker python3 monitoring/python_monitoring/cli.py nodes pause --node-key paris-1
+docker compose exec worker python3 monitoring/python_monitoring/cli.py nodes activate --node-key paris-1
+docker compose exec worker python3 monitoring/python_monitoring/cli.py nodes revoke --node-key paris-1
 ```
 
 `pause` and `revoke` remove the agent from assignments during the next calculation. `revoke` also blocks future requests until explicit reactivation.
@@ -204,6 +217,18 @@ INSIGHT_DISTRIBUTED_INCIDENTS=1
 ```
 
 The `degraded` status reports regional disagreement without automatically opening a global incident. `unknown` values neither open nor resolve an incident.
+
+Confirmed outages create the same incident lifecycle and public updates as local monitoring. Active scheduled maintenance suppresses automatic incident opening for its scoped targets. Opening and recovery notifications are idempotent, and public subscribers receive them only when the incident or maintenance update is marked public.
+
+When recovery is confirmed, Insight persists a reinforced monitoring window. Agents receive a shorter probe interval and the hub evaluates shorter consensus buckets until the window expires:
+
+```dotenv
+INSIGHT_REINFORCED_MONITORING_ENABLED=1
+INSIGHT_REINFORCED_MONITORING_DURATION_SEC=900
+INSIGHT_REINFORCED_MONITOR_INTERVAL_SEC=10
+```
+
+The normal per-target interval is restored automatically. The active window and remaining duration are exposed through the dashboard, runtime API, distributed summary, and Prometheus metrics.
 
 ## Prometheus and VictoriaMetrics
 
@@ -235,6 +260,7 @@ The hub derives a distinct secret for each node key with HMAC-SHA256. It does no
 - Use HTTPS and `INSIGHT_AGENT_REQUIRE_HTTPS=1` whenever the hub is exposed.
 - Keep `INSIGHT_AGENT_MASTER_SECRET` only on the hub.
 - Give each agent a unique key and never reuse its secret.
+- Probe credentials are decrypted by the hub only for the assigned agent, delivered through the signed HTTPS configuration response, and never logged or exposed by the public API.
 - Disable `INSIGHT_AGENT_AUTO_REGISTER` after enrollment when no new node is expected.
 - Synchronize clocks with NTP; the HMAC window defaults to 300 seconds.
 - Rotating the master secret invalidates every agent secret. Update each `.env.agent` without removing its SQLite volume.

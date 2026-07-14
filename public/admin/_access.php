@@ -81,6 +81,11 @@ function insight_access_scope_catalog(): array
         'monitors:read' => 'Read monitors',
         'monitors:write' => 'Monitor creation, editing, and deletion',
         'incidents:read' => 'Read incidents',
+        'incidents:write' => 'Create, acknowledge, update, and resolve incidents',
+        'maintenances:read' => 'Read scheduled maintenance',
+        'maintenances:write' => 'Create, edit, and cancel scheduled maintenance',
+        'status-pages:read' => 'Read public status page settings',
+        'status-pages:write' => 'Manage public status pages and subscribers',
         'notifications:read' => 'Read channels and masked messages',
         'notifications:write' => 'Manage alert channels and messages',
     ];
@@ -91,10 +96,12 @@ function insight_access_oauth_scope_catalog(): array
     return [
         'openid' => 'OpenID Connect identity',
         'profile' => 'Name and role',
-        'email' => 'Adresse e-mail',
+        'email' => 'Email address',
         'status:read' => 'Global status and engine',
         'monitors:read' => 'Read monitors',
         'incidents:read' => 'Read incidents',
+        'maintenances:read' => 'Read scheduled maintenance',
+        'status-pages:read' => 'Read public status page settings',
         'notifications:read' => 'Read channels and masked messages',
     ];
 }

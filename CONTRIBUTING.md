@@ -25,7 +25,6 @@ php tests/admin_auth.php
 php tests/admin_access.php
 php tests/admin_sso.php
 php tests/public_api.php
-php tests/distributed_consensus.php
 python3 -m unittest discover -s tests -p 'test_*.py' -v
 ```
 

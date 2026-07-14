@@ -19,8 +19,7 @@ def ensure_aggregation_state_table(db: Database) -> None:
 
 
 def aggregation_job_name(base: str, cfg: dict | None = None) -> str:
-    suffix = str((cfg or {}).get("table_suffix", "") or "").strip()
-    return (base + suffix)[:64]
+    return base[:64]
 
 
 def parse_database_datetime(value: object) -> datetime | None:

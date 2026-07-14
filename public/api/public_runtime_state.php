@@ -60,22 +60,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
     exit;
 }
 
-$projectRoot = dirname(__DIR__, 2);
-$monitoringRoot = $projectRoot . '/monitoring';
-$stateLib = $monitoringRoot . '/public_runtime_state.php';
-if (!is_file($stateLib)) {
-    http_response_code(500);
-    echo json_encode([
-        'ok' => false,
-        'message' => 'Public runtime state lib not found.',
-    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    exit;
-}
-
-require_once $stateLib;
-
-$conn = public_state_db_connect();
-if (!$conn) {
+$conn = mysqli_init();
+if (!$conn instanceof mysqli) {
     http_response_code(503);
     echo json_encode([
         'ok' => false,
@@ -83,8 +69,24 @@ if (!$conn) {
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
-
-public_state_ensure_table($conn);
+$conn->options(MYSQLI_OPT_CONNECT_TIMEOUT, 3);
+$connected = @$conn->real_connect(
+    (string)($config['servername'] ?? 'db'),
+    (string)($config['username'] ?? ''),
+    (string)($config['password'] ?? ''),
+    (string)($config['dbname'] ?? ''),
+    (int)($config['port'] ?? 3306)
+);
+if (!$connected) {
+    $conn->close();
+    http_response_code(503);
+    echo json_encode([
+        'ok' => false,
+        'message' => 'Public state unavailable.',
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+$conn->set_charset('utf8mb4');
 
 $sql = <<<SQL
 SELECT
@@ -123,6 +125,19 @@ $res = $conn->query($sql);
 if ($res) {
     $row = $res->fetch_assoc();
     $res->free();
+}
+$reinforced = $conn->query("
+    SELECT COUNT(*) AS active_sites, MIN(ends_at) AS next_end_at, MAX(ends_at) AS last_end_at
+    FROM monitoring_reinforced_watch
+    WHERE ends_at > CURRENT_TIMESTAMP(3)
+");
+if ($reinforced instanceof mysqli_result) {
+    $reinforcedRow = $reinforced->fetch_assoc();
+    $row = $row ?: [];
+    $row['reinforced_monitoring_active_sites'] = (int)($reinforcedRow['active_sites'] ?? 0);
+    $row['reinforced_monitoring_next_end_at'] = $reinforcedRow['next_end_at'] ?? null;
+    $row['reinforced_monitoring_last_end_at'] = $reinforcedRow['last_end_at'] ?? null;
+    $reinforced->free();
 }
 $conn->close();
 

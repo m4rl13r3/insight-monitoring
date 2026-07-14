@@ -2,6 +2,7 @@
 .env.*
 !.env.example
 !.env.agent.example
+docker-compose.override.yml
 .DS_Store
 *.log
 *.pid
@@ -20,7 +21,6 @@ data/
 monitoring/logs/
 monitoring/.pydeps/
 monitoring/runtime/*
-!monitoring/runtime/run_status_report.php
 public/logs/
 monitoring/config/smtp.php
 incident-tree-*.png

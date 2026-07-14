@@ -14,7 +14,7 @@ if ! command -v rg >/dev/null 2>&1; then
     exit 1
 fi
 
-for required in LICENSE README.md SECURITY.md CONTRIBUTING.md CHANGELOG.md THIRD_PARTY_NOTICES.md .env.example docker-compose.yml database/schema.sql docs/production.md docs/updates.md scripts/production-check.sh scripts/backup-scheduled.sh scripts/migrate.sh scripts/update.sh scripts/install-auto-update.sh; do
+for required in LICENSE README.md SECURITY.md CONTRIBUTING.md CHANGELOG.md THIRD_PARTY_NOTICES.md .env.example docker-compose.yml docker-compose.docker-probes.yml.example database/schema.sql docs/production.md docs/updates.md docs/probes.md docs/availability-calculation.md docs/configuration-as-code.md licenses/python/paho-mqtt.txt licenses/python/psycopg.txt licenses/python/PyYAML.txt scripts/production-check.sh scripts/backup-scheduled.sh scripts/migrate.sh scripts/update.sh scripts/install-auto-update.sh; do
     test -f "$required"
 done
 
@@ -54,18 +54,20 @@ if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     fi
 fi
 
-bash -n scripts/*.sh monitoring/cron/*.sh docker/worker/*.sh
+find scripts -maxdepth 1 -name '*.sh' -print0 | xargs -0 -n1 bash -n
 npm run build
 npm run check
 find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l >/dev/null
 python3 -m py_compile monitoring/python_monitoring/*.py monitoring/agent/agent.py
 php tests/admin_probes.php
+php tests/admin_incidents.php
+php tests/admin_slo.php
 php tests/admin_notifications.php
 php tests/admin_auth.php
 php tests/admin_access.php
 php tests/admin_sso.php
 php tests/public_api.php
-php tests/distributed_consensus.php
+php tests/public_status_pages.php
 python3 -m unittest discover -s tests -p 'test_*.py' -v
 
 echo "Insight ${package_version} release check passed."

@@ -37,6 +37,9 @@ function formatStatusCalcMethodLabel(value) {
     const raw = String(value || "").trim().toLowerCase();
     const labels = {
         time_weighted: insightT("status.calculation.timeWeighted"),
+        sample_ratio: insightT("status.calculation.sampleRatio"),
+        interval_capped: insightT("status.calculation.intervalCapped"),
+        strict_sla: insightT("status.calculation.strictSla"),
         legacy: insightT("status.calculation.legacy"),
         inherit: insightT("status.calculation.inherited"),
         mixed: insightT("status.calculation.mixed")

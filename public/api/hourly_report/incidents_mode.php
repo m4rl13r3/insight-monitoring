@@ -15,8 +15,19 @@ function hourly_handle_incidents_mode(array $ctx) {
     $incidentsLimit = $ctx['incidentsLimit'];
     $incidentsOffset = $ctx['incidentsOffset'];
 
+    $restrictSiteUrls = !empty($ctx['restrictSiteUrls']);
     $sitePlaceholders = implode(',', array_fill(0, count($siteUrls), '?'));
-    $siteFilter = count($siteUrls) > 0 ? "WHERE s.url IN ($sitePlaceholders)" : '';
+    $where = ['i.published = 1'];
+    $siteParams = [];
+    if ($restrictSiteUrls) {
+        if ($siteUrls === []) {
+            $where[] = '1 = 0';
+        } else {
+            $where[] = "(s.url IN ($sitePlaceholders) OR affected.url IN ($sitePlaceholders))";
+            $siteParams = array_merge($siteUrls, $siteUrls);
+        }
+    }
+    $siteFilter = 'WHERE ' . implode(' AND ', $where);
     $hasSourceMode = false;
     $sourceModeProbe = $conn->query("
         SELECT 1 AS present
@@ -61,8 +72,13 @@ function hourly_handle_incidents_mode(array $ctx) {
     $updatedAtSelect = $hasUpdatedAt ? ", i.updated_at" : ", NULL AS updated_at";
     $incidentsSql = "
         SELECT
-            s.url,
+            s.url AS primary_url,
+            GROUP_CONCAT(DISTINCT affected.url ORDER BY affected.id SEPARATOR ',') AS affected_urls,
             i.id,
+            i.title,
+            i.summary,
+            i.severity,
+            i.lifecycle_status,
             i.started_at,
             i.ended_at,
             i.http_code,
@@ -72,8 +88,11 @@ function hourly_handle_incidents_mode(array $ctx) {
             $sourceModeSelect
             $updatedAtSelect
         FROM incidents i
-        JOIN sites s ON i.site_id = s.id
+        LEFT JOIN sites s ON i.site_id = s.id
+        LEFT JOIN incident_sites mapping ON mapping.incident_id = i.id
+        LEFT JOIN sites affected ON affected.id = mapping.site_id
         $siteFilter
+        GROUP BY i.id
         ORDER BY i.started_at DESC
         LIMIT ? OFFSET ?
     ";
@@ -92,9 +111,9 @@ function hourly_handle_incidents_mode(array $ctx) {
         return true;
     }
 
-    $types = str_repeat('s', count($siteUrls)) . 'ii';
+    $types = str_repeat('s', count($siteParams)) . 'ii';
     $fetchLimitPlusOne = $incidentsLimit + 1;
-    $params = array_merge($siteUrls, [$fetchLimitPlusOne, $incidentsOffset]);
+    $params = array_merge($siteParams, [$fetchLimitPlusOne, $incidentsOffset]);
     $incStmt->bind_param($types, ...$params);
     if (!$incStmt->execute()) {
         hourly_log($ctx, "incidents execute failed: {$incStmt->error}");
@@ -112,6 +131,8 @@ function hourly_handle_incidents_mode(array $ctx) {
 
     $incResult = $incStmt->get_result();
     $incidents = [];
+    $incidentIndexes = [];
+    $allowedSiteUrls = array_fill_keys(array_map(static fn($url): string => (string)$url, $siteUrls), true);
     while ($incRow = $incResult->fetch_assoc()) {
         $incidentId = (int)$incRow['id'];
         $incidentCode = trim((string)($incRow['incident_code'] ?? ''));
@@ -131,10 +152,23 @@ function hourly_handle_incidents_mode(array $ctx) {
         if ($incidentDate === '') {
             $incidentDate = trim((string)($incRow['ended_at'] ?? ''));
         }
+        $candidateUrls = array_values(array_filter(array_unique(array_merge(
+            [(string)($incRow['primary_url'] ?? '')],
+            explode(',', (string)($incRow['affected_urls'] ?? ''))
+        ))));
+        if ($restrictSiteUrls) {
+            $candidateUrls = array_values(array_filter($candidateUrls, static fn(string $url): bool => isset($allowedSiteUrls[$url])));
+        }
         $incidentPayload = [
-            'url' => $incRow['url'],
+            'url' => $candidateUrls[0] ?? 'All services',
             'id' => $incidentId,
             'incident_code' => $incidentCode,
+            'title' => (string)($incRow['title'] ?? ''),
+            'summary' => (string)($incRow['summary'] ?? ''),
+            'severity' => (string)($incRow['severity'] ?? 'major'),
+            'lifecycle_status' => (string)($incRow['lifecycle_status'] ?? ''),
+            'affected_sites' => $candidateUrls,
+            'updates' => [],
             'started_at' => $incRow['started_at'],
             'ended_at' => $incRow['ended_at'],
             'updated_at' => $incRow['updated_at'] ?? null,
@@ -146,9 +180,29 @@ function hourly_handle_incidents_mode(array $ctx) {
             'ai_created' => $aiCreated,
             'source_mode' => $rawSourceMode,
         ];
+        $incidentIndexes[$incidentId] = count($incidents);
         $incidents[] = array_merge($incidentPayload, hourly_incident_confidence_fields($incidentPayload));
     }
     $incStmt->close();
+
+    if ($incidentIndexes !== []) {
+        $incidentIds = array_keys($incidentIndexes);
+        $updatePlaceholders = implode(',', array_fill(0, count($incidentIds), '?'));
+        $updatesStatement = $conn->prepare("SELECT incident_id,id,lifecycle_status AS status,message,author_name,created_at FROM incident_updates WHERE is_public=1 AND incident_id IN ($updatePlaceholders) ORDER BY created_at ASC,id ASC");
+        if ($updatesStatement) {
+            $updatesStatement->bind_param(str_repeat('i', count($incidentIds)), ...$incidentIds);
+            $updatesStatement->execute();
+            $updatesResult = $updatesStatement->get_result();
+            while ($updatesResult && ($update = $updatesResult->fetch_assoc())) {
+                $targetIndex = $incidentIndexes[(int)$update['incident_id']] ?? null;
+                unset($update['incident_id']);
+                if ($targetIndex !== null) {
+                    $incidents[$targetIndex]['updates'][] = $update;
+                }
+            }
+            $updatesStatement->close();
+        }
+    }
 
     $hasMore = count($incidents) > $incidentsLimit;
     if ($hasMore) {

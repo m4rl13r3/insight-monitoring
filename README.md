@@ -1,6 +1,6 @@
 # Insight
 
-Insight is a self-hosted open source status page with HTTP, ICMP, and TCP monitoring, uptime history, incidents, scheduled maintenance, TLS tracking, and a protected dashboard. Its monitoring engine is written in Python. Insight can also aggregate probes from one, two, three, or as many remote servers as required.
+Insight is a self-hosted open source status page with HTTP, ICMP, TCP, DNS, and heartbeat monitoring, content assertions, uptime history, incidents, scheduled maintenance, TLS tracking, service objectives, on-call escalation, and a protected dashboard. Its monitoring engine is written in Python. Insight can also aggregate probes from one, two, three, or as many remote servers as required.
 
 The public interface is available in French and English, detects the browser language, and requires no private service. The reference deployment uses Docker Compose with Nginx, PHP-FPM, a worker, and MariaDB.
 
@@ -45,6 +45,10 @@ The same actions are available in the dashboard under **Monitors -> New monitor*
 
 Alerts are configured under **Alerts**. Insight directly supports SMTP, HTTP webhooks, and Free Mobile, and uses Apprise for Discord, Telegram, Slack, Teams, ntfy, Gotify, PagerDuty, Opsgenie, Matrix, Signal, and more than 138 services. Each channel selects the events it receives and provides a test action. Titles and messages can be customized with Liquid variables.
 
+The same screen configures recurring on-call rotations. An unacknowledged incident is routed to the active shift after a configurable delay, repeated a bounded number of times, filtered by severity and monitor, and stopped as soon as the incident is acknowledged or resolved. Every monitor also has a 30-day SLO target and error budget in the overview.
+
+Under **Status pages**, separate public or password-protected pages can be created for different audiences, with monitor groups, custom domains, themes, languages, and email subscriptions. Subscription delivery reuses a tested SMTP alert channel and remains disabled until notifications are enabled explicitly.
+
 List configured sites:
 
 ```bash
@@ -63,8 +67,8 @@ This command deletes all local data.
 ## Docker services
 
 - `web` serves public files with Nginx and forwards PHP scripts to PHP-FPM.
-- `php` runs the public page, APIs, local SQLite authentication, and the dashboard.
-- `worker` runs probes according to `INSIGHT_MONITOR_INTERVAL_SEC`, followed by hourly and daily aggregation.
+- `php` runs the public page, HTTP adapters, local SQLite authentication, and the dashboard.
+- `worker` runs the Python monitoring engine, distributed consensus, retention, and hourly and daily aggregation.
 - `db` stores sites, probes, statistics, incidents, and maintenance windows in MariaDB.
 
 ## Backup and restore
@@ -113,7 +117,7 @@ INSIGHT_AGENT_REQUIRE_HTTPS=1
 Then generate a secret for each agent and deploy the dedicated image:
 
 ```bash
-docker compose exec php php scripts/agent-key.php paris-1
+docker compose exec worker python3 monitoring/python_monitoring/cli.py node-secret --node-key paris-1
 cp .env.agent.example .env.agent
 docker compose --env-file .env.agent -f docker-compose.agent.yml up -d --build
 ```
@@ -155,18 +159,37 @@ Main variables:
 | `INSIGHT_DISTRIBUTED_MODE` | `standalone` | Local probes or hub consensus |
 | `INSIGHT_AGGREGATION_REPROCESS_HOURS` | `2` | Window recalculated on each run, automatically extended after interruption |
 | `INSIGHT_PROBE_RETENTION_DAYS` | `30` | Raw check retention after aggregation |
+| `INSIGHT_DIAGNOSTIC_RETENTION_DAYS` | `14` | Private failure diagnostic retention |
+| `INSIGHT_DATA_DIR` | `/var/lib/insight` | Private diagnostic and browser artifact directory |
+| `INSIGHT_DIAGNOSTICS_NETWORK` | `1` | Enables bounded network diagnostics after failures |
+| `INSIGHT_DOCKER_SOCKET_ENABLED` | `0` | Explicitly permits Docker Engine probes |
+| `INSIGHT_DOCKER_SOCKET_PATH` | `/var/run/docker.sock` | Authorized Docker socket path |
 | `INSIGHT_HOURLY_RETENTION_DAYS` | `365` | Hourly statistics retention |
 | `INSIGHT_DAILY_RETENTION_DAYS` | `730` | Daily statistics retention |
 | `INSIGHT_TLS_RETENTION_DAYS` | `365` | TLS check retention |
+| `INSIGHT_REINFORCED_MONITORING_ENABLED` | `1` | Enables faster checks after incident recovery |
+| `INSIGHT_REINFORCED_MONITORING_DURATION_SEC` | `900` | Reinforced monitoring duration |
+| `INSIGHT_REINFORCED_MONITOR_INTERVAL_SEC` | `10` | Temporary probe and consensus interval |
 | `INSIGHT_HTTP_BIND` | `0.0.0.0` | Address published by Docker; use `127.0.0.1` behind a local HTTPS proxy |
 | `INSIGHT_AGENT_MASTER_SECRET` | empty | Remote agent master secret |
 | `INSIGHT_AGENT_REQUIRE_HTTPS` | `1` | Rejects distributed agents outside HTTPS |
 | `INSIGHT_AGENT_DEFAULT_REPLICAS` | `3` | Agents assigned per target, or `0` for all |
 | `INSIGHT_DISABLE_NOTIFICATIONS` | `1` | Disables automatic delivery, but not manual tests |
 | `INSIGHT_NOTIFICATION_ENCRYPTION_KEY` | generated at installation | Encrypts channel secrets with SecretBox |
+| `INSIGHT_STATUS_SUBSCRIPTIONS_ENABLED` | `0` | Enables confirmed public email subscriptions when a tested SMTP channel exists |
+| `INSIGHT_STATUS_SUBSCRIBER_SECRET` | notification encryption key | Signs confirmation and unsubscribe links |
+| `INSIGHT_STATUS_SUBSCRIBER_SMTP_CHANNEL_ID` | first tested SMTP channel | Selects the SMTP channel used for public subscribers |
+| `INSIGHT_STATUS_PAGE_COOKIE_SECRET` | notification encryption key | Signs private status page sessions |
+| `INSIGHT_STATUS_PAGE_AUTH_MAX_ATTEMPTS` | `5` | Password attempts allowed for a private status page during the rate-limit window |
 | `INSIGHT_ALLOWED_ORIGINS` | local URL | Comma-separated CORS origins |
 
 Notifications are disabled by default with `INSIGHT_DISABLE_NOTIFICATIONS=1`. Configure and test channels in the dashboard, then set this variable to `0`. Configurations are encrypted before being written to the database, and their secrets are never returned to the interface. The legacy SMTP/SMS environment settings are only used when no modern channel is configured. The [Alerts and notifications guide](docs/notifications.md) describes Apprise services, Liquid templates, webhooks, and backups.
+
+Monitors, runbooks, and status pages can also be exported, validated, and applied as YAML or JSON. Protected values remain encrypted in MariaDB and pruning only disables absent resources. See [Configuration as code](docs/configuration-as-code.md).
+
+Availability uses the interval-capped method by default: after two missed checks, Insight marks the remaining time as unknown instead of carrying a stale result indefinitely. Time-weighted, sample-ratio, and strict-SLA calculations remain available for specific needs. See [Availability calculation](docs/availability-calculation.md).
+
+HTTP, browser, WebSocket, ICMP, TCP, DNS, heartbeat, MQTT, SQL, and Docker probes share the same incident and aggregation pipeline. Advanced credentials remain encrypted, diagnostics stay private, and Docker socket access is disabled by default. See [Probe types](docs/probes.md).
 
 ## Internationalization
 
@@ -187,22 +210,24 @@ To add a language, duplicate an existing catalogue, translate every key, add its
 
 ## Headless API and SSO
 
-The **Access** menu enables an administration API independent of the dashboard. Tokens have scoped permissions, can expire, and can be revoked; their value is shown only once. Versioned routes cover global status, monitors, incidents, and alerts under `/api/v1/`.
+The **Access** menu enables an administration API independent of the dashboard. Tokens have scoped permissions, can expire, and can be revoked; their value is shown only once. Versioned routes cover global status, monitors, incidents, maintenance, status pages, alert channels, and on-call rotations under `/api/v1/`.
 
 Insight can authenticate another dashboard as an OpenID Connect provider, or delegate its own login to an external OIDC provider. Both directions use Authorization Code, PKCE S256, exact redirect URIs, and short-lived tokens. Read the [API and SSO guide](docs/api-and-sso.md) or open **Access -> Integration guide** in the instance.
 
-When the local database contains no sites, the interface displays a preview with `example.com`, `status.example.com`, and `api.example.com` on `localhost`. The detail view also contains four sample incidents covering ongoing, resolved, assisted, and low-confidence states. Add `?incidents=off` to hide this sample data.
+When the local database contains no sites, the interface displays a preview with `example.com`, `status.example.com`, and `api.example.com` on `localhost`. The detail view includes sample incident lifecycles and public updates. Add `?incidents=off` to hide this sample data.
 
 ## Worker commands
 
 ```bash
-docker compose exec worker php monitoring/monitoring.php
-docker compose exec worker php monitoring/hourly.php
-docker compose exec worker php monitoring/daily.php
-docker compose exec worker php monitoring/retention.php
+docker compose exec worker python3 monitoring/python_monitoring/cli.py monitor
+docker compose exec worker python3 monitoring/python_monitoring/cli.py hourly
+docker compose exec worker python3 monitoring/python_monitoring/cli.py daily
+docker compose exec worker python3 monitoring/python_monitoring/cli.py retention
 ```
 
 Aggregations remember their last successful run and recalculate at least the latest two hours. The daily cleanup works in batches and refuses to delete raw probes or hourly rows until the corresponding aggregations are current. Periods without observations remain unknown time and are not counted as successful availability. Daily response times are weighted by the actual sample count.
+
+After an incident is resolved, reinforced monitoring checks the restored target every 10 seconds for 15 minutes by default. The state is persisted in MariaDB, survives worker restarts, applies to local and distributed probes, shortens distributed consensus windows, and expires automatically. Its active state is available from the runtime API, the network dashboard, and Prometheus metrics.
 
 The Python CLI can also add, edit, delete, or manually test a monitor:
 
@@ -212,7 +237,7 @@ docker compose exec worker python3 monitoring/python_monitoring/cli.py --help
 
 ## Installation without Docker
 
-Use PHP 8.2 or newer with `mysqli`, `pdo_sqlite`, `curl`, `mbstring`, `sodium`, and `xml`; Python 3.10 or newer; Node.js 22; MariaDB or MySQL; and Nginx or Apache. Import `database/schema.sql`, install dependencies and build the interface with `npm ci && npm run build`, install `monitoring/python_monitoring/requirements.txt`, expose only the `public/` directory, then regularly run `monitoring/monitoring.php`, `monitoring/hourly.php`, and `monitoring/daily.php`. The `database/auth-schema.sql` schema is applied automatically on the first visit to `/admin/`.
+Use PHP 8.2 or newer with `mysqli`, `pdo_sqlite`, `curl`, `mbstring`, `sodium`, and `xml`; Python 3.10 or newer; Node.js 22; MariaDB or MySQL; and Nginx or Apache. Import `database/schema.sql`, install dependencies and build the interface with `npm ci && npm run build`, install `monitoring/python_monitoring/requirements.txt`, expose only the `public/` directory, then run `monitoring/python_monitoring/scheduler.py` as a supervised service. The `database/auth-schema.sql` schema is applied automatically on the first visit to `/admin/`.
 
 ## Development
 
@@ -235,11 +260,10 @@ php tests/admin_notifications.php
 php tests/admin_auth.php
 php tests/admin_access.php
 php tests/public_api.php
-php tests/distributed_consensus.php
 python3 -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
-With Docker running, `./scripts/smoke-test.sh` validates the schema and MariaDB CRUD on a complete installation, then executes real HTTP, ICMP, and TCP probes.
+With Docker running, `./scripts/smoke-test.sh` validates migrations, private and public status pages, scoped APIs, incident timelines, maintenance, on-call rotations, SLO calculations, and MariaDB CRUD, then executes real HTTP, ICMP, and TCP probes. It restores the previous API and OAuth settings and removes every token, audit entry, monitor, and measurement created by the test, including after a failure.
 
 To build the public archive from a validated commit:
 

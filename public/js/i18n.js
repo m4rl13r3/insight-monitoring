@@ -84,11 +84,11 @@
 
     function apply(root = document) {
         const nodes = [];
-        if (root instanceof Element && root.matches("[data-i18n], [data-i18n-aria-label], [data-i18n-title], [data-i18n-placeholder]")) {
+        if (root instanceof Element && root.matches("[data-i18n], [data-i18n-aria-label], [data-i18n-title], [data-i18n-placeholder], [data-i18n-description]")) {
             nodes.push(root);
         }
         if (root && typeof root.querySelectorAll === "function") {
-            nodes.push(...root.querySelectorAll("[data-i18n], [data-i18n-aria-label], [data-i18n-title], [data-i18n-placeholder]"));
+            nodes.push(...root.querySelectorAll("[data-i18n], [data-i18n-aria-label], [data-i18n-title], [data-i18n-placeholder], [data-i18n-description]"));
         }
         nodes.forEach((node) => {
             if (node.dataset.i18n) {
@@ -102,6 +102,9 @@
             }
             if (node.dataset.i18nPlaceholder) {
                 node.setAttribute("placeholder", t(node.dataset.i18nPlaceholder));
+            }
+            if (node.dataset.i18nDescription) {
+                node.dataset.description = t(node.dataset.i18nDescription);
             }
         });
         document.documentElement.lang = currentLocale;

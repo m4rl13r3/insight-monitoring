@@ -241,6 +241,10 @@ function buildApiUrl({
 } = {}) {
     const params = new URLSearchParams();
     params.set("contract", "v2");
+    const statusPageSlug = String(window.INSIGHT_CONFIG?.statusPageSlug || "default").trim();
+    if (statusPageSlug) {
+        params.set("page", statusPageSlug);
+    }
     if (mode && mode !== "stats") {
         params.set("mode", mode);
     }

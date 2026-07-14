@@ -32,6 +32,10 @@ function insight_oidc_config(): array
     }
     $allowedEmails = array_map('strtolower', insight_oidc_list_env('INSIGHT_SSO_ALLOWED_EMAILS'));
     $allowedGroups = insight_oidc_list_env('INSIGHT_SSO_ALLOWED_GROUPS');
+    $defaultRole = strtolower(insight_admin_env('INSIGHT_SSO_DEFAULT_ROLE', 'operator'));
+    if (!in_array($defaultRole, ['operator', 'viewer'], true)) {
+        $defaultRole = 'operator';
+    }
     $allowAll = insight_admin_env_bool('INSIGHT_SSO_ALLOW_ALL');
     $issuerHost = strtolower((string)(parse_url($issuer, PHP_URL_HOST) ?: ''));
     $allowedEndpointHosts = array_map('strtolower', insight_oidc_list_env('INSIGHT_SSO_ALLOWED_ENDPOINT_HOSTS'));
@@ -64,6 +68,7 @@ function insight_oidc_config(): array
         'allowed_emails' => $allowedEmails,
         'allowed_groups' => $allowedGroups,
         'admin_groups' => insight_oidc_list_env('INSIGHT_SSO_ADMIN_GROUPS'),
+        'default_role' => $defaultRole,
         'allowed_endpoint_hosts' => $allowedEndpointHosts,
         'require_verified_email' => insight_admin_env_bool('INSIGHT_SSO_REQUIRE_VERIFIED_EMAIL', true),
         'allow_all' => $allowAll,
@@ -380,12 +385,7 @@ function insight_oidc_policy_allows(array $claims, array $config): bool
         $allowed = $allowedEmail
             || array_intersect($groups, $config['allowed_groups']) !== [];
     }
-    if (!$allowed) {
-        return false;
-    }
-    $adminGroups = (array)$config['admin_groups'];
-    return $adminGroups === []
-        || array_intersect(insight_oidc_groups($claims, (string)$config['groups_claim']), $adminGroups) !== [];
+    return $allowed;
 }
 
 function insight_oidc_identity(array $claims, array $config): array
@@ -396,6 +396,8 @@ function insight_oidc_identity(array $claims, array $config): array
     $subject = trim((string)$claims['sub']);
     $username = trim((string)(insight_oidc_claim($claims, (string)$config['username_claim']) ?? ''));
     $email = trim((string)($claims['email'] ?? ''));
+    $groups = insight_oidc_groups($claims, (string)$config['groups_claim']);
+    $role = array_intersect($groups, (array)$config['admin_groups']) !== [] ? 'admin' : (string)$config['default_role'];
     if ($username === '') {
         $username = $email !== '' ? $email : 'sso-' . substr(hash('sha256', $subject), 0, 12);
     }
@@ -416,7 +418,7 @@ function insight_oidc_identity(array $claims, array $config): array
         'subject' => $subject,
         'username' => mb_substr($username, 0, 160),
         'email' => $email === '' ? null : mb_substr($email, 0, 320),
-        'role' => 'admin',
+        'role' => $role,
     ]);
     $select = $database->prepare(
         'SELECT id, issuer, subject, username, email, role FROM auth_sso_identities

@@ -5,7 +5,12 @@ declare(strict_types=1);
 require_once __DIR__ . '/_layout.php';
 require_once __DIR__ . '/_oidc.php';
 
-insight_auth_require_user();
+$user = insight_auth_require_user();
+if (!insight_auth_can($user, 'access:write')) {
+    http_response_code(403);
+    echo 'Forbidden.';
+    exit;
+}
 $access = insight_access_state();
 $sso = insight_oidc_public_state();
 $issuer = (string)$access['issuer'];

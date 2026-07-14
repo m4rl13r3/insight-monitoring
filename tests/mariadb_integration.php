@@ -22,6 +22,23 @@ $requiredTables = [
     'notification_channels',
     'notification_templates',
     'notification_deliveries',
+    'status_pages',
+    'status_page_groups',
+    'status_page_monitors',
+    'status_page_auth_attempts',
+    'status_page_subscribers',
+    'status_page_subscriber_deliveries',
+    'status_page_subscription_attempts',
+    'incident_sites',
+    'incident_updates',
+    'monitoring_nodes',
+    'monitoring_assignments',
+    'monitoring_reinforced_watch',
+    'oncall_schedules',
+    'oncall_members',
+    'oncall_shifts',
+    'oncall_schedule_sites',
+    'oncall_escalation_events',
 ];
 $result = $database->query('SHOW TABLES');
 $tables = [];
@@ -31,13 +48,44 @@ if ($result instanceof mysqli_result) {
     }
     $result->free();
 }
-$database->close();
 foreach ($requiredTables as $table) {
     if (!in_array($table, $tables, true)) {
-        fwrite(STDERR, "Table MariaDB absente : {$table}.\n");
+        fwrite(STDERR, "Missing MariaDB table: {$table}.\n");
         exit(1);
     }
 }
+
+$foreignKeys = $database->query(
+    "SELECT TABLE_NAME,COLUMN_NAME,REFERENCED_TABLE_NAME
+     FROM information_schema.KEY_COLUMN_USAGE
+     WHERE TABLE_SCHEMA=DATABASE()
+       AND REFERENCED_TABLE_NAME IS NOT NULL
+       AND TABLE_NAME IN ('monitoring_assignments','monitoring_agent_requests','monitoring_agent_batches','monitoring_observations','monitoring_consensus_current','monitoring_consensus_snapshots')"
+);
+$distributedRelations = [];
+if ($foreignKeys instanceof mysqli_result) {
+    foreach ($foreignKeys->fetch_all(MYSQLI_ASSOC) as $foreignKey) {
+        $distributedRelations[(string)$foreignKey['TABLE_NAME'] . '.' . (string)$foreignKey['COLUMN_NAME']] = (string)$foreignKey['REFERENCED_TABLE_NAME'];
+    }
+    $foreignKeys->free();
+}
+$expectedRelations = [
+    'monitoring_assignments.site_id' => 'sites',
+    'monitoring_assignments.node_id' => 'monitoring_nodes',
+    'monitoring_agent_requests.node_id' => 'monitoring_nodes',
+    'monitoring_agent_batches.node_id' => 'monitoring_nodes',
+    'monitoring_observations.site_id' => 'sites',
+    'monitoring_observations.node_id' => 'monitoring_nodes',
+    'monitoring_consensus_current.site_id' => 'sites',
+    'monitoring_consensus_snapshots.site_id' => 'sites',
+];
+foreach ($expectedRelations as $relation => $target) {
+    if (($distributedRelations[$relation] ?? '') !== $target) {
+        fwrite(STDERR, "Missing distributed relation: {$relation}.\n");
+        exit(1);
+    }
+}
+$database->close();
 
 $createdIds = [];
 try {

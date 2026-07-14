@@ -1,26 +1,27 @@
 <!DOCTYPE html>
-<html lang="fr" data-insight-theme="system">
+<html lang="{{INSIGHT_LOCALE}}" data-insight-theme="system">
 <head>
   {{INSIGHT_HEAD}}
 </head>
 <body class="status-page">
   <div id="preloader" class="insight-preloader" role="status" aria-label="Loading" data-i18n-aria-label="common.loading">
-    <img src="/favicons/favicon.svg" alt="" width="34" height="34">
+    <img src="{{INSIGHT_LOGO_URL}}" alt="" width="34" height="34">
     <span>{{INSIGHT_APP_NAME}}</span>
   </div>
   <header class="insight-topbar">
     <div class="insight-topbar-inner">
-      <a class="insight-brand" href="/" aria-label="Insight home" data-i18n-aria-label="common.home">
-        <img class="insight-brand-mark" src="/favicons/favicon.svg" alt="" width="32" height="32">
+      <a class="insight-brand" href="{{INSIGHT_PAGE_URL}}" aria-label="Insight home" data-i18n-aria-label="common.home">
+        <img class="insight-brand-mark" src="{{INSIGHT_LOGO_URL}}" alt="" width="32" height="32">
         <span>{{INSIGHT_APP_NAME}}</span>
       </a>
       <nav class="insight-topbar-actions" aria-label="Public links" data-i18n-aria-label="common.publicLinks">
+        <div class="insight-navigation-links">{{INSIGHT_NAVIGATION_LINKS}}</div>
         <label class="status-timezone-control status-timezone-control-nav" for="statusTimezoneSelect">
           <span class="sr-only" data-i18n="common.timezone">Time zone</span>
           <select id="statusTimezoneSelect" data-status-timezone-select data-status-timezone-format="nav" aria-label="Time zone" data-i18n-aria-label="common.timezone"></select>
         </label>
         <div id="insight-controls-root"></div>
-        <a class="insight-icon-link insight-rss-link" href="/hourly_stats_report.php?contract=v2&amp;mode=incidents&amp;format=rss" aria-label="Incident RSS feed" title="Incident RSS feed" data-i18n-aria-label="common.rssIncidents" data-i18n-title="common.rssIncidents">
+        <a class="insight-icon-link insight-rss-link" href="{{INSIGHT_RSS_URL}}" aria-label="Incident RSS feed" title="Incident RSS feed" data-i18n-aria-label="common.rssIncidents" data-i18n-title="common.rssIncidents">
           <i class="fa-solid fa-rss" aria-hidden="true"></i>
         </a>
         <a class="insight-icon-link insight-admin-link" href="/admin/" aria-label="Administration" title="Administration" data-i18n-aria-label="admin.open" data-i18n-title="admin.open">
@@ -30,12 +31,14 @@
       </nav>
     </div>
   </header>
+  {{INSIGHT_ANNOUNCEMENT}}
   <div id="status-wrapper">
     <header id="system-status" class="status-hero">
       <div class="status-hero-inner">
         <div class="status-hero-copy">
           <p class="status-eyebrow" data-i18n="common.monitoring">Monitoring</p>
           <h1 data-i18n="common.serviceStatus">Service status</h1>
+          <p class="status-page-description">{{INSIGHT_PAGE_DESCRIPTION}}</p>
         </div>
         <section class="status-overview-panel status-grid-card" data-status="loading" aria-live="polite">
           <span class="status-overview-signal" aria-hidden="true"><i class="fa-solid fa-satellite-dish"></i></span>
@@ -62,11 +65,11 @@
           <h2 id="status-section-title" data-i18n="common.services">Services</h2>
         </div>
         <div class="status-section-actions">
-          <div id="statusDetailActions" class="status-detail-actions"></div>
           <button id="statusBackButton" class="status-back-button hidden" type="button" aria-label="Back to services" data-i18n-aria-label="common.backToServices">
             <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
             <span data-i18n="common.back">Back</span>
           </button>
+          <div id="statusDetailActions" class="status-detail-actions"></div>
         </div>
       </div>
       <div id="statusTab" class="tab-content mt-6">
@@ -84,6 +87,11 @@
         <p data-i18n="common.reportDescription">Report it to the team managing this instance.</p>
       </div>
       <a href="{{INSIGHT_CONTACT_MAILTO}}"><i class="fa-regular fa-envelope" aria-hidden="true"></i><span data-i18n="common.reportCta">Contact the team</span></a>
+    </section>
+    <section id="status-subscriptions" class="status-subscriptions" aria-labelledby="status-subscriptions-title">
+      <div><h3 id="status-subscriptions-title" data-i18n="subscriptions.title">Status updates by email</h3><p data-i18n="subscriptions.description">Receive incident and maintenance updates for this page.</p></div>
+      <form data-subscription-form><label><span class="sr-only" data-i18n="subscriptions.email">Email address</span><i class="fa-regular fa-envelope" aria-hidden="true"></i><input type="email" name="email" required autocomplete="email" placeholder="you@example.com" data-i18n-placeholder="subscriptions.placeholder"></label><div class="status-subscription-scope" data-subscription-scope hidden><button type="button" data-subscription-scope-trigger aria-expanded="false"><i class="fa-solid fa-list-check" aria-hidden="true"></i><span data-subscription-scope-label data-i18n="subscriptions.allServices">All services</span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button><div class="status-subscription-scope-panel" data-subscription-scope-panel hidden></div></div><button type="submit"><span data-i18n="subscriptions.submit">Subscribe</span></button></form>
+      <p class="status-subscriptions-feedback" data-subscription-feedback aria-live="polite"></p>
     </section>
   </div>
   <div id="runtimeDegradedModal" class="runtime-modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="runtimeDegradedModalTitle">
@@ -105,13 +113,14 @@
       <a href="{{INSIGHT_CONTACT_MAILTO}}">{{INSIGHT_CONTACT_EMAIL}}</a>
     </div>
   </footer>
-  <script src="/js/i18n.js?v=insight-i18n-6"></script>
-  <script type="module" src="/assets/shadcn-theme.js?v=insight-shadcn-6"></script>
+  <script src="/js/i18n.js?v=insight-013"></script>
+  <script type="module" src="/assets/shadcn-theme.js?v=insight-013"></script>
   <script src="/assets/chart.umd.js?v=4.5.1" defer></script>
-  <script src="/js/status/core.js?v=insight-oss-2" defer></script>
-  <script src="/js/status/api.js?v=insight-oss-4" defer></script>
-  <script src="/js/status/status.js?v=insight-oss-3" defer></script>
-  <script src="/js/status/render.js?v=insight-oss-2" defer></script>
-  <script src="/js/status/bootstrap.js?v=insight-oss-2" defer></script>
+  <script src="/js/status/core.js?v=insight-013" defer></script>
+  <script src="/js/status/api.js?v=insight-013" defer></script>
+  <script src="/js/status/status.js?v=insight-013" defer></script>
+  <script src="/js/status/render.js?v=insight-013" defer></script>
+  <script src="/js/status/bootstrap.js?v=insight-013" defer></script>
+  <script src="/js/status/subscriptions.js?v=insight-013" defer></script>
 </body>
 </html>

@@ -51,7 +51,7 @@ for (const sourceRoot of sourceRoots) {
     const patterns = [
       /\binsightT\(\s*["']([^"']+)["']/g,
       /\bt\(\s*["']([^"']+)["']/g,
-      /data-i18n(?:-aria-label|-title|-placeholder)?=["']([^"']+)["']/g,
+      /data-i18n(?:-aria-label|-title|-placeholder|-description)?=["']([^"']+)["']/g,
     ]
     for (const pattern of patterns) {
       for (const match of content.matchAll(pattern)) {

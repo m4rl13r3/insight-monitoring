@@ -34,7 +34,7 @@ function insight_admin_page_start(
         'apiBaseUrl' => '',
         'defaultLocale' => strtolower(insight_admin_env('INSIGHT_DEFAULT_LOCALE', 'auto')),
         'supportedLocales' => insight_admin_supported_locales(),
-        'localeVersion' => 'insight-i18n-6',
+        'localeVersion' => 'insight-i18n-7',
         'csrfToken' => insight_auth_csrf_token(),
     ];
     $configJson = json_encode(
@@ -53,8 +53,8 @@ function insight_admin_page_start(
   <script nonce="<?= insight_admin_escape($nonce) ?>">(function(){var t="system";try{var s=localStorage.getItem("insight-ui-theme");if(s==="light"||s==="dark"||s==="system"){t=s}}catch(e){}var r=t==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):t;document.documentElement.classList.remove("light","dark");document.documentElement.classList.add(r);document.documentElement.dataset.insightTheme=t;document.documentElement.style.colorScheme=r;var m=document.querySelector("meta[name=theme-color]");if(m){m.content=r==="dark"?"#09090b":"#ffffff"}})();</script>
   <title><?= insight_admin_escape($appName) ?> · Administration</title>
   <link rel="icon" href="/favicons/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/assets/shadcn.css?v=insight-shadcn-3">
-  <link rel="stylesheet" href="/admin/admin.css?v=insight-admin-7">
+  <link rel="stylesheet" href="/assets/shadcn.css?v=insight-013">
+  <link rel="stylesheet" href="/admin/admin.css?v=insight-013">
   <script nonce="<?= insight_admin_escape($nonce) ?>">window.INSIGHT_CONFIG=<?= $configJson ?>;</script>
 </head>
 <body class="<?= insight_admin_escape($classes) ?>">
@@ -84,9 +84,9 @@ function insight_admin_auth_topbar(): void
 function insight_admin_page_end(): void
 {
     ?>
-  <script src="/js/i18n.js?v=insight-i18n-6"></script>
-  <script type="module" src="/assets/shadcn-theme.js?v=insight-shadcn-6"></script>
-  <script src="/admin/admin.js?v=insight-admin-9" defer></script>
+  <script src="/js/i18n.js?v=insight-013"></script>
+  <script type="module" src="/assets/shadcn-theme.js?v=insight-013"></script>
+  <script src="/admin/admin.js?v=insight-013" defer></script>
 </body>
 </html>
 <?php

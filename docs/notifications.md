@@ -37,9 +37,25 @@ Each channel can independently subscribe to:
 - `monitor_down`: one or more targets become unavailable.
 - `monitor_up`: targets respond again.
 - `incident_open`: Insight opens an incident.
+- `incident_update`: an operator publishes an incident update.
+- `incident_acknowledged`: an operator acknowledges an incident.
 - `incident_resolved`: Insight resolves an incident.
+- `tls_expiring`: a certificate approaches its configured expiration threshold.
+- `tls_invalid`: a certificate cannot be validated.
+- `maintenance_started`: a scheduled maintenance window starts.
+- `maintenance_ended`: a scheduled maintenance window ends.
 
 Simultaneous changes within the same domain are grouped to avoid a burst of messages.
+
+## On-call escalation
+
+An on-call rotation maps recurring or one-time shifts to existing notification channels. Each rotation defines its timezone, monitor scope, minimum severity, first delay, repeat interval, and maximum number of alerts. Only incidents in `started` or `monitoring` state are escalated; acknowledging or resolving the incident stops the sequence. Failed deliveries are retried three times, while idempotency keys prevent duplicate successful deliveries.
+
+On-call messages are internal. They never trigger public subscriber email, even though they reuse the incident templates and delivery engine.
+
+## Status page subscribers
+
+Public subscriptions require `INSIGHT_STATUS_SUBSCRIPTIONS_ENABLED=1`, automatic notifications enabled, `INSIGHT_STATUS_SUBSCRIBER_SECRET` with at least 32 characters, and a tested SMTP channel. Insight uses the first eligible SMTP channel unless `INSIGHT_STATUS_SUBSCRIBER_SMTP_CHANNEL_ID` selects one explicitly. Confirmation and unsubscribe tokens are signed, requests are rate-limited, and delivery follows each status page's monitor scope. A custom page without assigned monitors receives no events; only the unconfigured `default` page represents all public monitors. Internal incident updates and maintenance windows with public notification disabled are never sent to subscribers.
 
 ## Liquid messages
 

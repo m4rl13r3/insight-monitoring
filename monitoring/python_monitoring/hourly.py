@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta
 
 from .aggregation_state import aggregation_cutoff, aggregation_job_name, mark_aggregation_success
@@ -7,7 +8,7 @@ from .db import Database
 from .table_names import table_name, table_sql
 
 
-SUPPORTED_CALC_METHODS = {"inherit", "legacy", "time_weighted"}
+SUPPORTED_CALC_METHODS = {"inherit", "legacy", "time_weighted", "sample_ratio", "interval_capped", "strict_sla"}
 
 
 def _build_binary_sequence(statuses: list[int]) -> str:
@@ -87,8 +88,10 @@ def _ensure_hourly_stats_calc_columns(db: Database, hourly_table: str) -> None:
         "sample_count": "INT NOT NULL DEFAULT 0",
         "response_time_sum": "DECIMAL(16,3) NOT NULL DEFAULT 0",
         "availability_ratio": "DECIMAL(7,4) NULL",
+        "availability_basis_seconds": "INT NOT NULL DEFAULT 0",
         "health_score": "DECIMAL(7,4) NULL",
         "calc_method": "VARCHAR(24) NULL",
+        "method_details": "JSON NULL",
     }
     for column, ddl in definitions.items():
         exists = db.query_one(
@@ -116,7 +119,7 @@ def _ensure_calc_settings_table(db: Database) -> dict:
         CREATE TABLE IF NOT EXISTS monitoring_calc_settings (
             singleton_id TINYINT NOT NULL DEFAULT 1,
             switch_at DATETIME NOT NULL,
-            default_calc_method VARCHAR(24) NOT NULL DEFAULT 'time_weighted',
+            default_calc_method VARCHAR(24) NOT NULL DEFAULT 'interval_capped',
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (singleton_id)
@@ -133,9 +136,9 @@ def _ensure_calc_settings_table(db: Database) -> dict:
     )
     if row:
         switch_dt = _parse_dt(row.get("switch_at"))
-        default_method = str(row.get("default_calc_method") or "time_weighted").strip().lower()
-        if default_method not in {"legacy", "time_weighted"}:
-            default_method = "time_weighted"
+        default_method = str(row.get("default_calc_method") or "interval_capped").strip().lower()
+        if default_method not in SUPPORTED_CALC_METHODS - {"inherit"}:
+            default_method = "interval_capped"
         return {
             "switch_at": switch_dt,
             "default_calc_method": default_method,
@@ -146,24 +149,24 @@ def _ensure_calc_settings_table(db: Database) -> dict:
     db.execute(
         """
         INSERT INTO monitoring_calc_settings (singleton_id, switch_at, default_calc_method)
-        VALUES (1, %s, 'time_weighted')
+        VALUES (1, %s, 'interval_capped')
         ON DUPLICATE KEY UPDATE switch_at = switch_at
         """,
         (switch_value,),
     )
     return {
         "switch_at": switch_dt,
-        "default_calc_method": "time_weighted",
+        "default_calc_method": "interval_capped",
     }
 
 
 def _effective_calc_method(site_calc_method: str, slot_start: datetime, switch_at: datetime | None, default_calc_method: str) -> str:
     site_method = _normalize_calc_method(site_calc_method)
-    if site_method in {"legacy", "time_weighted"}:
+    if site_method != "inherit":
         return site_method
-    default_method = str(default_calc_method or "time_weighted").strip().lower()
-    if default_method not in {"legacy", "time_weighted"}:
-        default_method = "time_weighted"
+    default_method = str(default_calc_method or "interval_capped").strip().lower()
+    if default_method not in SUPPORTED_CALC_METHODS - {"inherit"}:
+        default_method = "interval_capped"
     if switch_at is None:
         return default_method
     if slot_start >= switch_at:
@@ -178,10 +181,11 @@ def _compute_weighted_hour_metrics(
     slot_end: datetime,
     *,
     probes_table_sql: str,
+    validity_cap_sec: int | None = None,
 ) -> dict:
     prev = db.query_one(
         f"""
-        SELECT status
+        SELECT checked_at, status
         FROM {probes_table_sql}
         WHERE site_id = %s
           AND checked_at < %s
@@ -191,6 +195,7 @@ def _compute_weighted_hour_metrics(
         (site_id, slot_start.strftime("%Y-%m-%d %H:%M:%S")),
     )
     previous_bucket = _status_bucket(prev.get("status")) if prev else "unknown"
+    previous_checked_at = _parse_dt(prev.get("checked_at")) if prev else None
 
     rows = db.query_all(
         f"""
@@ -212,6 +217,7 @@ def _compute_weighted_hour_metrics(
     minute_statuses = [0] * 60
     response_time_sum = 0.0
     sample_count = 0
+    sample_status_counts = {"online": 0, "offline": 0, "degraded": 0, "maintenance": 0, "unknown": 0}
     for row in rows:
         checked_at = _parse_dt(row.get("checked_at"))
         if checked_at is None:
@@ -220,6 +226,7 @@ def _compute_weighted_hour_metrics(
             continue
         bucket = _status_bucket(row.get("status"))
         checkpoints.append((checked_at, bucket))
+        sample_status_counts[bucket] = sample_status_counts.get(bucket, 0) + 1
         if 0 <= checked_at.minute < 60:
             minute_statuses[checked_at.minute] = 1 if bucket == "online" else 0
         response_time = row.get("response_time")
@@ -240,19 +247,40 @@ def _compute_weighted_hour_metrics(
 
     cursor = slot_start
     current_bucket = previous_bucket
+    valid_until = previous_checked_at + timedelta(seconds=validity_cap_sec) if validity_cap_sec is not None and previous_checked_at is not None else None
+
+    def accumulate(until: datetime) -> None:
+        nonlocal cursor, current_bucket, valid_until
+        if until <= cursor:
+            return
+        if validity_cap_sec is not None and valid_until is not None and valid_until <= cursor:
+            current_bucket = "unknown"
+            valid_until = None
+        if validity_cap_sec is not None and valid_until is not None and valid_until < until:
+            active_delta = max(0, int((valid_until - cursor).total_seconds()))
+            if active_delta > 0:
+                totals[current_bucket] = totals.get(current_bucket, 0) + active_delta
+            unknown_delta = max(0, int((until - valid_until).total_seconds()))
+            totals["unknown"] += unknown_delta
+            cursor = until
+            current_bucket = "unknown"
+            valid_until = None
+            return
+        delta = max(0, int((until - cursor).total_seconds()))
+        if delta > 0:
+            totals[current_bucket] = totals.get(current_bucket, 0) + delta
+        cursor = until
+
     for checked_at, bucket in checkpoints:
         if checked_at < cursor:
             current_bucket = bucket
+            valid_until = checked_at + timedelta(seconds=validity_cap_sec) if validity_cap_sec is not None else None
             continue
-        delta = int((checked_at - cursor).total_seconds())
-        if delta > 0:
-            totals[current_bucket] = totals.get(current_bucket, 0) + delta
-        cursor = checked_at
+        accumulate(checked_at)
         current_bucket = bucket
+        valid_until = checked_at + timedelta(seconds=validity_cap_sec) if validity_cap_sec is not None else None
 
-    remaining = int((slot_end - cursor).total_seconds())
-    if remaining > 0:
-        totals[current_bucket] = totals.get(current_bucket, 0) + remaining
+    accumulate(slot_end)
 
     total_seconds = int((slot_end - slot_start).total_seconds())
     maintenance_seconds = int(totals.get("maintenance", 0))
@@ -277,6 +305,8 @@ def _compute_weighted_hour_metrics(
         "unknown_seconds": unknown_seconds,
         "binary_sequence": _build_binary_sequence(minute_statuses),
         "sample_count": sample_count,
+        "observation_count": sum(sample_status_counts.values()),
+        "sample_status_counts": sample_status_counts,
         "response_time_sum": round(response_time_sum, 3),
         "availability_ratio": availability_ratio,
         "health_score": health_score,
@@ -289,6 +319,7 @@ def process_hourly(
     date_value: str,
     hour_value: int,
     calc_method: str,
+    probe_interval_sec: int = 60,
     *,
     probes_table_sql: str,
     hourly_table_sql: str,
@@ -299,12 +330,15 @@ def process_hourly(
     )
     slot_end = slot_start + timedelta(hours=1)
 
+    interval_sec = max(10, min(86400, int(probe_interval_sec or 60)))
+    validity_cap_sec = max(30, min(3600, interval_sec * 2)) if calc_method == "interval_capped" else None
     weighted = _compute_weighted_hour_metrics(
         db,
         site_id,
         slot_start,
         slot_end,
         probes_table_sql=probes_table_sql,
+        validity_cap_sec=validity_cap_sec,
     )
     binary_sequence = str(weighted["binary_sequence"])
     minutes_offline = binary_sequence.count("0")
@@ -319,15 +353,48 @@ def process_hourly(
     if minutes_offline_weighted > 60:
         minutes_offline_weighted = 60
 
-    if calc_method == "time_weighted":
+    total_seconds = int(weighted["total_seconds"])
+    offline_seconds = int(weighted["offline_seconds"])
+    degraded_seconds = int(weighted["degraded_seconds"])
+    maintenance_seconds = int(weighted["maintenance_seconds"])
+    unknown_seconds = int(weighted["unknown_seconds"])
+    method_details: dict[str, object] = {"version": 1}
+
+    if calc_method in {"time_weighted", "interval_capped"}:
         stored_minutes_offline = minutes_offline_weighted
-        total_seconds = int(weighted["total_seconds"])
-        offline_seconds = int(weighted["offline_seconds"])
-        degraded_seconds = int(weighted["degraded_seconds"])
-        maintenance_seconds = int(weighted["maintenance_seconds"])
-        unknown_seconds = int(weighted["unknown_seconds"])
         availability_ratio = weighted["availability_ratio"]
         health_score = weighted["health_score"]
+        availability_basis_seconds = max(0, total_seconds - maintenance_seconds - unknown_seconds)
+        if calc_method == "interval_capped":
+            method_details["validity_cap_seconds"] = validity_cap_sec
+    elif calc_method == "sample_ratio":
+        counts = dict(weighted.get("sample_status_counts") or {})
+        online_samples = int(counts.get("online") or 0)
+        offline_samples = int(counts.get("offline") or 0)
+        degraded_samples = int(counts.get("degraded") or 0)
+        eligible_samples = online_samples + offline_samples + degraded_samples
+        availability_basis_seconds = eligible_samples * interval_sec
+        if eligible_samples > 0:
+            availability_ratio = round((online_samples + degraded_samples) / eligible_samples, 4)
+            health_score = round((online_samples + (0.5 * degraded_samples)) / eligible_samples, 4)
+            stored_minutes_offline = int(round((1.0 - availability_ratio) * 60.0))
+        else:
+            availability_ratio = None
+            health_score = None
+            stored_minutes_offline = 0
+        method_details.update({"eligible_samples": eligible_samples, "sample_interval_seconds": interval_sec})
+    elif calc_method == "strict_sla":
+        availability_basis_seconds = max(0, total_seconds - maintenance_seconds)
+        unavailable_seconds = offline_seconds + degraded_seconds + unknown_seconds
+        if availability_basis_seconds > 0:
+            availability_ratio = round(max(0.0, min(1.0, (availability_basis_seconds - unavailable_seconds) / availability_basis_seconds)), 4)
+            health_score = availability_ratio
+            stored_minutes_offline = int(round(unavailable_seconds / 60.0))
+        else:
+            availability_ratio = None
+            health_score = None
+            stored_minutes_offline = 0
+        method_details["unavailable_states"] = ["offline", "degraded", "unknown"]
     else:
         stored_minutes_offline = minutes_offline_legacy
         total_seconds = 3600
@@ -337,12 +404,14 @@ def process_hourly(
         offline_seconds = max(0, min(3600, minutes_offline_legacy * 60))
         availability_ratio = round(max(0.0, min(1.0, (3600 - offline_seconds) / 3600)), 4)
         health_score = availability_ratio
+        availability_basis_seconds = 3600
+        method_details["compatibility_mode"] = True
 
     db.execute(
         f"""
         INSERT INTO {hourly_table_sql}
-            (site_id, date, hour, avg_response_time, minutes_offline, binary_sequence, total_seconds, offline_seconds, degraded_seconds, maintenance_seconds, unknown_seconds, sample_count, response_time_sum, availability_ratio, health_score, calc_method, checked_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            (site_id, date, hour, avg_response_time, minutes_offline, binary_sequence, total_seconds, offline_seconds, degraded_seconds, maintenance_seconds, unknown_seconds, sample_count, response_time_sum, availability_ratio, availability_basis_seconds, health_score, calc_method, method_details, checked_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
         ON DUPLICATE KEY UPDATE
             avg_response_time = VALUES(avg_response_time),
             minutes_offline = VALUES(minutes_offline),
@@ -355,8 +424,10 @@ def process_hourly(
             sample_count = VALUES(sample_count),
             response_time_sum = VALUES(response_time_sum),
             availability_ratio = VALUES(availability_ratio),
+            availability_basis_seconds = VALUES(availability_basis_seconds),
             health_score = VALUES(health_score),
             calc_method = VALUES(calc_method),
+            method_details = VALUES(method_details),
             checked_at = NOW()
         """,
         (
@@ -374,8 +445,10 @@ def process_hourly(
             sample_count,
             response_time_sum,
             availability_ratio,
+            availability_basis_seconds,
             health_score,
             calc_method,
+            json.dumps(method_details, ensure_ascii=False, separators=(",", ":")),
         ),
     )
     return True
@@ -391,7 +464,7 @@ def run_hourly_job(db: Database, cfg: dict | None = None) -> dict:
     _ensure_hourly_stats_calc_columns(db, hourly_table)
     calc_settings = _ensure_calc_settings_table(db)
     switch_at = calc_settings.get("switch_at")
-    default_calc_method = str(calc_settings.get("default_calc_method") or "time_weighted")
+    default_calc_method = str(calc_settings.get("default_calc_method") or "interval_capped")
     try:
         reprocess_hours = int(str(cfg.get("aggregation_reprocess_hours", "2")).strip())
     except Exception:
@@ -407,7 +480,7 @@ def run_hourly_job(db: Database, cfg: dict | None = None) -> dict:
 
     processed = 0
     bad_data = 0
-    sites = db.query_all("SELECT id, calc_method FROM sites")
+    sites = db.query_all("SELECT id, calc_method, probe_interval_sec FROM sites")
 
     for site in sites:
         site_id = int(site.get("id") or 0)
@@ -457,6 +530,7 @@ def run_hourly_job(db: Database, cfg: dict | None = None) -> dict:
                     date_value,
                     hour_value,
                     effective_method,
+                    int(site.get("probe_interval_sec") or 60),
                     probes_table_sql=probes_table_sql,
                     hourly_table_sql=hourly_table_sql,
                 )

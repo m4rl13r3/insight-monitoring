@@ -153,6 +153,22 @@ if [ "$strict" -eq 1 ]; then
         fi
 
         if printf '%s\n' "$running_services" | grep -qx db; then
+            applied_migrations="$("${compose[@]}" exec -T db sh -lc 'mariadb --batch --skip-column-names -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" "$MARIADB_DATABASE" -e "SELECT CONCAT(version, CHAR(9), checksum) FROM insight_schema_migrations ORDER BY version"' 2>/dev/null || true)"
+            for migration in database/migrations/*.sql; do
+                [ -f "$migration" ] || continue
+                version="$(basename "$migration")"
+                if command -v shasum >/dev/null 2>&1; then
+                    expected_checksum="$(shasum -a 256 "$migration" | awk '{print $1}')"
+                else
+                    expected_checksum="$(sha256sum "$migration" | awk '{print $1}')"
+                fi
+                stored_checksum="$(printf '%s\n' "$applied_migrations" | awk -F '\t' -v wanted="$version" '$1 == wanted {print $2; exit}')"
+                if [ -z "$stored_checksum" ]; then
+                    fail "apply pending migration ${version}"
+                elif [ "$stored_checksum" != "$expected_checksum" ]; then
+                    fail "migration ${version} does not match its applied checksum"
+                fi
+            done
             db_report="$("${compose[@]}" exec -T db sh -lc 'mariadb --batch --skip-column-names -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" "$MARIADB_DATABASE" -e "SELECT COUNT(*) FROM sites; SELECT COUNT(*) FROM sites WHERE LOWER(url) IN (\"http://web\", \"db\", \"db:3306\") OR LOWER(url) LIKE \"%example.com%\" OR LOWER(url) LIKE \"%example.net%\" OR LOWER(url) LIKE \"%example.org%\"; SELECT COUNT(*) FROM notification_channels WHERE enabled = 1; SELECT COUNT(*) FROM notification_channels WHERE enabled = 1 AND last_status = \"success\" AND last_test_at IS NOT NULL; SELECT COUNT(*) FROM monitoring_public_runtime_state WHERE singleton_id = 1 AND monitor_last_ok = 1 AND last_monitor_at IS NOT NULL;"' 2>/dev/null || true)"
             sites_count="$(printf '%s\n' "$db_report" | sed -n '1p')"
             smoke_count="$(printf '%s\n' "$db_report" | sed -n '2p')"

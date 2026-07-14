@@ -1,7 +1,7 @@
 {
   "name": "insight-status",
   "version": "0.1.3",
-  "description": "Self-hosted status page with HTTP, ICMP, and TCP monitoring.",
+  "description": "Self-hosted status page with HTTP, ICMP, TCP, DNS, and heartbeat monitoring.",
   "private": true,
   "license": "MIT",
   "engines": {

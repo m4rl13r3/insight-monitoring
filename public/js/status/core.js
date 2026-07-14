@@ -31,7 +31,7 @@ function getStatusRouteState() {
     const view = (params.get("view") || "").toLowerCase();
     const domain = params.get("domain");
     const rawDate = params.get("date");
-    const date = parseDateKey(rawDate || "") ? rawDate : null;
+    const date = isStatusHistoryDate(rawDate || "") ? rawDate : null;
     const isProbeRoute = (go === "probe" || go === "sonde" || view === "probe");
     return {
         isProbeRoute,
@@ -402,7 +402,7 @@ function buildStatusTimeZoneCombobox(select) {
             <i class="fa-solid fa-chevron-down status-timezone-combobox-chevron" aria-hidden="true"></i>
         </button>
         <div class="status-timezone-combobox-panel hidden">
-            <input class="status-timezone-search" type="search" autocomplete="off" placeholder="Search for a city or time zone"timezone.searchPlaceholder"))}" aria-label="Search for a time zone"timezone.searchAria"))}" data-i18n-placeholder="timezone.searchPlaceholder" data-i18n-aria-label="timezone.searchAria">
+            <input class="status-timezone-search" type="search" autocomplete="off" placeholder="Search for a city or time zone" aria-label="Search for a time zone" data-i18n-placeholder="timezone.searchPlaceholder" data-i18n-aria-label="timezone.searchAria">
             <div class="status-timezone-combobox-list" role="listbox"></div>
         </div>
     `;
@@ -632,6 +632,19 @@ function parseDateKey(dateKey) {
 
 function isTodayKey(dateKey) {
     return dateKey === formatDateKey(new Date());
+}
+
+function getStatusHistoryDays() {
+    const configured = Number(window.INSIGHT_CONFIG?.statusPageHistoryDays || 90);
+    return Number.isInteger(configured) ? Math.max(1, Math.min(365, configured)) : 90;
+}
+
+function getEarliestStatusDateKey() {
+    return shiftDateKey(formatDateKey(new Date()), -(getStatusHistoryDays() - 1));
+}
+
+function isStatusHistoryDate(dateKey) {
+    return parseDateKey(dateKey) !== null && dateKey >= getEarliestStatusDateKey() && dateKey <= formatDateKey(new Date());
 }
 
 function getDateLabel(dateKey) {

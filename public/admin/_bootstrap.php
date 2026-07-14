@@ -156,6 +156,21 @@ function insight_auth_db(): PDO
         throw new RuntimeException('The local administration schema was not found.');
     }
     $connection->exec($schema);
+    $columns = [];
+    foreach ($connection->query('PRAGMA table_info(auth_users)')->fetchAll() as $column) {
+        $columns[(string)$column['name']] = true;
+    }
+    $authMigrations = [
+        'totp_secret_ciphertext' => 'ALTER TABLE auth_users ADD COLUMN totp_secret_ciphertext TEXT NULL',
+        'totp_enabled' => 'ALTER TABLE auth_users ADD COLUMN totp_enabled INTEGER NOT NULL DEFAULT 0',
+        'totp_last_counter' => 'ALTER TABLE auth_users ADD COLUMN totp_last_counter INTEGER NOT NULL DEFAULT 0',
+        'recovery_codes_json' => "ALTER TABLE auth_users ADD COLUMN recovery_codes_json TEXT NOT NULL DEFAULT '[]'",
+    ];
+    foreach ($authMigrations as $column => $query) {
+        if (!isset($columns[$column])) {
+            $connection->exec($query);
+        }
+    }
     $statement = $connection->prepare('INSERT OR IGNORE INTO auth_meta (key, value) VALUES (:key, :value)');
     $statement->execute([
         'key' => 'rate_limit_secret',
@@ -200,6 +215,33 @@ function insight_auth_dev_user(): array
         'source' => 'development',
         'dev_bypass' => true,
     ];
+}
+
+function insight_auth_role(array $user): string
+{
+    $role = strtolower(trim((string)($user['role'] ?? 'viewer')));
+    return in_array($role, ['admin', 'operator', 'viewer'], true) ? $role : 'viewer';
+}
+
+function insight_auth_can(array $user, string $permission): bool
+{
+    $role = insight_auth_role($user);
+    if ($role === 'admin') {
+        return true;
+    }
+    $operatorPermissions = [
+        'dashboard:view',
+        'monitors:write',
+        'incidents:write',
+        'maintenance:write',
+        'notifications:write',
+        'status_pages:write',
+        'network:write',
+    ];
+    if ($role === 'operator') {
+        return in_array($permission, $operatorPermissions, true);
+    }
+    return $permission === 'dashboard:view';
 }
 
 function insight_auth_is_configured(): bool
@@ -317,6 +359,186 @@ function insight_auth_password_needs_rehash(string $hash): bool
         ]);
     }
     return password_needs_rehash($hash, PASSWORD_DEFAULT, ['cost' => 12]);
+}
+
+function insight_auth_encryption_key(): string
+{
+    $raw = insight_admin_env('INSIGHT_AUTH_ENCRYPTION_KEY', insight_admin_env('INSIGHT_NOTIFICATION_ENCRYPTION_KEY'));
+    if (strlen($raw) < 32 && insight_auth_dev_bypass_enabled()) {
+        $path = dirname(insight_admin_auth_path()) . '/auth-encryption.key';
+        if (is_readable($path)) {
+            $raw = trim((string)file_get_contents($path));
+        }
+        if (strlen($raw) < 32) {
+            $raw = bin2hex(random_bytes(SODIUM_CRYPTO_SECRETBOX_KEYBYTES));
+            if (file_put_contents($path, $raw . PHP_EOL, LOCK_EX) === false) {
+                throw new RuntimeException('admin.security.errorEncryptionKey');
+            }
+            @chmod($path, 0600);
+        }
+    }
+    if (strlen($raw) < 32 || !extension_loaded('sodium')) {
+        throw new RuntimeException('admin.security.errorEncryptionKey');
+    }
+    if (strlen($raw) === 64 && ctype_xdigit($raw)) {
+        $decoded = hex2bin($raw);
+        if (is_string($decoded) && strlen($decoded) === SODIUM_CRYPTO_SECRETBOX_KEYBYTES) {
+            return $decoded;
+        }
+    }
+    try {
+        $decoded = sodium_base642bin($raw, SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING);
+        if (strlen($decoded) === SODIUM_CRYPTO_SECRETBOX_KEYBYTES) {
+            return $decoded;
+        }
+    } catch (Throwable) {
+    }
+    return hash('sha256', $raw, true);
+}
+
+function insight_auth_encrypt(string $value): string
+{
+    $nonce = random_bytes(SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
+    return 'v1:' . sodium_bin2base64(
+        $nonce . sodium_crypto_secretbox($value, $nonce, insight_auth_encryption_key()),
+        SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING
+    );
+}
+
+function insight_auth_decrypt(string $value): string
+{
+    if (!str_starts_with($value, 'v1:')) {
+        throw new RuntimeException('admin.security.errorTotpSecret');
+    }
+    $payload = sodium_base642bin(substr($value, 3), SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING);
+    if (strlen($payload) <= SODIUM_CRYPTO_SECRETBOX_NONCEBYTES) {
+        throw new RuntimeException('admin.security.errorTotpSecret');
+    }
+    $nonce = substr($payload, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
+    $plain = sodium_crypto_secretbox_open(substr($payload, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES), $nonce, insight_auth_encryption_key());
+    if (!is_string($plain)) {
+        throw new RuntimeException('admin.security.errorTotpSecret');
+    }
+    return $plain;
+}
+
+function insight_auth_base32_encode(string $value): string
+{
+    $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    $bits = '';
+    foreach (str_split($value) as $character) {
+        $bits .= str_pad(decbin(ord($character)), 8, '0', STR_PAD_LEFT);
+    }
+    $encoded = '';
+    foreach (str_split($bits, 5) as $chunk) {
+        $encoded .= $alphabet[bindec(str_pad($chunk, 5, '0', STR_PAD_RIGHT))];
+    }
+    return $encoded;
+}
+
+function insight_auth_base32_decode(string $value): string
+{
+    $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    $normalized = strtoupper((string)preg_replace('/[^A-Z2-7]/i', '', $value));
+    $bits = '';
+    foreach (str_split($normalized) as $character) {
+        $position = strpos($alphabet, $character);
+        if ($position === false) {
+            throw new RuntimeException('admin.security.errorTotpSecret');
+        }
+        $bits .= str_pad(decbin($position), 5, '0', STR_PAD_LEFT);
+    }
+    $decoded = '';
+    foreach (str_split($bits, 8) as $chunk) {
+        if (strlen($chunk) === 8) {
+            $decoded .= chr(bindec($chunk));
+        }
+    }
+    return $decoded;
+}
+
+function insight_auth_totp_code(string $secret, int $counter): string
+{
+    $binary = insight_auth_base32_decode($secret);
+    $counterBytes = pack('N2', intdiv($counter, 4294967296), $counter % 4294967296);
+    $hash = hash_hmac('sha1', $counterBytes, $binary, true);
+    $offset = ord($hash[19]) & 15;
+    $number = ((ord($hash[$offset]) & 127) << 24)
+        | ((ord($hash[$offset + 1]) & 255) << 16)
+        | ((ord($hash[$offset + 2]) & 255) << 8)
+        | (ord($hash[$offset + 3]) & 255);
+    return str_pad((string)($number % 1000000), 6, '0', STR_PAD_LEFT);
+}
+
+function insight_auth_totp_counter(string $secret, string $code, int $lastCounter = 0): ?int
+{
+    $normalized = preg_replace('/\D+/', '', $code) ?? '';
+    if (strlen($normalized) !== 6) {
+        return null;
+    }
+    $current = intdiv(time(), 30);
+    for ($offset = -1; $offset <= 1; $offset++) {
+        $counter = $current + $offset;
+        if ($counter > $lastCounter && hash_equals(insight_auth_totp_code($secret, $counter), $normalized)) {
+            return $counter;
+        }
+    }
+    return null;
+}
+
+function insight_auth_recovery_hash(string $code): string
+{
+    $normalized = strtoupper((string)preg_replace('/[^A-Z0-9]/', '', $code));
+    return hash_hmac('sha256', $normalized, insight_auth_encryption_key());
+}
+
+function insight_auth_recovery_codes(): array
+{
+    $plain = [];
+    $hashes = [];
+    for ($index = 0; $index < 8; $index++) {
+        $raw = strtoupper(substr(bin2hex(random_bytes(5)), 0, 10));
+        $code = substr($raw, 0, 5) . '-' . substr($raw, 5);
+        $plain[] = $code;
+        $hashes[] = insight_auth_recovery_hash($code);
+    }
+    return ['plain' => $plain, 'hashes' => $hashes];
+}
+
+function insight_auth_verify_second_factor(array $user, string $code): bool
+{
+    $userId = (int)($user['id'] ?? 0);
+    if ($userId < 1 || (int)($user['totp_enabled'] ?? 0) !== 1) {
+        return false;
+    }
+    $database = insight_auth_db();
+    $normalizedRecovery = strtoupper((string)preg_replace('/[^A-Z0-9]/', '', $code));
+    if (strlen($normalizedRecovery) === 10) {
+        $hashes = json_decode((string)($user['recovery_codes_json'] ?? '[]'), true);
+        $hashes = is_array($hashes) ? array_values(array_filter($hashes, 'is_string')) : [];
+        $candidate = insight_auth_recovery_hash($normalizedRecovery);
+        foreach ($hashes as $index => $hash) {
+            if (hash_equals($hash, $candidate)) {
+                unset($hashes[$index]);
+                $statement = $database->prepare('UPDATE auth_users SET recovery_codes_json=:codes,updated_at=CURRENT_TIMESTAMP WHERE id=:id');
+                $statement->execute(['codes' => json_encode(array_values($hashes), JSON_THROW_ON_ERROR), 'id' => $userId]);
+                return true;
+            }
+        }
+        return false;
+    }
+    try {
+        $secret = insight_auth_decrypt((string)($user['totp_secret_ciphertext'] ?? ''));
+    } catch (Throwable) {
+        return false;
+    }
+    $counter = insight_auth_totp_counter($secret, $code, (int)($user['totp_last_counter'] ?? 0));
+    if ($counter === null) {
+        return false;
+    }
+    $statement = $database->prepare('UPDATE auth_users SET totp_last_counter=:counter,updated_at=CURRENT_TIMESTAMP WHERE id=:id AND totp_last_counter<:counter');
+    $statement->execute(['counter' => $counter, 'id' => $userId]);
+    return $statement->rowCount() === 1;
 }
 
 function insight_auth_csrf_token(): string
@@ -502,6 +724,57 @@ function insight_auth_create_first_admin(
     }
 }
 
+function insight_auth_finish_login(array $user, bool $remember): array
+{
+    $update = insight_auth_db()->prepare(
+        'UPDATE auth_users SET last_login_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = :id'
+    );
+    $update->execute(['id' => (int)$user['id']]);
+    insight_auth_record_attempt((string)$user['username'], true);
+    unset($_SESSION['auth_pending_user'], $_SESSION['auth_pending_remember'], $_SESSION['auth_pending_expires'], $_SESSION['auth_pending_attempts']);
+    insight_auth_open_session($user, $remember);
+    insight_auth_audit('login_succeeded', (int)$user['id']);
+    return ['ok' => true, 'user' => $user];
+}
+
+function insight_auth_totp_pending(): bool
+{
+    return isset($_SESSION['auth_pending_user'], $_SESSION['auth_pending_expires'])
+        && is_array($_SESSION['auth_pending_user'])
+        && (int)$_SESSION['auth_pending_expires'] >= time();
+}
+
+function insight_auth_cancel_pending(): void
+{
+    unset($_SESSION['auth_pending_user'], $_SESSION['auth_pending_remember'], $_SESSION['auth_pending_expires'], $_SESSION['auth_pending_attempts']);
+}
+
+function insight_auth_complete_totp(string $code): array
+{
+    if (!insight_auth_totp_pending()) {
+        insight_auth_cancel_pending();
+        return ['ok' => false, 'error' => 'admin.auth.errorTotpExpired'];
+    }
+    $pending = $_SESSION['auth_pending_user'];
+    $statement = insight_auth_db()->prepare(
+        'SELECT id,username,password_hash,role,totp_enabled,totp_secret_ciphertext,totp_last_counter,recovery_codes_json FROM auth_users WHERE id=:id AND active=1 LIMIT 1'
+    );
+    $statement->execute(['id' => (int)($pending['id'] ?? 0)]);
+    $user = $statement->fetch();
+    if (!is_array($user) || !insight_auth_verify_second_factor($user, $code)) {
+        $_SESSION['auth_pending_attempts'] = (int)($_SESSION['auth_pending_attempts'] ?? 0) + 1;
+        insight_auth_record_attempt((string)($pending['username'] ?? ''), false);
+        insight_auth_audit('login_totp_failed', isset($user['id']) ? (int)$user['id'] : null);
+        if ((int)$_SESSION['auth_pending_attempts'] >= 5) {
+            insight_auth_cancel_pending();
+            return ['ok' => false, 'error' => 'admin.auth.errorTotpExpired'];
+        }
+        return ['ok' => false, 'error' => 'admin.auth.errorTotp'];
+    }
+    $remember = (bool)($_SESSION['auth_pending_remember'] ?? false);
+    return insight_auth_finish_login($user, $remember);
+}
+
 function insight_auth_login(string $username, string $password, bool $remember): array
 {
     $username = trim($username);
@@ -512,7 +785,7 @@ function insight_auth_login(string $username, string $password, bool $remember):
         return ['ok' => false, 'error' => 'admin.auth.errorRateLimit'];
     }
     $statement = insight_auth_db()->prepare(
-        'SELECT id, username, password_hash, role FROM auth_users
+        'SELECT id, username, password_hash, role, totp_enabled, totp_secret_ciphertext, totp_last_counter, recovery_codes_json FROM auth_users
          WHERE username = :username COLLATE NOCASE AND active = 1 LIMIT 1'
     );
     $statement->execute(['username' => $username]);
@@ -534,14 +807,14 @@ function insight_auth_login(string $username, string $password, bool $remember):
             'id' => (int)$user['id'],
         ]);
     }
-    $update = insight_auth_db()->prepare(
-        'UPDATE auth_users SET last_login_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = :id'
-    );
-    $update->execute(['id' => (int)$user['id']]);
-    insight_auth_record_attempt($username, true);
-    insight_auth_open_session($user, $remember);
-    insight_auth_audit('login_succeeded', (int)$user['id']);
-    return ['ok' => true, 'user' => $user];
+    if ((int)($user['totp_enabled'] ?? 0) === 1) {
+        $_SESSION['auth_pending_user'] = ['id' => (int)$user['id'], 'username' => (string)$user['username']];
+        $_SESSION['auth_pending_remember'] = $remember;
+        $_SESSION['auth_pending_expires'] = time() + 300;
+        $_SESSION['auth_pending_attempts'] = 0;
+        return ['ok' => false, 'requires_totp' => true];
+    }
+    return insight_auth_finish_login($user, $remember);
 }
 
 function insight_auth_error_message(?string $key): string
@@ -555,6 +828,8 @@ function insight_auth_error_message(?string $key): string
         'admin.auth.errorSetup' => 'The administrator account could not be created.',
         'admin.auth.errorRateLimit' => 'Too many attempts. Try again in a few minutes.',
         'admin.auth.errorInvalid' => 'Incorrect username or password.',
+        'admin.auth.errorTotp' => 'The verification code is invalid or has already been used.',
+        'admin.auth.errorTotpExpired' => 'The verification request expired. Sign in again.',
         'admin.sso.errorConfiguration' => 'The SSO configuration is incomplete or insecure.',
         'admin.sso.errorDenied' => 'Your SSO identity is not allowed on this instance.',
         'admin.sso.errorSession' => 'The SSO request expired. Start the login again.',

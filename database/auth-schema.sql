@@ -9,6 +9,10 @@ CREATE TABLE IF NOT EXISTS auth_users (
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'admin',
     active INTEGER NOT NULL DEFAULT 1,
+    totp_secret_ciphertext TEXT NULL,
+    totp_enabled INTEGER NOT NULL DEFAULT 0,
+    totp_last_counter INTEGER NOT NULL DEFAULT 0,
+    recovery_codes_json TEXT NOT NULL DEFAULT '[]',
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_login_at TEXT NULL

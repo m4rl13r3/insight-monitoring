@@ -1,0 +1,2 @@
+ALTER TABLE monitoring_nodes
+    MODIFY COLUMN last_seen_at DATETIME(3) NULL DEFAULT NULL;

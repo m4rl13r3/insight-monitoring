@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any, Dict
@@ -10,15 +11,25 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from python_monitoring.actions import add_site, delete_site, list_sites, update_site
-from python_monitoring.comparison import ensure_comparisons_table, record_comparison
-from python_monitoring.compare_shadow import compare_shadow_daily, compare_shadow_hourly
 from python_monitoring.config import load_monitoring_config
+from python_monitoring.declarative import apply_configuration, export_configuration, load_configuration, render_configuration
 from python_monitoring.daily import run_daily_job
 from python_monitoring.db import Database, DbConfig
+from python_monitoring.distributed import (
+    DistributedError,
+    derive_node_secret,
+    list_nodes,
+    process_agent_request,
+    provision_node,
+    run_consensus_job,
+    set_node_status,
+    summary,
+    verify_signature,
+)
 from python_monitoring.hourly import run_hourly_job
 from python_monitoring.monitor import run_manual_check, run_monitor_job
 from python_monitoring.retention import run_retention_job
-from python_monitoring.shadow_tables import ensure_shadow_tables, seed_shadow_probes
+from python_monitoring.runtime_state import write_aggregation_state, write_monitor_state
 
 
 def _monitoring_root(path_override: str | None) -> Path:
@@ -42,7 +53,7 @@ def _database_from_root(root: Path) -> Database:
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Python monitoring bridge")
+    parser = argparse.ArgumentParser(description="Insight monitoring engine")
     parser.add_argument("--root", help="Monitoring root directory", default=None)
 
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -58,11 +69,63 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     action_parser.add_argument("--http-redirect-modes", default="")
     action_parser.add_argument("--http-primary-method", default="")
     action_parser.add_argument("--http-primary-redirect", default="")
+    action_parser.add_argument("--name", default="")
+    action_parser.add_argument("--active", default="1")
+    action_parser.add_argument("--timeout-sec", default="10")
+    action_parser.add_argument("--retry-count", default="2")
+    action_parser.add_argument("--failure-threshold", default="2")
+    action_parser.add_argument("--recovery-threshold", default="2")
+    action_parser.add_argument("--accepted-status-codes", default="200-399")
+    action_parser.add_argument("--keyword-text", default="")
+    action_parser.add_argument("--keyword-mode", default="none")
+    action_parser.add_argument("--json-path", default="")
+    action_parser.add_argument("--json-expected-value", default="")
+    action_parser.add_argument("--request-headers-json", default="")
+    action_parser.add_argument("--request-body", default="")
+    action_parser.add_argument("--basic-auth-username", default="")
+    action_parser.add_argument("--basic-auth-password-ciphertext", default="")
+    action_parser.add_argument("--probe-config-ciphertext", default="")
+    action_parser.add_argument("--browser-script", default="")
+    action_parser.add_argument("--diagnostics-enabled", default="1")
+    action_parser.add_argument("--diagnostic-capture-body", default="0")
+    action_parser.add_argument("--tls-verify", default="1")
+    action_parser.add_argument("--tls-expiry-threshold-days", default="14")
+    action_parser.add_argument("--dns-record-type", default="A")
+    action_parser.add_argument("--dns-expected-value", default="")
+    action_parser.add_argument("--heartbeat-grace-sec", default="300")
+    action_parser.add_argument("--slo-target-percent", default="99.9")
+    action_parser.add_argument("--public-visible", default="1")
 
     subparsers.add_parser("hourly", help="Build hourly stats")
     subparsers.add_parser("daily", help="Build daily stats")
     subparsers.add_parser("retention", help="Remove expired monitoring data")
     subparsers.add_parser("monitor", help="Run monitoring checks")
+    subparsers.add_parser("consensus", help="Evaluate distributed observations")
+    subparsers.add_parser("distributed-summary", help="Read distributed monitoring state")
+
+    config_parser = subparsers.add_parser("config", help="Export, validate, or apply declarative configuration")
+    config_parser.add_argument("action", choices=["export", "validate", "apply"])
+    config_parser.add_argument("--file", default="insight.yml")
+    config_parser.add_argument("--format", choices=["yaml", "json"], default="yaml")
+    config_parser.add_argument("--dry-run", action="store_true")
+    config_parser.add_argument("--prune", action="store_true")
+
+    agent_parser = subparsers.add_parser("agent-request", help="Process an authenticated agent request")
+    agent_parser.add_argument("--node-key", required=True)
+    agent_parser.add_argument("--timestamp", required=True)
+    agent_parser.add_argument("--nonce", required=True)
+    agent_parser.add_argument("--signature", required=True)
+    agent_parser.add_argument("--remote-address", default="unknown")
+
+    secret_parser = subparsers.add_parser("node-secret", help="Derive one agent secret")
+    secret_parser.add_argument("--node-key", required=True)
+
+    nodes_parser = subparsers.add_parser("nodes", help="Manage distributed nodes")
+    nodes_parser.add_argument("action", choices=["list", "provision", "activate", "pause", "revoke"])
+    nodes_parser.add_argument("--node-key", default="")
+    nodes_parser.add_argument("--display-name", default="")
+    nodes_parser.add_argument("--region", default="")
+    nodes_parser.add_argument("--zone", default="")
     manual_check_parser = subparsers.add_parser("manual-check", help="Run one manual check without DB insert")
     manual_check_parser.add_argument("--site-url", default="")
     manual_check_parser.add_argument("--probe-type", default="http")
@@ -70,33 +133,38 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     manual_check_parser.add_argument("--http-redirect-modes", default="")
     manual_check_parser.add_argument("--http-primary-method", default="")
     manual_check_parser.add_argument("--http-primary-redirect", default="")
-    subparsers.add_parser("ensure-comparisons-table", help="Create comparisons table if needed")
-    subparsers.add_parser("ensure-shadow-tables", help="Create suffixed monitoring tables (ex: *_python)")
-
-    seed_parser = subparsers.add_parser("seed-shadow-probes", help="Copy probes -> suffixed probes table")
-    seed_parser.add_argument("--truncate-first", action="store_true")
-
-    compare_hourly_parser = subparsers.add_parser("compare-shadow-hourly", help="Compare php vs python for one hour")
-    compare_hourly_parser.add_argument("--date", default="")
-    compare_hourly_parser.add_argument("--hour", type=int, default=-1)
-
-    compare_daily_parser = subparsers.add_parser("compare-shadow-daily", help="Compare php vs python for one day")
-    compare_daily_parser.add_argument("--date", default="")
-
-    compare_parser = subparsers.add_parser("compare-log", help="Insert one comparison row")
-    compare_parser.add_argument("--key", required=True)
-    compare_parser.add_argument("--scope", default="monitoring")
-    compare_parser.add_argument("--site-id", type=int, default=0)
-    compare_parser.add_argument("--left-source", default="php")
-    compare_parser.add_argument("--right-source", default="python")
-    compare_parser.add_argument("--left-value", default="")
-    compare_parser.add_argument("--right-value", default="")
-    compare_parser.add_argument("--period-start", default="")
-    compare_parser.add_argument("--period-end", default="")
-    compare_parser.add_argument("--tolerance-abs", type=float, default=0.0)
-    compare_parser.add_argument("--tolerance-pct", type=float, default=0.0)
-
     return parser.parse_args(argv)
+
+
+def _site_settings(args: argparse.Namespace) -> Dict[str, Any]:
+    return {
+        "name": args.name,
+        "active": args.active,
+        "timeout_sec": args.timeout_sec,
+        "retry_count": args.retry_count,
+        "failure_threshold": args.failure_threshold,
+        "recovery_threshold": args.recovery_threshold,
+        "accepted_status_codes": args.accepted_status_codes,
+        "keyword_text": args.keyword_text,
+        "keyword_mode": args.keyword_mode,
+        "json_path": args.json_path,
+        "json_expected_value": args.json_expected_value,
+        "request_headers_json": args.request_headers_json,
+        "request_body": args.request_body,
+        "basic_auth_username": args.basic_auth_username,
+        "basic_auth_password_ciphertext": args.basic_auth_password_ciphertext,
+        "probe_config_ciphertext": args.probe_config_ciphertext,
+        "browser_script": args.browser_script,
+        "diagnostics_enabled": args.diagnostics_enabled,
+        "diagnostic_capture_body": args.diagnostic_capture_body,
+        "tls_verify": args.tls_verify,
+        "tls_expiry_threshold_days": args.tls_expiry_threshold_days,
+        "dns_record_type": args.dns_record_type,
+        "dns_expected_value": args.dns_expected_value,
+        "heartbeat_grace_sec": args.heartbeat_grace_sec,
+        "slo_target_percent": args.slo_target_percent,
+        "public_visible": args.public_visible,
+    }
 
 
 def _run_command(args: argparse.Namespace, root: Path, db: Database) -> Dict[str, Any]:
@@ -114,6 +182,7 @@ def _run_command(args: argparse.Namespace, root: Path, db: Database) -> Dict[str
                 args.http_redirect_modes,
                 args.http_primary_method,
                 args.http_primary_redirect,
+                _site_settings(args),
             )
         if args.action == "delete":
             return delete_site(db, int(args.site_id or 0))
@@ -128,6 +197,7 @@ def _run_command(args: argparse.Namespace, root: Path, db: Database) -> Dict[str
             args.http_redirect_modes,
             args.http_primary_method,
             args.http_primary_redirect,
+            _site_settings(args),
         )
 
     if args.command == "hourly":
@@ -146,6 +216,45 @@ def _run_command(args: argparse.Namespace, root: Path, db: Database) -> Dict[str
         cfg = load_monitoring_config(root)
         return run_monitor_job(db, cfg, root)
 
+    if args.command == "consensus":
+        cfg = load_monitoring_config(root)
+        return run_consensus_job(db, cfg)
+
+    if args.command == "distributed-summary":
+        return {"ok": True, "mode": str(os.getenv("INSIGHT_DISTRIBUTED_MODE", "standalone")), "data": summary(db)}
+
+    if args.command == "config":
+        if args.action == "export":
+            document = export_configuration(db)
+            return {"ok": True, "document": document, "rendered": render_configuration(document, str(args.format))}
+        document = load_configuration(str(args.file))
+        if args.action == "validate":
+            return {"ok": True, "version": 1, "monitors": len(document["monitors"]), "runbooks": len(document["runbooks"]), "status_pages": len(document["status_pages"])}
+        return apply_configuration(db, document, prune=bool(args.prune), dry_run=bool(args.dry_run))
+
+    if args.command == "agent-request":
+        raw_body = str(getattr(args, "raw_body", ""))
+        cfg = load_monitoring_config(root)
+        payload = process_agent_request(
+            db,
+            raw_body,
+            str(args.node_key),
+            str(args.timestamp),
+            str(args.nonce),
+            str(args.signature),
+            str(args.remote_address),
+            cfg,
+        )
+        return {"ok": True, "status_code": 200, "payload": payload}
+
+    if args.command == "nodes":
+        if args.action == "list":
+            return list_nodes(db)
+        if args.action == "provision":
+            return provision_node(db, str(args.node_key), str(args.display_name), str(args.region), str(args.zone))
+        status = {"activate": "active", "pause": "paused", "revoke": "revoked"}[str(args.action)]
+        return set_node_status(db, str(args.node_key), status)
+
     if args.command == "manual-check":
         cfg = load_monitoring_config(root)
         if str(args.http_methods or "").strip() != "":
@@ -158,47 +267,7 @@ def _run_command(args: argparse.Namespace, root: Path, db: Database) -> Dict[str
             cfg["http_primary_redirect"] = str(args.http_primary_redirect)
         return run_manual_check(str(args.site_url or ""), str(args.probe_type or "http"), cfg)
 
-    if args.command == "ensure-comparisons-table":
-        ensure_comparisons_table(db)
-        return {"ok": True, "table": "monitoring_data_comparisons"}
-
-    if args.command == "compare-log":
-        site_id = int(args.site_id or 0)
-        return record_comparison(
-            db,
-            comparison_key=str(args.key),
-            scope=str(args.scope or "monitoring"),
-            site_id=site_id if site_id > 0 else None,
-            period_start=str(args.period_start or "") or None,
-            period_end=str(args.period_end or "") or None,
-            source_left=str(args.left_source or "php"),
-            source_right=str(args.right_source or "python"),
-            value_left=str(args.left_value),
-            value_right=str(args.right_value),
-            tolerance_abs=float(args.tolerance_abs or 0.0),
-            tolerance_pct=float(args.tolerance_pct or 0.0),
-        )
-
-    if args.command == "ensure-shadow-tables":
-        cfg = load_monitoring_config(root)
-        return ensure_shadow_tables(db, cfg)
-
-    if args.command == "seed-shadow-probes":
-        cfg = load_monitoring_config(root)
-        return seed_shadow_probes(db, cfg, truncate_first=bool(args.truncate_first))
-
-    if args.command == "compare-shadow-hourly":
-        cfg = load_monitoring_config(root)
-        date_value = str(args.date or "") or None
-        hour_value = None if int(args.hour) < 0 else int(args.hour)
-        return compare_shadow_hourly(db, cfg, date_value=date_value, hour_value=hour_value)
-
-    if args.command == "compare-shadow-daily":
-        cfg = load_monitoring_config(root)
-        date_value = str(args.date or "") or None
-        return compare_shadow_daily(db, cfg, date_value=date_value)
-
-    return {"ok": False, "status_code": 400, "message": "Commande inconnue."}
+    return {"ok": False, "status_code": 400, "message": "Unknown command."}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -207,11 +276,46 @@ def main(argv: list[str] | None = None) -> int:
 
     db: Database | None = None
     try:
+        if args.command == "node-secret":
+            result = {"ok": True, "node_key": str(args.node_key), "secret": derive_node_secret(str(args.node_key))}
+            print(json.dumps(result, ensure_ascii=False))
+            return 0
+        if args.command == "agent-request":
+            args.raw_body = sys.stdin.read()
+            verify_signature(
+                str(args.node_key),
+                str(args.timestamp),
+                str(args.nonce),
+                str(args.signature),
+                str(args.raw_body),
+            )
         db = _database_from_root(root)
         result = _run_command(args, root, db)
-        print(json.dumps(result, ensure_ascii=False, default=str))
-        return 0
+        if args.command == "monitor":
+            write_monitor_state(db, result)
+        elif args.command == "consensus":
+            write_monitor_state(db, result, engine="consensus", checked_by="agents")
+        elif args.command in {"hourly", "daily"}:
+            write_aggregation_state(db, args.command, result)
+        if args.command == "config" and args.action == "export":
+            print(str(result.get("rendered") or ""), end="")
+        else:
+            print(json.dumps(result, ensure_ascii=False, default=str))
+        return 0 if result.get("ok") else 1
+    except DistributedError as exc:
+        print(json.dumps({"ok": False, "status_code": exc.status_code, "message": str(exc)}, ensure_ascii=False))
+        return 1
     except Exception as exc:
+        if db is not None:
+            try:
+                if args.command == "monitor":
+                    write_monitor_state(db, None, error=str(exc))
+                elif args.command == "consensus":
+                    write_monitor_state(db, None, error=str(exc), engine="consensus", checked_by="agents")
+                elif args.command in {"hourly", "daily"}:
+                    write_aggregation_state(db, args.command, None, error=str(exc))
+            except Exception:
+                pass
         print(
             json.dumps(
                 {

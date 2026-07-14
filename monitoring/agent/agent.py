@@ -40,7 +40,7 @@ from python_monitoring.advanced_probes import (
 )
 
 
-VERSION = "0.1.3"
+VERSION = "0.1.4"
 
 
 def env_bool(name: str, default: bool = False) -> bool:

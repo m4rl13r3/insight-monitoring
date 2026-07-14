@@ -18,6 +18,34 @@ Requirements: Docker with the Compose plugin and OpenSSL.
 
 The script creates `.env`, generates the MariaDB passwords and agent master secret, builds the images, and starts Insight. Compose rejects empty passwords.
 
+## Try Insight
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/m4rl13r3/insight-monitoring)
+
+Codespaces starts a temporary private Insight instance with Docker Compose and opens it on port `8080`. It runs in development mode with test-only credentials and data, so it is suitable for trying Insight or contributing but must not be used for a public demo or real monitoring. A user can open the **Ports** panel and copy the private URL after the stack is ready.
+
+## Prebuilt container images
+
+Every Git tag matching `v*` publishes the `php`, `worker`, and `web` images to GitHub Container Registry. A release such as `v0.1.4` produces:
+
+```text
+ghcr.io/m4rl13r3/insight-monitoring/php:v0.1.4
+ghcr.io/m4rl13r3/insight-monitoring/worker:v0.1.4
+ghcr.io/m4rl13r3/insight-monitoring/web:v0.1.4
+```
+
+To install a published release without building locally, create `.env` as usual, then run:
+
+```bash
+export INSIGHT_IMAGE_PREFIX=ghcr.io/m4rl13r3/insight-monitoring
+export INSIGHT_IMAGE_TAG=v0.1.4
+docker compose pull
+docker compose up -d --no-build --wait --wait-timeout 180
+./scripts/migrate.sh
+```
+
+The registry package must be public for anonymous pulls. The workflow publishes both the immutable release tag and `latest`.
+
 For manual configuration, copy `.env.example`, set `INSIGHT_DB_PASSWORD`, `INSIGHT_DB_ROOT_PASSWORD`, and `INSIGHT_NOTIFICATION_ENCRYPTION_KEY` with the output of `openssl rand -hex 32`, then run `docker compose up -d --build`.
 
 Insight is then available at `http://localhost:8080`.

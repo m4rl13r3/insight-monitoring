@@ -22,6 +22,7 @@ services:
       start_period: 15s
 
   php:
+    image: ${INSIGHT_IMAGE_PREFIX:-insight}/php:${INSIGHT_IMAGE_TAG:-local}
     build:
       context: .
     restart: unless-stopped
@@ -139,6 +140,7 @@ services:
       - no-new-privileges:true
 
   worker:
+    image: ${INSIGHT_IMAGE_PREFIX:-insight}/worker:${INSIGHT_IMAGE_TAG:-local}
     build:
       context: .
       dockerfile: docker/worker/Dockerfile
@@ -165,6 +167,7 @@ services:
       - no-new-privileges:true
 
   web:
+    image: ${INSIGHT_IMAGE_PREFIX:-insight}/web:${INSIGHT_IMAGE_TAG:-local}
     build:
       context: .
       dockerfile: docker/web/Dockerfile

@@ -4,6 +4,23 @@ All notable changes to Insight are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.1.4] - 2026-07-14
+
+### Added
+
+- GitHub Container Registry publication for versioned PHP, worker, and web images.
+- A private Docker-based GitHub Codespaces environment for trying Insight without local installation.
+
+### Changed
+
+- Docker Compose can use published images without rebuilding them locally.
+- GitHub Actions now use the current checkout, Node.js, and Python setup actions.
+- The PHP runtime is now based on PHP 8.5.
+
+### Security
+
+- The Codespaces profile uses isolated test-only data and keeps its forwarded port private by default.
+
 ## [0.1.3] - 2026-07-13
 
 ### Added

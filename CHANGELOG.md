@@ -4,6 +4,12 @@ All notable changes to Insight are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.1.5] - 2026-07-14
+
+### Fixed
+
+- Docker smoke tests now enable their isolated development-only administration bypass before exercising private diagnostic routes.
+
 ## [0.1.4] - 2026-07-14
 
 ### Added

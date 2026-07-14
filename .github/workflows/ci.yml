@@ -44,6 +44,8 @@ jobs:
       INSIGHT_DB_ROOT_PASSWORD: ci_root_password
       INSIGHT_AGENT_MASTER_SECRET: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
       INSIGHT_NOTIFICATION_ENCRYPTION_KEY: abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
+      INSIGHT_APP_ENV: development
+      INSIGHT_DEV_AUTH_BYPASS: "1"
     steps:
       - uses: actions/checkout@v7
       - name: Build and load the agent

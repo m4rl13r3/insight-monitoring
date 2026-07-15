@@ -16,7 +16,15 @@ Requirements: Docker with the Compose plugin and OpenSSL.
 ./scripts/install.sh
 ```
 
-The script creates `.env`, generates the MariaDB passwords and agent master secret, builds the images, and starts Insight. Compose rejects empty passwords.
+The script creates `.env`, generates the instance secrets, builds the images, applies migrations, and starts Insight. On the first run it also creates the local `admin` account with a generated password printed once in the terminal. Compose rejects empty passwords.
+
+To choose the initial credentials yourself, provide them with the installation command:
+
+```bash
+INSIGHT_ADMIN_USERNAME=owner INSIGHT_ADMIN_PASSWORD='choose-a-long-unique-password' ./scripts/install.sh
+```
+
+The installer never changes an existing administrator account.
 
 ## Try Insight
 
@@ -52,7 +60,7 @@ Insight is then available at `http://localhost:8080`.
 
 Do not keep local defaults on a public instance. The [Production guide](docs/production.md) covers HTTPS, the first account, real monitors, alert testing, remote agents, and the final `./scripts/production-check.sh --strict` validation.
 
-Open `http://localhost:8080/admin/` to create the first administrator account. Like Uptime Kuma, Insight uses an account local to the instance: no identity provider or external server is required. An external OpenID Connect provider can later be enabled without removing this local fallback access. Accounts, sessions, tokens, and identity keys are stored in the private `insight_auth` volume, separately from MariaDB monitoring data.
+Open `http://localhost:8080/admin/` and sign in with the initial administrator account printed by the installer. Like Uptime Kuma, Insight uses an account local to the instance: no identity provider or external server is required. An external OpenID Connect provider can later be enabled without removing this local fallback access. Accounts, sessions, tokens, and identity keys are stored in the private `insight_auth` volume, separately from MariaDB monitoring data.
 
 Add a first site:
 
@@ -275,7 +283,15 @@ To open the entire administration interface without creating an account, start t
 ./scripts/dev-server.sh
 ```
 
-The bypass is active only when `INSIGHT_APP_ENV=development` and `INSIGHT_DEV_AUTH_BYPASS=1` are set together. It remains disabled by default in Docker and must never be used on an exposed instance.
+For the same local development profile with Docker, use:
+
+```bash
+./scripts/dev-compose.sh
+```
+
+It creates an isolated `insight-development` Compose project, listens only on `127.0.0.1:8080`, and enables the development administrator automatically. The command refuses non-local hosts. Use `INSIGHT_DEV_PORT=18080 ./scripts/dev-compose.sh` to select another local port.
+
+The bypass is active only when `INSIGHT_APP_ENV=development` and `INSIGHT_DEV_AUTH_BYPASS=1` are set together. The development commands set both variables automatically. Docker remains in production mode by default and must never expose the bypass on an Internet-facing instance.
 
 ```bash
 npm ci

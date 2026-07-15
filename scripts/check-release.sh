@@ -14,7 +14,7 @@ if ! command -v rg >/dev/null 2>&1; then
     exit 1
 fi
 
-for required in LICENSE README.md SECURITY.md CONTRIBUTING.md CHANGELOG.md THIRD_PARTY_NOTICES.md .env.example docker-compose.yml docker-compose.docker-probes.yml.example database/schema.sql docs/production.md docs/updates.md docs/probes.md docs/availability-calculation.md docs/configuration-as-code.md licenses/python/paho-mqtt.txt licenses/python/psycopg.txt licenses/python/PyYAML.txt scripts/production-check.sh scripts/backup-scheduled.sh scripts/migrate.sh scripts/update.sh scripts/install-auto-update.sh; do
+for required in LICENSE README.md SECURITY.md CONTRIBUTING.md CHANGELOG.md THIRD_PARTY_NOTICES.md .env.example docker-compose.yml docker-compose.docker-probes.yml.example database/schema.sql docs/production.md docs/updates.md docs/probes.md docs/availability-calculation.md docs/configuration-as-code.md licenses/python/paho-mqtt.txt licenses/python/psycopg.txt licenses/python/PyYAML.txt scripts/production-check.sh scripts/backup-scheduled.sh scripts/create-admin.php scripts/dev-compose.sh scripts/migrate.sh scripts/update.sh scripts/install-auto-update.sh; do
     test -f "$required"
 done
 

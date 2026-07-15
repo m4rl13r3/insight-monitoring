@@ -38,6 +38,33 @@ chmod 600 .env
 
 docker compose up -d --build --wait --wait-timeout 180
 ./scripts/migrate.sh
+
+admin_username="${INSIGHT_ADMIN_USERNAME:-admin}"
+admin_password="${INSIGHT_ADMIN_PASSWORD:-}"
+generated_admin_password=0
+if [ -z "$admin_password" ]; then
+    admin_password="$(openssl rand -hex 24)"
+    generated_admin_password=1
+fi
+
+set +e
+docker compose exec -T \
+    -e "INSIGHT_BOOTSTRAP_ADMIN_USERNAME=$admin_username" \
+    -e "INSIGHT_BOOTSTRAP_ADMIN_PASSWORD=$admin_password" \
+    php php scripts/create-admin.php
+admin_status=$?
+set -e
+
+if [ "$admin_status" -eq 0 ]; then
+    echo "Administrator account: $admin_username"
+    echo "Administrator password: $admin_password"
+    if [ "$generated_admin_password" -eq 1 ]; then
+        echo "Store this generated password now. It will not be printed again."
+    fi
+elif [ "$admin_status" -ne 10 ]; then
+    exit "$admin_status"
+fi
+
 docker compose ps
 
 echo "Insight is running."

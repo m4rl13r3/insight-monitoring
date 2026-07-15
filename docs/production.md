@@ -10,6 +10,8 @@ cd insight
 ./scripts/install.sh
 ```
 
+The installer starts Insight in production mode and prints a generated password for the initial `admin` account once. To set the initial credentials yourself, run `INSIGHT_ADMIN_USERNAME=owner INSIGHT_ADMIN_PASSWORD='choose-a-long-unique-password' ./scripts/install.sh`. The installer leaves an existing administrator account unchanged.
+
 Then edit `.env`:
 
 ```dotenv
@@ -46,7 +48,7 @@ Reload Caddy, then verify that `https://status.example.com/` and `https://status
 
 ## First production start
 
-1. Open `/admin/` from a trusted network and create the first administrator account.
+1. Open `/admin/` from a trusted network and sign in with the initial administrator account created by the installer.
 2. Create the required HTTP, ICMP, TCP, DNS, or heartbeat monitors.
 3. Set an SLO target for each monitor and let the worker complete at least one monitor, hourly, and daily cycle.
 4. Create a channel under **Alerts**, complete a successful test delivery, then set `INSIGHT_DISABLE_NOTIFICATIONS=0`.
